@@ -60,7 +60,10 @@ class FirebaseAuthService implements AuthService {
     }
 
     final credential = GoogleAuthProvider.credential(idToken: idToken);
-    final userCredential = await _firebaseAuth.signInWithCredential(credential);
+    final userCredential = await _signInWithCredential(
+      credential,
+      providerLabel: 'Google',
+    );
     return _sessionFromUserCredential(
       userCredential,
       AuthProvider.google,
@@ -87,8 +90,10 @@ class FirebaseAuthService implements AuthService {
       idToken: idToken,
       accessToken: appleCredential.authorizationCode,
     );
-    final userCredential =
-        await _firebaseAuth.signInWithCredential(oauthCredential);
+    final userCredential = await _signInWithCredential(
+      oauthCredential,
+      providerLabel: 'Apple',
+    );
     return _sessionFromUserCredential(
       userCredential,
       AuthProvider.apple,
@@ -121,6 +126,17 @@ class FirebaseAuthService implements AuthService {
     );
   }
 
+  Future<UserCredential> _signInWithCredential(
+    AuthCredential credential, {
+    required String providerLabel,
+  }) async {
+    try {
+      return await _firebaseAuth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (error) {
+      throw AuthFailure(_oauthAuthMessage(error, providerLabel));
+    }
+  }
+
   String _emailAuthMessage(FirebaseAuthException error) {
     return switch (error.code) {
       'invalid-email' => '이메일 형식을 확인해 주세요.',
@@ -129,6 +145,18 @@ class FirebaseAuthService implements AuthService {
       'too-many-requests' => '로그인 시도가 많습니다. 잠시 후 다시 시도해 주세요.',
       'operation-not-allowed' => 'Firebase 콘솔에서 이메일/비밀번호 로그인을 먼저 활성화해 주세요.',
       _ => '이메일 로그인 중 문제가 발생했습니다.',
+    };
+  }
+
+  String _oauthAuthMessage(FirebaseAuthException error, String providerLabel) {
+    return switch (error.code) {
+      'operation-not-allowed' =>
+        'Firebase 콘솔에서 $providerLabel 로그인을 먼저 활성화해 주세요.',
+      'account-exists-with-different-credential' =>
+        '이미 다른 로그인 방식으로 가입된 이메일입니다.',
+      'invalid-credential' => '$providerLabel 로그인 정보를 확인할 수 없습니다.',
+      'network-request-failed' => '네트워크 연결을 확인해 주세요.',
+      _ => '$providerLabel 로그인 중 문제가 발생했습니다.',
     };
   }
 }

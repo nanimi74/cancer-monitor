@@ -33,13 +33,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signIn(AuthProvider provider) async {
-    if (provider != AuthProvider.email) {
-      setState(() {
-        _errorMessage = 'Apple/Google 로그인은 출시 준비 단계에서 연결됩니다.';
-      });
-      return;
-    }
-
     setState(() {
       _loadingProvider = provider;
       _errorMessage = null;

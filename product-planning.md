@@ -134,10 +134,15 @@ GitHub 저장소는 `https://github.com/nanimi74/cancer-monitor` 1개만 사용�
 요구사항:
 
 - Firebase Authentication을 이용해 회원가입/로그인을 구현한다.
-- 지원 로그인 방식은 Firebase 이메일 로그인을 기본으로 한다.
-- 이메일 로그인은 이메일/비밀번호 입력 방식으로 우선 구현한다.
+- 지원 로그인 방식은 Firebase 이메일/비밀번호, Apple 로그인, Google 로그인으로 구성한다.
+- 이메일 로그인은 이메일/비밀번호 입력 방식으로 구현한다.
 - 이메일로 계속하기를 선택한 사용자가 기존 회원이면 로그인하고, 기존 회원이 아니면 동일 흐름에서 가입을 처리한다.
-- Apple 로그인과 Google 로그인은 출시 준비 단계에서 연결한다.
+- Apple 로그인과 Google 로그인은 Firebase Authentication 제공자를 통해 연결한다.
+- Firebase 콘솔에서 Email/Password, Apple, Google 로그인 제공자를 활성화해야 한다.
+- Android Google 로그인 검증을 위해 개발용 debug SHA-1/SHA-256을 Firebase Android 앱에 등록한다.
+- 출시 빌드 전에는 Play App Signing 및 릴리즈 서명 인증서 SHA-1/SHA-256을 Firebase Android 앱에 추가 등록한다.
+- iOS Google 로그인은 `GoogleService-Info.plist`의 `REVERSED_CLIENT_ID`를 URL scheme으로 등록한다.
+- iOS Apple 로그인은 Apple Developer 계정에서 Sign in with Apple capability를 활성화하고 앱 entitlements에 반영한다.
 - Firebase 설정 파일이 없는 개발 초기 상태에서는 mock 인증으로 앱 실행이 유지되도록 구성한다.
 - Firebase 설정 파일이 추가되면 `FirebaseAuthService`를 통해 실제 인증으로 전환한다.
 - 로그인 화면 안내 문구는 `회원 전용 서비스입니다.`와 `비회원의 경우 가입 후 이용해주세요.`를 줄바꿈해 표시한다.
