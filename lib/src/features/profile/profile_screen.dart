@@ -22,8 +22,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late _ProfileInfo? _profileInfo =
-      widget.hasRequiredInfo ? _ProfileInfo.sample() : null;
+  _ProfileInfo? _profileInfo;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
 
@@ -1310,19 +1309,6 @@ class _ProfileInfo {
     required this.heightCm,
     this.extra = '',
   });
-
-  factory _ProfileInfo.sample() => _ProfileInfo(
-        sex: '여성',
-        birthDate: DateTime(1974, 3, 12),
-        cancerType: '유방암',
-        stage: '2기',
-        diagnosisDate: DateTime(2026, 1, 15),
-        metastasis: '없음',
-        treatmentType: '주사 항암',
-        treatmentStartDate: DateTime(2026, 4, 1),
-        heightCm: 162,
-        extra: '',
-      );
 
   final String sex;
   final DateTime birthDate;
