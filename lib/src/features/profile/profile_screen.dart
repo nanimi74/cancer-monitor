@@ -25,11 +25,19 @@ class ProfileScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('사용자 정보 요약', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('사용자 정보 요약',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 12),
-              _SummaryRow(label: '성별/연령', value: '${profile.sex} · 만 ${profile.age(DateTime(2026, 6, 3))}세'),
-              _SummaryRow(label: '암종/병기', value: '${profile.cancerType} · ${profile.stage}'),
-              _SummaryRow(label: '키', value: '${profile.heightCm.toStringAsFixed(0)}cm'),
+              _SummaryRow(
+                  label: '성별/연령',
+                  value:
+                      '${profile.sex} · 만 ${profile.age(DateTime(2026, 6, 3))}세'),
+              _SummaryRow(
+                  label: '암종/병기',
+                  value: '${profile.cancerType} · ${profile.stage}'),
+              _SummaryRow(
+                  label: '키',
+                  value: '${profile.heightCm.toStringAsFixed(0)}cm'),
             ],
           ),
         ),
@@ -40,11 +48,12 @@ class ProfileScreen extends StatelessWidget {
         AppCard(
           child: Column(
             children: [
-              const _ToggleRow(title: '알림 권한', subtitle: '앱의 알림 권한을 허용하거나 해제합니다.'),
+              const _ToggleRow(
+                  title: '알림 권한', subtitle: '앱의 알림 권한을 허용하거나 해제합니다.'),
               const Divider(),
               const _ToggleRow(
-                title: '걸음수 연동',
-                subtitle: 'iOS HealthKit 또는 Android Health Connect의 걸음수를 불러옵니다.',
+                title: '걸음수 연동 권한',
+                subtitle: '휴대폰의 걸음수를 불러와 증상관리에 사용합니다.',
               ),
               const Divider(),
               ListTile(
@@ -71,7 +80,10 @@ class ProfileScreen extends StatelessWidget {
         Text(
           '앱 버전 ${AppConstants.appVersion}',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: AppColors.muted),
         ),
       ],
     );
@@ -90,8 +102,13 @@ class _SummaryRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          SizedBox(width: 86, child: Text(label, style: const TextStyle(color: AppColors.muted))),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+          SizedBox(
+              width: 86,
+              child:
+                  Text(label, style: const TextStyle(color: AppColors.muted))),
+          Expanded(
+              child: Text(value,
+                  style: const TextStyle(fontWeight: FontWeight.w500))),
         ],
       ),
     );
@@ -115,9 +132,12 @@ class _MenuTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 3),
-                  Text(subtitle, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 13)),
                 ],
               ),
             ),
