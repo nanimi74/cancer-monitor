@@ -22,7 +22,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late _ProfileInfo? _profileInfo =
       widget.hasRequiredInfo ? _ProfileInfo.sample() : null;
-  var _notificationEnabled = true;
+  var _notificationEnabled = false;
   var _stepSyncEnabled = false;
 
   bool get _hasRequiredInfo => _profileInfo != null;
@@ -70,6 +70,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _stepSyncEnabled = confirmed ?? false);
     _showMessage(
         _stepSyncEnabled ? '걸음수 연동 권한이 허용되었습니다.' : '걸음수 연동 권한 요청이 취소되었습니다.');
+  }
+
+  Future<void> _setNotificationPermission(bool value) async {
+    if (!value) {
+      setState(() => _notificationEnabled = false);
+      _showMessage('알림 권한이 해제되었습니다.');
+      return;
+    }
+    if (widget.isPreview) {
+      _showMessage('둘러보기에서는 권한 요청을 진행하지 않습니다.');
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('알림 권한'),
+        content: const Text(
+          '복약 알림과 앱 안내를 받기 위해 알림 권한이 필요합니다. 알림 권한을 허용하시겠습니까?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('허용'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _notificationEnabled = confirmed ?? false);
+    _showMessage(
+      _notificationEnabled ? '알림 권한이 허용되었습니다.' : '알림 권한 요청이 취소되었습니다.',
+    );
   }
 
   Future<void> _confirmWithdrawal() async {
@@ -127,10 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           title: '알림 권한',
           subtitle: '앱의 알림 권한을 허용하거나 해제합니다.',
           value: _notificationEnabled,
-          onChanged: (value) {
-            setState(() => _notificationEnabled = value);
-            _showMessage(value ? '알림 권한 허용 상태입니다.' : '알림 권한이 해제되었습니다.');
-          },
+          onChanged: _setNotificationPermission,
         ),
         _ToggleCard(
           title: '걸음수 연동 권한',
