@@ -74,8 +74,17 @@ class RequiredInfoBanner extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '🚨 사용자정보를 입력해 주세요.',
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: '🚨 '),
+                TextSpan(
+                  text: '사용자정보',
+                  style: TextStyle(color: AppColors.accent),
+                ),
+                TextSpan(text: '를 입력해 주세요.'),
+              ],
+            ),
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 4),
