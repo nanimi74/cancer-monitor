@@ -703,7 +703,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                   label: '기타정보',
                   controller: _extra,
                   required: false,
-                  maxLength: 200,
+                  maxLength: 500,
                   maxLines: 4,
                   hintText: '환자에 대해 알아야 하는 정보나 분석 시 참고할 만한 내용을 모두 입력해 주세요.',
                 ),

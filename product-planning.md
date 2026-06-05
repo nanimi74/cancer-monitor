@@ -205,7 +205,7 @@ GitHub 저장소는 `https://github.com/nanimi74/cancer-monitor` 1개만 사용�
 - 마이페이지의 사용자정보 요약에서는 생년월일을 직접 노출하지 않고 현재 날짜 기준 연령으로 변환해 표시한다.
 - 기타정보는 선택 입력란으로 제공한다.
 - 기타정보 placeholder: `환자에 대해 알아야 하는 정보나 분석 시 참고할 만한 내용을 모두 입력해 주세요.`
-- 기타정보는 최대 200자까지 입력할 수 있다.
+- 기타정보는 최대 500자까지 입력할 수 있다.
 - 체중은 사용자정보에서 입력받지 않고 체중관리탭에서만 입력받는다.
 
 마이페이지 표시 정책:
@@ -1099,7 +1099,7 @@ Google Play:
 | treatmentType | string | 필수 | 항암치료 종류 |
 | treatmentStartDate | date | 필수 | 치료 시작일 |
 | heightCm | number | 필수 | 키 |
-| additionalInfo | string | 선택 | 기타정보, 최대 200자 |
+| additionalInfo | string | 선택 | 기타정보, 최대 500자 |
 
 ### 9.3 Medication
 
