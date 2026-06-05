@@ -2590,6 +2590,19 @@
       font-weight: 400;
     }
 
+    .plain-action.full {
+      grid-column: 1 / -1;
+    }
+
+    .app.preview-mode .profile-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .app.preview-mode .member-only,
+    .app:not(.preview-mode) #previewExitBtn {
+      display: none;
+    }
+
     .app-version {
       margin-top: 18px;
       text-align: center;
@@ -2848,8 +2861,9 @@
             </div>
 
             <div class="profile-actions">
-              <button class="plain-action" type="button" id="logoutBtn">로그아웃</button>
-              <button class="plain-action low" type="button" id="withdrawBtn">회원탈퇴</button>
+              <button class="plain-action full" type="button" id="previewExitBtn">둘러보기 나가기</button>
+              <button class="plain-action member-only" type="button" id="logoutBtn">로그아웃</button>
+              <button class="plain-action low member-only" type="button" id="withdrawBtn">회원탈퇴</button>
             </div>
             <div class="app-version">앱 버전 1.0.0</div>
           </div>
@@ -4854,6 +4868,7 @@
     document.getElementById("googleLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
     document.getElementById("loginBtn").addEventListener("click", showEntryScreen);
     document.getElementById("logoutBtn").addEventListener("click", showEntryScreen);
+    document.getElementById("previewExitBtn")?.addEventListener("click", showEntryScreen);
     document.getElementById("withdrawBtn")?.addEventListener("click", requestWithdraw);
     document.getElementById("notificationToggle").addEventListener("change", event => {
       showToast(event.target.checked ? "알림 권한 허용 상태입니다." : "알림 권한이 해제되었습니다.");

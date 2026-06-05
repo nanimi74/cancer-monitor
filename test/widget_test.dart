@@ -21,6 +21,13 @@ void main() {
     expect(find.text('체중관리'), findsOneWidget);
     expect(find.text('증상관리'), findsOneWidget);
     expect(find.text('AI분석'), findsOneWidget);
+
+    final exitPreviewButton = find.widgetWithText(OutlinedButton, '둘러보기 나가기');
+    await tester.scrollUntilVisible(exitPreviewButton, 350);
+    await tester.tap(exitPreviewButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('로그인하고 시작하기'), findsOneWidget);
   });
 
   testWidgets('opens login screen and signs in with email',
@@ -45,7 +52,7 @@ void main() {
     expect(find.text('AI분석'), findsOneWidget);
   });
 
-  testWidgets('preview profile shows required info flow and withdrawal alert',
+  testWidgets('preview profile shows required info flow and exit action',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -68,14 +75,12 @@ void main() {
     await tester.tap(find.byTooltip('이전'));
     await tester.pumpAndSettle();
 
-    final withdrawalButton = find.widgetWithText(OutlinedButton, '회원탈퇴');
-    await tester.scrollUntilVisible(withdrawalButton, 350);
-    await tester.drag(find.byType(ListView), const Offset(0, -160));
-    await tester.pumpAndSettle();
-    await tester.tap(withdrawalButton);
+    final exitPreviewButton = find.widgetWithText(OutlinedButton, '둘러보기 나가기');
+    await tester.scrollUntilVisible(exitPreviewButton, 350);
     await tester.pumpAndSettle();
 
-    expect(find.text('회원탈퇴'), findsWidgets);
-    expect(find.textContaining('복구할 수 없습니다'), findsOneWidget);
+    expect(exitPreviewButton, findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, '로그아웃'), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, '회원탈퇴'), findsNothing);
   });
 }

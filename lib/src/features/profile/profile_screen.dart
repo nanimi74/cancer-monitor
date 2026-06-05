@@ -10,10 +10,12 @@ class ProfileScreen extends StatefulWidget {
     super.key,
     this.hasRequiredInfo = true,
     this.isPreview = false,
+    this.onExitPreview,
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
+  final VoidCallback? onExitPreview;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -193,27 +195,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 12),
         const Divider(height: 1),
         const SizedBox(height: 14),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => _showMessage('로그아웃되었습니다.'),
-                child: const Text('로그아웃'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _confirmWithdrawal,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.muted,
-                  side: const BorderSide(color: AppColors.line),
+        if (widget.isPreview)
+          OutlinedButton(
+            onPressed:
+                widget.onExitPreview ?? () => _showMessage('둘러보기를 종료합니다.'),
+            child: const Text('둘러보기 나가기'),
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _showMessage('로그아웃되었습니다.'),
+                  child: const Text('로그아웃'),
                 ),
-                child: const Text('회원탈퇴'),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _confirmWithdrawal,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.muted,
+                    side: const BorderSide(color: AppColors.line),
+                  ),
+                  child: const Text('회원탈퇴'),
+                ),
+              ),
+            ],
+          ),
         const SizedBox(height: 18),
         Text(
           '앱 버전 ${AppConstants.appVersion}',

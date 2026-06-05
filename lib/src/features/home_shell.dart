@@ -12,10 +12,12 @@ class HomeShell extends StatefulWidget {
     super.key,
     this.isPreview = false,
     this.hasRequiredInfo = true,
+    this.onExitPreview,
   });
 
   final bool isPreview;
   final bool hasRequiredInfo;
+  final VoidCallback? onExitPreview;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -28,6 +30,7 @@ class _HomeShellState extends State<HomeShell> {
     ProfileScreen(
       hasRequiredInfo: widget.hasRequiredInfo,
       isPreview: widget.isPreview,
+      onExitPreview: widget.onExitPreview,
     ),
     const MedicationScreen(),
     const WeightScreen(),
