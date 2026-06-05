@@ -16,8 +16,36 @@ class FirebaseAuthService implements AuthService {
   var _googleInitialized = false;
 
   @override
-  Future<AuthSession> signInWithEmail() {
-    throw const AuthFailure('이메일 로그인은 이메일 입력 화면에서 연결됩니다.');
+  Future<AuthSession> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    final trimmedEmail = email.trim();
+    if (trimmedEmail.isEmpty || password.isEmpty) {
+      throw const AuthFailure('이메일과 비밀번호를 입력해 주세요.');
+    }
+
+    try {
+      final created = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: trimmedEmail,
+        password: password,
+      );
+      return _sessionFromUserCredential(created, AuthProvider.email);
+    } on FirebaseAuthException catch (error) {
+      if (error.code != 'email-already-in-use') {
+        throw AuthFailure(_emailAuthMessage(error));
+      }
+    }
+
+    try {
+      final signedIn = await _firebaseAuth.signInWithEmailAndPassword(
+        email: trimmedEmail,
+        password: password,
+      );
+      return _sessionFromUserCredential(signedIn, AuthProvider.email);
+    } on FirebaseAuthException catch (error) {
+      throw AuthFailure(_emailAuthMessage(error));
+    }
   }
 
   @override
@@ -91,5 +119,16 @@ class FirebaseAuthService implements AuthService {
       email: user.email ?? fallbackEmail,
       userId: user.uid,
     );
+  }
+
+  String _emailAuthMessage(FirebaseAuthException error) {
+    return switch (error.code) {
+      'invalid-email' => '이메일 형식을 확인해 주세요.',
+      'weak-password' => '비밀번호는 6자 이상으로 입력해 주세요.',
+      'wrong-password' || 'invalid-credential' => '이메일 또는 비밀번호를 확인해 주세요.',
+      'too-many-requests' => '로그인 시도가 많습니다. 잠시 후 다시 시도해 주세요.',
+      'operation-not-allowed' => 'Firebase 콘솔에서 이메일/비밀번호 로그인을 먼저 활성화해 주세요.',
+      _ => '이메일 로그인 중 문제가 발생했습니다.',
+    };
   }
 }

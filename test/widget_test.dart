@@ -40,7 +40,9 @@ void main() {
     expect(find.text('로그인'), findsOneWidget);
     expect(find.text('회원 전용 서비스입니다.\n비회원의 경우 가입 후 이용해주세요.'), findsOneWidget);
 
-    await tester.tap(find.text('이메일로 계속하기'));
+    await tester.enterText(find.byType(TextField).at(0), 'patient@example.com');
+    await tester.enterText(find.byType(TextField).at(1), 'password123');
+    await tester.tap(find.text('이메일로 로그인/가입'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();

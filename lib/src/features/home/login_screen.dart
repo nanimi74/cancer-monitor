@@ -20,17 +20,36 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   AuthProvider? _loadingProvider;
   String? _errorMessage;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _signIn(AuthProvider provider) async {
+    if (provider != AuthProvider.email) {
+      setState(() {
+        _errorMessage = 'Apple/Google 로그인은 출시 준비 단계에서 연결됩니다.';
+      });
+      return;
+    }
+
     setState(() {
       _loadingProvider = provider;
       _errorMessage = null;
     });
     try {
       final session = switch (provider) {
-        AuthProvider.email => await widget.authService.signInWithEmail(),
+        AuthProvider.email => await widget.authService.signInWithEmail(
+            email: _emailController.text,
+            password: _passwordController.text,
+          ),
         AuthProvider.apple => await widget.authService.signInWithApple(),
         AuthProvider.google => await widget.authService.signInWithGoogle(),
       };
@@ -94,8 +113,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Column(
                     children: [
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(
+                          hintText: '이메일을 입력해 주세요.',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
+                        onSubmitted: (_) => _signIn(AuthProvider.email),
+                        decoration: const InputDecoration(
+                          hintText: '비밀번호를 입력해 주세요.',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       _ProviderButton(
-                        label: '이메일로 계속하기',
+                        label: '이메일로 로그인/가입',
                         provider: AuthProvider.email,
                         loadingProvider: _loadingProvider,
                         primary: true,

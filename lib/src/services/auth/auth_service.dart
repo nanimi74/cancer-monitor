@@ -28,7 +28,10 @@ class AuthSession {
 }
 
 abstract class AuthService {
-  Future<AuthSession> signInWithEmail();
+  Future<AuthSession> signInWithEmail({
+    required String email,
+    required String password,
+  });
 
   Future<AuthSession> signInWithApple();
 
@@ -39,7 +42,11 @@ class MockAuthService implements AuthService {
   const MockAuthService();
 
   @override
-  Future<AuthSession> signInWithEmail() => _mockSignIn(AuthProvider.email);
+  Future<AuthSession> signInWithEmail({
+    required String email,
+    required String password,
+  }) =>
+      _mockSignIn(AuthProvider.email, email: email);
 
   @override
   Future<AuthSession> signInWithApple() => _mockSignIn(AuthProvider.apple);
@@ -47,12 +54,16 @@ class MockAuthService implements AuthService {
   @override
   Future<AuthSession> signInWithGoogle() => _mockSignIn(AuthProvider.google);
 
-  Future<AuthSession> _mockSignIn(AuthProvider provider) async {
+  Future<AuthSession> _mockSignIn(
+    AuthProvider provider, {
+    String? email,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 280));
     return AuthSession(
       provider: provider,
       isPreview: false,
-      email: provider == AuthProvider.email ? 'user@example.com' : null,
+      email:
+          provider == AuthProvider.email ? email ?? 'user@example.com' : null,
     );
   }
 }
