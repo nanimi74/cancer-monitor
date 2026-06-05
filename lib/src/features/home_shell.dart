@@ -8,16 +8,21 @@ import 'symptom/symptom_screen.dart';
 import 'weight/weight_screen.dart';
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+  const HomeShell({
+    super.key,
+    this.isPreview = false,
+    this.hasRequiredInfo = true,
+  });
+
+  final bool isPreview;
+  final bool hasRequiredInfo;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
 }
 
 class _HomeShellState extends State<HomeShell> {
-  // Firebase/profile state가 붙기 전까지는 사용자정보가 있다고 가정하고 증상관리에서 시작한다.
-  // 실제 연동 후에는 사용자정보/주의정보가 없으면 마이페이지(index 0), 있으면 증상관리(index 3)로 분기한다.
-  var _index = 3;
+  late var _index = widget.hasRequiredInfo ? 3 : 0;
 
   static const _screens = [
     ProfileScreen(),
