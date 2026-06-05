@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -78,9 +82,21 @@ class FirebaseAuthService implements AuthService {
       throw const AuthFailure('현재 기기에서 Apple 로그인을 사용할 수 없습니다.');
     }
 
-    final appleCredential = await SignInWithApple.getAppleIDCredential(
-      scopes: const [AppleIDAuthorizationScopes.email],
-    );
+    final rawNonce = _generateNonce();
+    final hashedNonce = _sha256ofString(rawNonce);
+
+    final AuthorizationCredentialAppleID appleCredential;
+    try {
+      appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [AppleIDAuthorizationScopes.email],
+        nonce: hashedNonce,
+      );
+    } on SignInWithAppleAuthorizationException catch (error) {
+      throw AuthFailure(_appleAuthorizationMessage(error));
+    } catch (_) {
+      throw const AuthFailure('Apple 로그인 중 문제가 발생했습니다.');
+    }
+
     final idToken = appleCredential.identityToken;
     if (idToken == null) {
       throw const AuthFailure('Apple 로그인 토큰을 확인할 수 없습니다.');
@@ -88,7 +104,7 @@ class FirebaseAuthService implements AuthService {
 
     final oauthCredential = OAuthProvider('apple.com').credential(
       idToken: idToken,
-      accessToken: appleCredential.authorizationCode,
+      rawNonce: rawNonce,
     );
     final userCredential = await _signInWithCredential(
       oauthCredential,
@@ -184,8 +200,25 @@ class FirebaseAuthService implements AuthService {
       'account-exists-with-different-credential' =>
         '이미 다른 로그인 방식으로 가입된 이메일입니다.',
       'invalid-credential' => '$providerLabel 로그인 정보를 확인할 수 없습니다.',
+      'missing-or-invalid-nonce' => 'Apple 로그인 보안값을 확인할 수 없습니다. 다시 시도해 주세요.',
       'network-request-failed' => '네트워크 연결을 확인해 주세요.',
       _ => '$providerLabel 로그인 중 문제가 발생했습니다.',
+    };
+  }
+
+  String _appleAuthorizationMessage(
+      SignInWithAppleAuthorizationException error) {
+    return switch (error.code) {
+      AuthorizationErrorCode.canceled => 'Apple 로그인이 취소되었습니다.',
+      AuthorizationErrorCode.failed => 'Apple 로그인 승인 중 문제가 발생했습니다.',
+      AuthorizationErrorCode.invalidResponse => 'Apple 로그인 응답을 확인할 수 없습니다.',
+      AuthorizationErrorCode.notHandled => 'Apple 로그인 요청이 완료되지 않았습니다.',
+      AuthorizationErrorCode.notInteractive =>
+        '현재 상태에서는 Apple 로그인을 진행할 수 없습니다.',
+      AuthorizationErrorCode.credentialExport => 'Apple 로그인 정보를 가져올 수 없습니다.',
+      AuthorizationErrorCode.credentialImport => 'Apple 로그인 정보를 불러올 수 없습니다.',
+      AuthorizationErrorCode.unknown => 'Apple 로그인 중 문제가 발생했습니다.',
+      _ => 'Apple 로그인 중 문제가 발생했습니다.',
     };
   }
 
@@ -195,5 +228,21 @@ class FirebaseAuthService implements AuthService {
       'network-request-failed' => '네트워크 연결을 확인해 주세요.',
       _ => '회원탈퇴 처리 중 문제가 발생했습니다.',
     };
+  }
+
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
+  }
+
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 }
