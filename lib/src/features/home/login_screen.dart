@@ -21,17 +21,30 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   AuthProvider? _loadingProvider;
+  String? _errorMessage;
 
   Future<void> _signIn(AuthProvider provider) async {
-    setState(() => _loadingProvider = provider);
-    final session = switch (provider) {
-      AuthProvider.email => await widget.authService.signInWithEmail(),
-      AuthProvider.apple => await widget.authService.signInWithApple(),
-      AuthProvider.google => await widget.authService.signInWithGoogle(),
-    };
-    if (!mounted) return;
-    setState(() => _loadingProvider = null);
-    widget.onSignedIn(session);
+    setState(() {
+      _loadingProvider = provider;
+      _errorMessage = null;
+    });
+    try {
+      final session = switch (provider) {
+        AuthProvider.email => await widget.authService.signInWithEmail(),
+        AuthProvider.apple => await widget.authService.signInWithApple(),
+        AuthProvider.google => await widget.authService.signInWithGoogle(),
+      };
+      if (!mounted) return;
+      setState(() => _loadingProvider = null);
+      widget.onSignedIn(session);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingProvider = null;
+        _errorMessage =
+            error is AuthFailure ? error.message : '로그인 중 문제가 발생했습니다.';
+      });
+    }
   }
 
   @override
@@ -120,6 +133,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         loadingProvider: _loadingProvider,
                         onPressed: _signIn,
                       ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.danger,
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

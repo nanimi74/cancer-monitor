@@ -99,6 +99,7 @@ GitHub 저장소는 `https://github.com/nanimi74/cancer-monitor` 1개만 사용�
 - `main`: 항상 안정적으로 실행 가능한 완성본을 유지한다.
 - `feature/shell`: 기본 앱 shell, 공통 테마, 바텀바 구조를 구현한다.
 - `feature/home`: 서비스 메인, 로그인, 둘러보기 진입 구조를 구현한다.
+- `feature/auth`: Firebase Authentication 초기화, Google/Apple 로그인 연결 기반, 이메일 로그인 확장 기반을 구현한다.
 - `feature/symptom`: 증상관리 기록/캘린더/입력 흐름을 구현한다.
 - `feature/medication`: 복약관리 목록, 등록/수정, 알림 설정 흐름을 구현한다.
 - `feature/weight`: 체중관리 캘린더, BMI, 그래프, 상담 권고 흐름을 구현한다.
@@ -134,6 +135,10 @@ GitHub 저장소는 `https://github.com/nanimi74/cancer-monitor` 1개만 사용�
 
 - Firebase Authentication을 이용해 회원가입/로그인을 구현한다.
 - 지원 로그인 방식은 Firebase 이메일 로그인을 기본으로 한다.
+- 소셜 로그인은 Apple 로그인과 Google 로그인을 지원한다.
+- Firebase 설정 파일이 없는 개발 초기 상태에서는 mock 인증으로 앱 실행이 유지되도록 구성한다.
+- Firebase 설정 파일이 추가되면 `FirebaseAuthService`를 통해 실제 인증으로 전환한다.
+- 이메일 로그인은 별도 이메일 입력 화면에서 이메일/비밀번호 또는 이메일 링크 방식으로 확장한다.
 - 로그인 화면 안내 문구는 `회원 전용 서비스입니다.`와 `비회원의 경우 가입 후 이용해주세요.`를 줄바꿈해 표시한다.
 - 로그인 완료 후 사용자정보 입력 화면으로 이동한다.
 - 사용자정보와 주의정보 필수 입력이 완료되어야 복약관리, 체중관리, 증상관리, AI분석 기능을 정상 사용할 수 있다.
