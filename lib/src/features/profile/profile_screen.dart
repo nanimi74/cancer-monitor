@@ -489,18 +489,34 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
     final result = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
       builder: (context) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(title,
+                        style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('닫기'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               for (final option in options)
-                ListTile(
-                  title: Text(option),
+                _SheetOption(
+                  label: option,
+                  selected: option == (_optionValueForTitle(title)),
                   onTap: () => Navigator.of(context).pop(option),
                 ),
             ],
@@ -517,22 +533,23 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
     DateTime? firstDate,
     DateTime? lastDate,
   }) async {
-    final picked = await showDatePicker(
+    final picked = await showDialog<DateTime>(
       context: context,
-      initialDate: value ?? DateTime(2026, 6, 5),
-      firstDate: firstDate ?? DateTime(1900),
-      lastDate: lastDate ?? DateTime(2100),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: Theme.of(context).colorScheme.copyWith(
-                primary: AppColors.accent,
-                surface: Colors.white,
-              ),
-        ),
-        child: child!,
+      builder: (context) => _DatePickerDialog(
+        initialDate: value ?? DateTime(2026, 6, 5),
+        firstDate: firstDate ?? DateTime(1900),
+        lastDate: lastDate ?? DateTime(2100),
       ),
     );
     if (picked != null) onPicked(picked);
+  }
+
+  String _optionValueForTitle(String title) {
+    return switch (title) {
+      '성별' => _sex,
+      '전이 여부' => _metastasis,
+      _ => '',
+    };
   }
 
   void _save() {
@@ -571,71 +588,95 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
       action: _save,
       child: Form(
         key: _formKey,
-        child: Column(
-          children: [
-            _PickerField(
-                label: '성별',
-                value: _sex,
-                onTap: () {
-                  _selectOption(
-                    title: '성별',
-                    options: const ['여성', '남성', '기타'],
-                    onSelected: (value) => setState(() => _sex = value),
-                  );
-                }),
-            _PickerField(
-              label: '생년월일',
-              value: _formatDate(_birthDate),
-              onTap: () => _pickDate(
-                value: _birthDate,
-                lastDate: DateTime(2026, 6, 5),
-                onPicked: (value) => setState(() => _birthDate = value),
-              ),
-            ),
-            _TextInput(label: '암종', controller: _cancerType),
-            _TextInput(label: '병기', controller: _stage),
-            _PickerField(
-              label: '진단일',
-              value: _formatDate(_diagnosisDate),
-              onTap: () => _pickDate(
-                value: _diagnosisDate,
-                onPicked: (value) => setState(() => _diagnosisDate = value),
-              ),
-            ),
-            _PickerField(
-                label: '전이 여부',
-                value: _metastasis,
-                onTap: () {
-                  _selectOption(
-                    title: '전이 여부',
-                    options: const ['없음', '있음', '확인 필요'],
-                    onSelected: (value) => setState(() => _metastasis = value),
-                  );
-                }),
-            _TextInput(label: '항암치료 종류', controller: _treatmentType),
-            _PickerField(
-              label: '치료 시작일',
-              value: _formatDate(_treatmentStartDate),
-              onTap: () => _pickDate(
-                value: _treatmentStartDate,
-                onPicked: (value) =>
-                    setState(() => _treatmentStartDate = value),
-              ),
-            ),
-            _TextInput(
-              label: '키(cm)',
-              controller: _height,
-              keyboardType: TextInputType.number,
-            ),
-            _TextInput(
-              label: '기타정보',
-              controller: _extra,
-              required: false,
-              maxLength: 200,
-              maxLines: 4,
-              hintText: '환자에 대해 알아야 하는 정보나 분석 시 참고할 만한 내용을 모두 입력해 주세요.',
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final twoColumn = constraints.maxWidth >= 560;
+            return Column(
+              children: [
+                _FieldGrid(
+                  twoColumn: twoColumn,
+                  children: [
+                    _PickerField(
+                      label: '성별',
+                      value: _sex,
+                      onTap: () {
+                        _selectOption(
+                          title: '성별',
+                          options: const ['여성', '남성', '기타'],
+                          onSelected: (value) => setState(() => _sex = value),
+                        );
+                      },
+                    ),
+                    _PickerField(
+                      label: '생년월일',
+                      value: _formatDate(_birthDate),
+                      onTap: () => _pickDate(
+                        value: _birthDate,
+                        lastDate: DateTime(2026, 6, 5),
+                        onPicked: (value) => setState(() => _birthDate = value),
+                      ),
+                    ),
+                  ],
+                ),
+                _TextInput(label: '암종', controller: _cancerType),
+                _TextInput(label: '병기', controller: _stage),
+                _FieldGrid(
+                  twoColumn: twoColumn,
+                  children: [
+                    _PickerField(
+                      label: '진단일',
+                      value: _formatDate(_diagnosisDate),
+                      onTap: () => _pickDate(
+                        value: _diagnosisDate,
+                        onPicked: (value) =>
+                            setState(() => _diagnosisDate = value),
+                      ),
+                    ),
+                    _PickerField(
+                      label: '전이 여부',
+                      value: _metastasis,
+                      onTap: () {
+                        _selectOption(
+                          title: '전이 여부',
+                          options: const ['없음', '있음', '확인 필요'],
+                          onSelected: (value) =>
+                              setState(() => _metastasis = value),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                _FieldGrid(
+                  twoColumn: twoColumn,
+                  children: [
+                    _TextInput(label: '항암치료 종류', controller: _treatmentType),
+                    _PickerField(
+                      label: '치료 시작일',
+                      value: _formatDate(_treatmentStartDate),
+                      onTap: () => _pickDate(
+                        value: _treatmentStartDate,
+                        onPicked: (value) =>
+                            setState(() => _treatmentStartDate = value),
+                      ),
+                    ),
+                  ],
+                ),
+                _TextInput(
+                  label: '키(cm)',
+                  controller: _height,
+                  keyboardType: TextInputType.number,
+                ),
+                _TextInput(
+                  label: '기타정보',
+                  controller: _extra,
+                  required: false,
+                  maxLength: 200,
+                  maxLines: 4,
+                  hintText: '환자에 대해 알아야 하는 정보나 분석 시 참고할 만한 내용을 모두 입력해 주세요.',
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -656,29 +697,411 @@ class _FormPageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.chevron_left),
-          tooltip: '이전',
-        ),
-        title: Text(title),
-      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 680),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 96),
-              children: [child],
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+              children: [
+                AppCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 38,
+                            height: 38,
+                            child: Tooltip(
+                              message: '이전',
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  side: const BorderSide(color: AppColors.line),
+                                  foregroundColor: AppColors.text,
+                                ),
+                                child: const Icon(Icons.chevron_left, size: 22),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      child,
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        width: 96,
+                        child: ElevatedButton(
+                          onPressed: action,
+                          child: const Text('저장'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(24, 10, 24, 18),
-        child: ElevatedButton(onPressed: action, child: const Text('저장')),
+    );
+  }
+}
+
+class _SheetOption extends StatelessWidget {
+  const _SheetOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 46),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.accentSoft : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? AppColors.accent : AppColors.text,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+              if (selected)
+                const Icon(Icons.check, color: AppColors.accent, size: 18),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+class _DatePickerDialog extends StatefulWidget {
+  const _DatePickerDialog({
+    required this.initialDate,
+    required this.firstDate,
+    required this.lastDate,
+  });
+
+  final DateTime initialDate;
+  final DateTime firstDate;
+  final DateTime lastDate;
+
+  @override
+  State<_DatePickerDialog> createState() => _DatePickerDialogState();
+}
+
+class _DatePickerDialogState extends State<_DatePickerDialog> {
+  late DateTime _visibleMonth =
+      DateTime(widget.initialDate.year, widget.initialDate.month);
+  late DateTime _selected = _dateOnly(widget.initialDate);
+  late final TextEditingController _yearController =
+      TextEditingController(text: _visibleMonth.year.toString());
+  late final TextEditingController _monthController =
+      TextEditingController(text: _visibleMonth.month.toString());
+
+  @override
+  void dispose() {
+    _yearController.dispose();
+    _monthController.dispose();
+    super.dispose();
+  }
+
+  void _moveMonth(int delta) {
+    setState(() {
+      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+      _syncInputs();
+    });
+  }
+
+  void _jumpMonth() {
+    final year = int.tryParse(_yearController.text);
+    final month = int.tryParse(_monthController.text);
+    if (year == null || month == null || month < 1 || month > 12) return;
+    setState(() {
+      _visibleMonth = DateTime(year, month);
+      _syncInputs();
+    });
+  }
+
+  void _syncInputs() {
+    _yearController.text = _visibleMonth.year.toString();
+    _monthController.text = _visibleMonth.month.toString();
+  }
+
+  bool _isDisabled(DateTime date) {
+    final value = _dateOnly(date);
+    return value.isBefore(_dateOnly(widget.firstDate)) ||
+        value.isAfter(_dateOnly(widget.lastDate));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(18),
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 430),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '날짜 선택',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('닫기'),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.line),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      _DateNavButton(
+                        icon: Icons.chevron_left,
+                        onTap: () => _moveMonth(-1),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            '${_visibleMonth.year}년 ${_visibleMonth.month}월',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      _DateNavButton(
+                        icon: Icons.chevron_right,
+                        onTap: () => _moveMonth(1),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _yearController,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          decoration: _fieldDecoration(),
+                          onChanged: (_) => _jumpMonth(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _monthController,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          decoration: _fieldDecoration(),
+                          onChanged: (_) => _jumpMonth(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 7,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 6,
+                    children: [
+                      for (final weekday in const [
+                        '월',
+                        '화',
+                        '수',
+                        '목',
+                        '금',
+                        '토',
+                        '일',
+                      ])
+                        Center(
+                          child: Text(
+                            weekday,
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ..._dateCells(),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _dateCells() {
+    final firstDay = DateTime(_visibleMonth.year, _visibleMonth.month);
+    final daysInMonth =
+        DateTime(_visibleMonth.year, _visibleMonth.month + 1, 0).day;
+    final leadingBlankCount = firstDay.weekday - 1;
+    return [
+      for (var i = 0; i < leadingBlankCount; i++) const SizedBox.shrink(),
+      for (var day = 1; day <= daysInMonth; day++)
+        _DateCell(
+          day: day,
+          selected: _selected.year == _visibleMonth.year &&
+              _selected.month == _visibleMonth.month &&
+              _selected.day == day,
+          disabled: _isDisabled(
+            DateTime(_visibleMonth.year, _visibleMonth.month, day),
+          ),
+          onTap: () {
+            final picked =
+                DateTime(_visibleMonth.year, _visibleMonth.month, day);
+            if (_isDisabled(picked)) return;
+            setState(() => _selected = picked);
+            Navigator.of(context).pop(picked);
+          },
+        ),
+    ];
+  }
+}
+
+class _DateNavButton extends StatelessWidget {
+  const _DateNavButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          side: const BorderSide(color: AppColors.line),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          foregroundColor: AppColors.text,
+        ),
+        child: Icon(icon, size: 19),
+      ),
+    );
+  }
+}
+
+class _DateCell extends StatelessWidget {
+  const _DateCell({
+    required this.day,
+    required this.selected,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  final int day;
+  final bool selected;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: disabled ? null : onTap,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accent : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            '$day',
+            style: TextStyle(
+              color: disabled
+                  ? AppColors.muted.withValues(alpha: .35)
+                  : selected
+                      ? Colors.white
+                      : AppColors.text,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FieldGrid extends StatelessWidget {
+  const _FieldGrid({
+    required this.twoColumn,
+    required this.children,
+  });
+
+  final bool twoColumn;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!twoColumn) {
+      return Column(children: children);
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < children.length; index++) ...[
+          if (index > 0) const SizedBox(width: 12),
+          Expanded(child: children[index]),
+        ],
+      ],
     );
   }
 }
@@ -702,8 +1125,9 @@ class _PickerField extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: InputDecorator(
-          decoration:
-              const InputDecoration(suffixIcon: Icon(Icons.expand_more)),
+          decoration: _fieldDecoration(
+            suffixIcon: const Icon(Icons.expand_more, color: AppColors.muted),
+          ),
           child: Text(value.isEmpty ? '선택' : value),
         ),
       ),
@@ -740,7 +1164,7 @@ class _TextInput extends StatelessWidget {
         keyboardType: keyboardType,
         maxLength: maxLength,
         maxLines: maxLines,
-        decoration: InputDecoration(hintText: hintText),
+        decoration: _fieldDecoration(hintText: hintText),
         validator: (value) {
           if (!required) return null;
           if (value == null || value.trim().isEmpty) return '필수 입력값입니다.';
@@ -769,7 +1193,7 @@ class _FieldShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -784,14 +1208,51 @@ class _FieldShell extends StatelessWidget {
                   ),
               ],
             ),
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: Color(0xFF3E484B),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           child,
         ],
       ),
     );
   }
+}
+
+InputDecoration _fieldDecoration({
+  String? hintText,
+  Widget? suffixIcon,
+}) {
+  return InputDecoration(
+    hintText: hintText,
+    suffixIcon: suffixIcon,
+    isDense: true,
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+    constraints: const BoxConstraints(minHeight: 42),
+    counterStyle: const TextStyle(color: AppColors.muted, fontSize: 12),
+    hintStyle: const TextStyle(color: AppColors.muted),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.line),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.accent),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.danger),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.danger),
+    ),
+  );
 }
 
 class _ProfileInfo {
@@ -847,4 +1308,8 @@ String _formatDate(DateTime? date) {
   return '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
+}
+
+DateTime _dateOnly(DateTime date) {
+  return DateTime(date.year, date.month, date.day);
 }
