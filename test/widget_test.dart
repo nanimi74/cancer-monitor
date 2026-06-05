@@ -54,6 +54,50 @@ void main() {
     expect(find.text('AI분석'), findsOneWidget);
   });
 
+  testWidgets('signs out from profile and returns to entry screen',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const CancerMonitorApp());
+
+    await tester.tap(find.text('로그인하고 시작하기'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), 'patient@example.com');
+    await tester.enterText(find.byType(TextField).at(1), 'password123');
+    await tester.tap(find.text('이메일로 로그인/가입'));
+    await tester.pumpAndSettle();
+
+    final signOutButton = find.widgetWithText(OutlinedButton, '로그아웃');
+    await tester.scrollUntilVisible(signOutButton, 350);
+    await tester.tap(signOutButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('로그인하고 시작하기'), findsOneWidget);
+    expect(find.text('둘러보기'), findsOneWidget);
+  });
+
+  testWidgets('deletes account from profile and returns to entry screen',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const CancerMonitorApp());
+
+    await tester.tap(find.text('로그인하고 시작하기'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), 'patient@example.com');
+    await tester.enterText(find.byType(TextField).at(1), 'password123');
+    await tester.tap(find.text('이메일로 로그인/가입'));
+    await tester.pumpAndSettle();
+
+    final deleteButton = find.widgetWithText(OutlinedButton, '회원탈퇴');
+    await tester.scrollUntilVisible(deleteButton, 350);
+    await tester.tap(deleteButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('회원탈퇴'), findsWidgets);
+    await tester.tap(find.text('탈퇴하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('로그인하고 시작하기'), findsOneWidget);
+    expect(find.text('둘러보기'), findsOneWidget);
+  });
+
   testWidgets('preview profile shows required info flow and exit action',
       (WidgetTester tester) async {
     await tester.pumpWidget(

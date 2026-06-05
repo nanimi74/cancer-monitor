@@ -55,6 +55,24 @@ class _AppStartFlowState extends State<AppStartFlow> {
     });
   }
 
+  Future<void> _signOut(AuthService authService) async {
+    await authService.signOut();
+    if (!mounted) return;
+    setState(() {
+      _session = null;
+      _stage = _StartStage.entry;
+    });
+  }
+
+  Future<void> _deleteAccount(AuthService authService) async {
+    await authService.deleteAccount();
+    if (!mounted) return;
+    setState(() {
+      _session = null;
+      _stage = _StartStage.entry;
+    });
+  }
+
   void _backToEntry() {
     setState(() {
       _session = null;
@@ -82,6 +100,8 @@ class _AppStartFlowState extends State<AppStartFlow> {
               isPreview: _session?.isPreview ?? false,
               hasRequiredInfo: false,
               onExitPreview: _backToEntry,
+              onSignOut: () => _signOut(authService),
+              onDeleteAccount: () => _deleteAccount(authService),
             ),
         };
       },

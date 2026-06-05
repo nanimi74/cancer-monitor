@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
+import '../../services/auth/auth_service.dart';
 import '../legal/legal_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -11,21 +13,25 @@ class ProfileScreen extends StatefulWidget {
     this.hasRequiredInfo = true,
     this.isPreview = false,
     this.onExitPreview,
+    this.onSignOut,
+    this.onDeleteAccount,
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
   final VoidCallback? onExitPreview;
+  final Future<void> Function()? onSignOut;
+  final Future<void> Function()? onDeleteAccount;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late _ProfileInfo? _profileInfo =
-      widget.hasRequiredInfo ? _ProfileInfo.sample() : null;
+  _ProfileInfo? _profileInfo;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
+  var _accountActionInProgress = false;
 
   bool get _hasRequiredInfo => _profileInfo != null;
 
@@ -131,7 +137,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (confirmed == true) {
-      _showMessage('회원탈퇴 요청이 접수되었습니다.');
+      await _runAccountAction(
+        action: widget.onDeleteAccount,
+        fallbackMessage: '회원탈퇴 기능을 연결할 수 없습니다.',
+      );
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    await _runAccountAction(
+      action: widget.onSignOut,
+      fallbackMessage: '로그아웃 기능을 연결할 수 없습니다.',
+    );
+  }
+
+  Future<void> _runAccountAction({
+    required Future<void> Function()? action,
+    required String fallbackMessage,
+  }) async {
+    if (_accountActionInProgress) return;
+    if (action == null) {
+      _showMessage(fallbackMessage);
+      return;
+    }
+
+    setState(() => _accountActionInProgress = true);
+    try {
+      await action();
+    } on AuthFailure catch (error) {
+      if (!mounted) return;
+      _showMessage(error.message);
+      setState(() => _accountActionInProgress = false);
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+      setState(() => _accountActionInProgress = false);
     }
   }
 
@@ -206,14 +246,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => _showMessage('로그아웃되었습니다.'),
+                  onPressed: _accountActionInProgress ? null : _handleSignOut,
                   child: const Text('로그아웃'),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _confirmWithdrawal,
+                  onPressed:
+                      _accountActionInProgress ? null : _confirmWithdrawal,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.muted,
                     side: const BorderSide(color: AppColors.line),
@@ -972,6 +1013,12 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
                         child: TextField(
                           controller: _yearController,
                           keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          onTap: () => SystemChannels.textInput
+                              .invokeMethod<void>('TextInput.show'),
                           textAlign: TextAlign.center,
                           decoration: _fieldDecoration(),
                           onChanged: (_) => _jumpMonth(),
@@ -982,6 +1029,12 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
                         child: TextField(
                           controller: _monthController,
                           keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.done,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          onTap: () => SystemChannels.textInput
+                              .invokeMethod<void>('TextInput.show'),
                           textAlign: TextAlign.center,
                           decoration: _fieldDecoration(),
                           onChanged: (_) => _jumpMonth(),
@@ -1177,7 +1230,7 @@ class _PickerField extends StatelessWidget {
   }
 }
 
-class _TextInput extends StatelessWidget {
+class _TextInput extends StatefulWidget {
   const _TextInput({
     required this.label,
     required this.controller,
@@ -1197,20 +1250,49 @@ class _TextInput extends StatelessWidget {
   final String? hintText;
 
   @override
+  State<_TextInput> createState() => _TextInputState();
+}
+
+class _TextInputState extends State<_TextInput> {
+  final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _showSoftKeyboard() {
+    _focusNode.requestFocus();
+    Future<void>.delayed(const Duration(milliseconds: 40), () {
+      if (!mounted || !_focusNode.hasFocus) return;
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return _FieldShell(
-      label: label,
-      required: required,
+      label: widget.label,
+      required: widget.required,
       child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        maxLength: maxLength,
-        maxLines: maxLines,
-        decoration: _fieldDecoration(hintText: hintText),
+        controller: widget.controller,
+        focusNode: _focusNode,
+        keyboardType: widget.keyboardType,
+        textInputAction: widget.maxLines > 1
+            ? TextInputAction.newline
+            : TextInputAction.done,
+        inputFormatters: widget.keyboardType == TextInputType.number
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : null,
+        maxLength: widget.maxLength,
+        maxLines: widget.maxLines,
+        decoration: _fieldDecoration(hintText: widget.hintText),
+        onTap: _showSoftKeyboard,
         validator: (value) {
-          if (!required) return null;
+          if (!widget.required) return null;
           if (value == null || value.trim().isEmpty) return '필수 입력값입니다.';
-          if (keyboardType == TextInputType.number &&
+          if (widget.keyboardType == TextInputType.number &&
               double.tryParse(value) == null) {
             return '숫자로 입력해 주세요.';
           }
@@ -1310,19 +1392,6 @@ class _ProfileInfo {
     required this.heightCm,
     this.extra = '',
   });
-
-  factory _ProfileInfo.sample() => _ProfileInfo(
-        sex: '여성',
-        birthDate: DateTime(1974, 3, 12),
-        cancerType: '유방암',
-        stage: '2기',
-        diagnosisDate: DateTime(2026, 1, 15),
-        metastasis: '없음',
-        treatmentType: '주사 항암',
-        treatmentStartDate: DateTime(2026, 4, 1),
-        heightCm: 162,
-        extra: '',
-      );
 
   final String sex;
   final DateTime birthDate;

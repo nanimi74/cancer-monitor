@@ -13,11 +13,15 @@ class HomeShell extends StatefulWidget {
     this.isPreview = false,
     this.hasRequiredInfo = true,
     this.onExitPreview,
+    this.onSignOut,
+    this.onDeleteAccount,
   });
 
   final bool isPreview;
   final bool hasRequiredInfo;
   final VoidCallback? onExitPreview;
+  final Future<void> Function()? onSignOut;
+  final Future<void> Function()? onDeleteAccount;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -31,6 +35,8 @@ class _HomeShellState extends State<HomeShell> {
       hasRequiredInfo: widget.hasRequiredInfo,
       isPreview: widget.isPreview,
       onExitPreview: widget.onExitPreview,
+      onSignOut: widget.onSignOut,
+      onDeleteAccount: widget.onDeleteAccount,
     ),
     const MedicationScreen(),
     const WeightScreen(),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/auth/auth_service.dart';
@@ -22,6 +23,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   AuthProvider? _loadingProvider;
   String? _errorMessage;
 
@@ -29,17 +32,12 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _signIn(AuthProvider provider) async {
-    if (provider != AuthProvider.email) {
-      setState(() {
-        _errorMessage = 'Apple/Google 로그인은 출시 준비 단계에서 연결됩니다.';
-      });
-      return;
-    }
-
     setState(() {
       _loadingProvider = provider;
       _errorMessage = null;
@@ -64,6 +62,14 @@ class _LoginScreenState extends State<LoginScreen> {
             error is AuthFailure ? error.message : '로그인 중 문제가 발생했습니다.';
       });
     }
+  }
+
+  void _showSoftKeyboard(FocusNode focusNode) {
+    focusNode.requestFocus();
+    Future<void>.delayed(const Duration(milliseconds: 40), () {
+      if (!mounted || !focusNode.hasFocus) return;
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    });
   }
 
   @override
@@ -115,9 +121,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       TextField(
                         controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
+                        focusNode: _emailFocusNode,
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
+                        onTap: () => _showSoftKeyboard(_emailFocusNode),
+                        onSubmitted: (_) =>
+                            _showSoftKeyboard(_passwordFocusNode),
                         decoration: const InputDecoration(
                           hintText: '이메일을 입력해 주세요.',
                         ),
@@ -125,9 +134,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 10),
                       TextField(
                         controller: _passwordController,
+                        focusNode: _passwordFocusNode,
                         obscureText: true,
                         textInputAction: TextInputAction.done,
                         autofillHints: const [AutofillHints.password],
+                        onTap: () => _showSoftKeyboard(_passwordFocusNode),
                         onSubmitted: (_) => _signIn(AuthProvider.email),
                         decoration: const InputDecoration(
                           hintText: '비밀번호를 입력해 주세요.',

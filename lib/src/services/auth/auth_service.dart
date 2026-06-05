@@ -36,6 +36,10 @@ abstract class AuthService {
   Future<AuthSession> signInWithApple();
 
   Future<AuthSession> signInWithGoogle();
+
+  Future<void> signOut();
+
+  Future<void> deleteAccount();
 }
 
 class MockAuthService implements AuthService {
@@ -53,6 +57,16 @@ class MockAuthService implements AuthService {
 
   @override
   Future<AuthSession> signInWithGoogle() => _mockSignIn(AuthProvider.google);
+
+  @override
+  Future<void> signOut() async {
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+  }
 
   Future<AuthSession> _mockSignIn(
     AuthProvider provider, {
