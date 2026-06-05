@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
@@ -971,6 +972,10 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
                         child: TextField(
                           controller: _yearController,
                           keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           textAlign: TextAlign.center,
                           decoration: _fieldDecoration(),
                           onChanged: (_) => _jumpMonth(),
@@ -981,6 +986,10 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
                         child: TextField(
                           controller: _monthController,
                           keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.done,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           textAlign: TextAlign.center,
                           decoration: _fieldDecoration(),
                           onChanged: (_) => _jumpMonth(),
@@ -1202,7 +1211,13 @@ class _TextInput extends StatelessWidget {
       required: required,
       child: TextFormField(
         controller: controller,
-        keyboardType: keyboardType,
+        keyboardType: keyboardType ??
+            (maxLines > 1 ? TextInputType.multiline : TextInputType.text),
+        textInputAction:
+            maxLines > 1 ? TextInputAction.newline : TextInputAction.done,
+        inputFormatters: keyboardType == TextInputType.number
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : null,
         maxLength: maxLength,
         maxLines: maxLines,
         decoration: _fieldDecoration(hintText: hintText),
