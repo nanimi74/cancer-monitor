@@ -18,18 +18,13 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        border: Border.all(color: borderColor),
+    return Material(
+      color: backgroundColor,
+      elevation: 2,
+      shadowColor: const Color(0x1A1F2937),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: borderColor),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A1F2937),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
       ),
       child: Padding(padding: padding, child: child),
     );
