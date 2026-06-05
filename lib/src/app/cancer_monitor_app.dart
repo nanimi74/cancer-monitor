@@ -56,7 +56,10 @@ class _AppStartFlowState extends State<AppStartFlow> {
   }
 
   void _backToEntry() {
-    setState(() => _stage = _StartStage.entry);
+    setState(() {
+      _session = null;
+      _stage = _StartStage.entry;
+    });
   }
 
   @override
@@ -78,6 +81,7 @@ class _AppStartFlowState extends State<AppStartFlow> {
           _StartStage.shell => HomeShell(
               isPreview: _session?.isPreview ?? false,
               hasRequiredInfo: !(_session?.isPreview ?? false),
+              onExitPreview: _backToEntry,
             ),
         };
       },

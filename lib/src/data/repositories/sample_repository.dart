@@ -12,7 +12,6 @@ class SampleRepository {
         cancerType: '유방암',
         stage: '2기',
         heightCm: 162,
-        cautions: '페니실린 알레르기, 항구토제 복용 중',
       );
 
   List<Medication> get medications => const [
