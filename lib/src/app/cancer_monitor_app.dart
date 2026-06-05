@@ -60,7 +60,7 @@ class _AppStartFlowState extends State<AppStartFlow> {
     if (!mounted) return;
     setState(() {
       _session = null;
-      _stage = _StartStage.login;
+      _stage = _StartStage.entry;
     });
   }
 
@@ -69,7 +69,7 @@ class _AppStartFlowState extends State<AppStartFlow> {
     if (!mounted) return;
     setState(() {
       _session = null;
-      _stage = _StartStage.login;
+      _stage = _StartStage.entry;
     });
   }
 

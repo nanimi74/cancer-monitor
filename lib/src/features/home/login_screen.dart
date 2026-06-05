@@ -22,6 +22,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   AuthProvider? _loadingProvider;
   String? _errorMessage;
 
@@ -29,6 +31,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -108,9 +112,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       TextField(
                         controller: _emailController,
+                        focusNode: _emailFocusNode,
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
+                        onTap: _emailFocusNode.requestFocus,
+                        onSubmitted: (_) => _passwordFocusNode.requestFocus(),
                         decoration: const InputDecoration(
                           hintText: '이메일을 입력해 주세요.',
                         ),
@@ -118,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 10),
                       TextField(
                         controller: _passwordController,
+                        focusNode: _passwordFocusNode,
                         obscureText: true,
                         textInputAction: TextInputAction.done,
                         autofillHints: const [AutofillHints.password],

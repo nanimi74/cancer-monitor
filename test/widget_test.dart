@@ -54,7 +54,7 @@ void main() {
     expect(find.text('AI분석'), findsOneWidget);
   });
 
-  testWidgets('signs out from profile and returns to login screen',
+  testWidgets('signs out from profile and returns to entry screen',
       (WidgetTester tester) async {
     await tester.pumpWidget(const CancerMonitorApp());
 
@@ -70,11 +70,11 @@ void main() {
     await tester.tap(signOutButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('로그인'), findsOneWidget);
-    expect(find.text('이메일로 로그인/가입'), findsOneWidget);
+    expect(find.text('로그인하고 시작하기'), findsOneWidget);
+    expect(find.text('둘러보기'), findsOneWidget);
   });
 
-  testWidgets('deletes account from profile and returns to login screen',
+  testWidgets('deletes account from profile and returns to entry screen',
       (WidgetTester tester) async {
     await tester.pumpWidget(const CancerMonitorApp());
 
@@ -94,8 +94,8 @@ void main() {
     await tester.tap(find.text('탈퇴하기'));
     await tester.pumpAndSettle();
 
-    expect(find.text('로그인'), findsOneWidget);
-    expect(find.text('이메일로 로그인/가입'), findsOneWidget);
+    expect(find.text('로그인하고 시작하기'), findsOneWidget);
+    expect(find.text('둘러보기'), findsOneWidget);
   });
 
   testWidgets('preview profile shows required info flow and exit action',
