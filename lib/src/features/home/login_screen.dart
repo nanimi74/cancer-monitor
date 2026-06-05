@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/auth/auth_service.dart';
@@ -63,6 +64,14 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showSoftKeyboard(FocusNode focusNode) {
+    focusNode.requestFocus();
+    Future<void>.delayed(const Duration(milliseconds: 40), () {
+      if (!mounted || !focusNode.hasFocus) return;
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,11 +122,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextField(
                         controller: _emailController,
                         focusNode: _emailFocusNode,
-                        keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
-                        onTap: _emailFocusNode.requestFocus,
-                        onSubmitted: (_) => _passwordFocusNode.requestFocus(),
+                        onTap: () => _showSoftKeyboard(_emailFocusNode),
+                        onSubmitted: (_) =>
+                            _showSoftKeyboard(_passwordFocusNode),
                         decoration: const InputDecoration(
                           hintText: '이메일을 입력해 주세요.',
                         ),
@@ -129,6 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscureText: true,
                         textInputAction: TextInputAction.done,
                         autofillHints: const [AutofillHints.password],
+                        onTap: () => _showSoftKeyboard(_passwordFocusNode),
                         onSubmitted: (_) => _signIn(AuthProvider.email),
                         decoration: const InputDecoration(
                           hintText: '비밀번호를 입력해 주세요.',

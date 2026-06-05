@@ -1017,6 +1017,8 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
                           ],
+                          onTap: () => SystemChannels.textInput
+                              .invokeMethod<void>('TextInput.show'),
                           textAlign: TextAlign.center,
                           decoration: _fieldDecoration(),
                           onChanged: (_) => _jumpMonth(),
@@ -1031,6 +1033,8 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
                           ],
+                          onTap: () => SystemChannels.textInput
+                              .invokeMethod<void>('TextInput.show'),
                           textAlign: TextAlign.center,
                           decoration: _fieldDecoration(),
                           onChanged: (_) => _jumpMonth(),
@@ -1226,7 +1230,7 @@ class _PickerField extends StatelessWidget {
   }
 }
 
-class _TextInput extends StatelessWidget {
+class _TextInput extends StatefulWidget {
   const _TextInput({
     required this.label,
     required this.controller,
@@ -1246,26 +1250,49 @@ class _TextInput extends StatelessWidget {
   final String? hintText;
 
   @override
+  State<_TextInput> createState() => _TextInputState();
+}
+
+class _TextInputState extends State<_TextInput> {
+  final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _showSoftKeyboard() {
+    _focusNode.requestFocus();
+    Future<void>.delayed(const Duration(milliseconds: 40), () {
+      if (!mounted || !_focusNode.hasFocus) return;
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return _FieldShell(
-      label: label,
-      required: required,
+      label: widget.label,
+      required: widget.required,
       child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType ??
-            (maxLines > 1 ? TextInputType.multiline : TextInputType.text),
-        textInputAction:
-            maxLines > 1 ? TextInputAction.newline : TextInputAction.done,
-        inputFormatters: keyboardType == TextInputType.number
+        controller: widget.controller,
+        focusNode: _focusNode,
+        keyboardType: widget.keyboardType,
+        textInputAction: widget.maxLines > 1
+            ? TextInputAction.newline
+            : TextInputAction.done,
+        inputFormatters: widget.keyboardType == TextInputType.number
             ? [FilteringTextInputFormatter.digitsOnly]
             : null,
-        maxLength: maxLength,
-        maxLines: maxLines,
-        decoration: _fieldDecoration(hintText: hintText),
+        maxLength: widget.maxLength,
+        maxLines: widget.maxLines,
+        decoration: _fieldDecoration(hintText: widget.hintText),
+        onTap: _showSoftKeyboard,
         validator: (value) {
-          if (!required) return null;
+          if (!widget.required) return null;
           if (value == null || value.trim().isEmpty) return '필수 입력값입니다.';
-          if (keyboardType == TextInputType.number &&
+          if (widget.keyboardType == TextInputType.number &&
               double.tryParse(value) == null) {
             return '숫자로 입력해 주세요.';
           }
