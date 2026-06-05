@@ -4,16 +4,27 @@ enum AuthProvider {
   google,
 }
 
+class AuthFailure implements Exception {
+  const AuthFailure(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class AuthSession {
   const AuthSession({
     required this.provider,
     required this.isPreview,
     this.email,
+    this.userId,
   });
 
   final AuthProvider provider;
   final bool isPreview;
   final String? email;
+  final String? userId;
 }
 
 abstract class AuthService {

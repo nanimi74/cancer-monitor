@@ -25,6 +25,7 @@ lib/
       legal/              # 개인정보처리방침, 약관 등 법적 문서
     services/
       ai/                 # Claude API 기반 AI 분석 서비스
+      auth/               # Firebase Authentication, mock 인증 fallback
       health/             # HealthKit / Health Connect 걸음수 연동
       notifications/      # 알림 권한 및 복약 알림
 ```
@@ -33,16 +34,25 @@ lib/
 
 - 화면 단위는 `features`로 분리한다.
 - 건강 데이터, 알림, AI 분석처럼 플랫폼 또는 외부 서비스 의존성이 있는 기능은 `services`로 분리한다.
-- Firebase Authentication, Firestore, Cloud Functions, Claude API 호출은 추후 repository/service 구현체로 교체한다.
+- 인증은 `AuthService` 인터페이스로 분리하고, Firebase 설정 파일이 없는 동안은 `MockAuthService`를 사용한다.
+- Firebase 설정 파일이 추가되면 `FirebaseBootstrap`이 `FirebaseAuthService`로 전환한다.
+- Firebase Authentication, Firestore, Cloud Functions, Claude API 호출은 repository/service 구현체로 분리한다.
 - Claude API는 앱에서 직접 호출하지 않고 서버 또는 Cloud Functions에서만 호출한다.
 - Claude API 요청에는 분석에 필요한 최소 건강정보만 포함하고, 이메일/Firebase UID 같은 직접 식별자는 제외한다.
 - Claude API 처리자, 보관 기간, 모델 학습 사용 여부, 국외 이전 여부는 개인정보처리방침과 AI 분석 이용 안내에 명시한다.
 - iOS HealthKit, Android Health Connect는 동일한 `StepSyncService` 인터페이스를 통해 호출한다.
 - 걸음수 권한 요청은 마이페이지 설정에서 사용자가 연동을 켤 때만 수행한다.
 
+## 사용 패키지
+
+- `firebase_core`
+- `firebase_auth`
+- `google_sign_in`
+- `sign_in_with_apple`
+
 ## 향후 패키지 후보
 
-- `firebase_core`, `firebase_auth`, `cloud_firestore`
+- `cloud_firestore`
 - `flutter_local_notifications`
 - HealthKit/Health Connect 지원 패키지 또는 직접 MethodChannel
 - `go_router` 또는 `auto_route`
