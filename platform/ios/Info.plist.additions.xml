@@ -1,0 +1,5 @@
+<!-- Add these keys to ios/Runner/Info.plist after running flutter create. -->
+<key>NSHealthShareUsageDescription</key>
+<string>증상 기록의 운동량 입력을 돕기 위해 Apple 건강 앱의 걸음수 데이터를 불러옵니다.</string>
+<key>NSHealthUpdateUsageDescription</key>
+<string>본 앱은 현재 건강 앱에 데이터를 쓰지 않습니다.</string>

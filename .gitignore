@@ -1,0 +1,28 @@
+.DS_Store
+
+# IDE and local editor state
+.idea/
+.vscode/
+
+# Flutter/Dart generated files
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/build/
+
+# Platform generated build output
+**/android/.gradle/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+
+# Local secrets and environment files
+.env
+.env.*
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
