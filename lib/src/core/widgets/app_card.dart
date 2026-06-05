@@ -80,7 +80,7 @@ class RequiredInfoBanner extends StatelessWidget {
           ),
           SizedBox(height: 4),
           Text(
-            '사용자정보 또는 주의정보가 미입력된 경우 서비스 이용이 제한됩니다.',
+            '미입력된 경우 서비스 이용이 제한됩니다.',
             style: TextStyle(color: AppColors.muted, fontSize: 13),
           ),
         ],
