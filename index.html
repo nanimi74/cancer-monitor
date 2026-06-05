@@ -1,0 +1,5139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>항암치료기록 모니터링</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --line: #e5e7eb;
+      --text: #1f2937;
+      --muted: #8a94a3;
+      --accent: #6d35e8;
+      --accent-soft: #f2edff;
+      --accent-line: #d8cbff;
+      --red: #e74c3c;
+      --red-soft: #fff4f2;
+      --green: #2fb477;
+      --green-soft: #edf8f2;
+      --orange: #f59e0b;
+      --orange-soft: #fff3d9;
+      --gold: #a66a00;
+      --gold-soft: #fff7df;
+      --shadow: 0 6px 14px rgba(31, 41, 55, .05);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-weight: 400;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      width: min(680px, 100%);
+      margin: 0 auto;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      background: #ffffff;
+      box-shadow: 0 0 18px rgba(31, 41, 55, .08);
+    }
+
+    .app.hidden {
+      display: none;
+    }
+
+    .app.preview-mode #bmiBox,
+    .app.preview-mode #weightAdvice {
+      display: none !important;
+    }
+
+    .entry-screen {
+      width: min(680px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      background: #ffffff;
+      display: grid;
+      align-content: start;
+      gap: 30px;
+      padding: 54px 28px 32px;
+      box-shadow: 0 0 18px rgba(31, 41, 55, .08);
+    }
+
+    .entry-screen.hidden {
+      display: none;
+    }
+
+    .entry-hero {
+      display: grid;
+      gap: 30px;
+      padding: 10px 0 4px;
+    }
+
+    .entry-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .entry-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(160deg, #5f25d9 0%, #7c3aed 55%, #c7b6ff 100%);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, .42);
+      font-weight: 700;
+      letter-spacing: 0;
+      box-shadow: 0 10px 22px rgba(109, 53, 232, .22);
+    }
+
+    .entry-logo svg {
+      width: 32px;
+      height: 32px;
+      stroke: currentColor;
+      stroke-width: 1.55;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .entry-logo .fill-soft {
+      fill: currentColor;
+      opacity: .12;
+      stroke: none;
+    }
+
+    .entry-brand strong {
+      display: block;
+      font-size: 18px;
+      font-weight: 600;
+      color: #202936;
+    }
+
+    .entry-brand span {
+      display: block;
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .entry-copy {
+      display: grid;
+      gap: 20px;
+    }
+
+    .entry-copy h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.22;
+      font-weight: 650;
+      letter-spacing: 0;
+      color: #172033;
+    }
+
+    .entry-feature-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 0;
+    }
+
+    .entry-feature-item {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 30px auto 1fr;
+      gap: 9px;
+      align-items: center;
+      padding: 9px 10px;
+      border: 1px solid #edf0f5;
+      border-radius: 15px;
+      background: #ffffff;
+    }
+
+    .entry-feature-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .entry-feature-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .entry-feature-item strong {
+      display: block;
+      font-size: 13px;
+      line-height: 1.25;
+      font-weight: 600;
+      color: #202936;
+      white-space: nowrap;
+    }
+
+    .entry-feature-item span:not(.entry-feature-icon) {
+      display: block;
+      font-size: 11.5px;
+      line-height: 1.3;
+      color: #788395;
+      word-break: keep-all;
+    }
+
+    .entry-actions {
+      display: grid;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .entry-primary,
+    .entry-secondary,
+    .login-provider {
+      min-height: 48px;
+      border-radius: 14px;
+      font-weight: 600;
+    }
+
+    .entry-primary {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .entry-secondary {
+      background: #ffffff;
+      color: var(--accent);
+      border: 1px solid var(--accent-line);
+    }
+
+    .entry-note {
+      margin: 2px 0 0;
+      text-align: center;
+      color: #9aa2ad;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .login-screen {
+      width: min(680px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      background: #ffffff;
+      display: none;
+      align-content: start;
+      gap: 20px;
+      padding: 42px 28px 32px;
+      box-shadow: 0 0 18px rgba(31, 41, 55, .08);
+    }
+
+    .login-screen.show {
+      display: grid;
+    }
+
+    .login-head {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .login-back {
+      width: 40px;
+      height: 40px;
+      border-radius: 13px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: #303948;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+    }
+
+    .login-head h1 {
+      margin: 8px 0 0;
+      font-size: 27px;
+      line-height: 1.25;
+      font-weight: 650;
+      color: #172033;
+    }
+
+    .login-head p {
+      margin: 0;
+      color: #7b8492;
+      font-size: 14px;
+      line-height: 1.55;
+      word-break: keep-all;
+    }
+
+    .login-card {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: #ffffff;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: grid;
+      gap: 13px;
+    }
+
+    .login-provider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      color: #202936;
+    }
+
+    .login-provider.primary {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .login-divider {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+      color: #a0a7b1;
+      font-size: 12px;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+      content: "";
+      height: 1px;
+      background: var(--line);
+    }
+
+    .login-mini-policy {
+      color: #8a94a3;
+      font-size: 12px;
+      line-height: 1.55;
+      word-break: keep-all;
+    }
+
+    .login-mini-policy strong {
+      color: #4f46a7;
+      font-weight: 600;
+    }
+
+    .topbar { display: none; }
+
+    .btn {
+      border-radius: 999px;
+      padding: 8px 15px;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      min-height: 38px;
+    }
+
+    .btn.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn.warn {
+      background: var(--red);
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .btn.dimmed {
+      opacity: .42;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .layout {
+      display: block;
+      padding: 34px 28px 88px;
+    }
+
+    .sidebar {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      z-index: 30;
+      width: min(680px, 100%);
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, .97);
+      border: 0;
+      border-top: 1px solid var(--line);
+      border-radius: 0;
+      box-shadow: 0 -8px 24px rgba(30, 38, 48, .08);
+      padding: 7px 26px 9px;
+      backdrop-filter: blur(16px);
+    }
+
+    .nav {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 4px;
+    }
+
+    .nav button {
+      min-height: 54px;
+      padding: 5px 4px;
+      border-radius: 8px;
+      background: transparent;
+      color: #9aa2ad;
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      gap: 4px;
+      text-align: center;
+      font-weight: 500;
+      font-size: 12px;
+    }
+
+    .nav button.active {
+      background: transparent;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .nav .icon {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      color: currentColor;
+    }
+
+    .nav .icon svg {
+      width: 27px;
+      height: 27px;
+      stroke: currentColor;
+      stroke-width: 1.65;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    .view {
+      display: none;
+      animation: fade .18s ease-out;
+    }
+
+    .view.active { display: block; }
+
+    @keyframes fade {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 23px;
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: 0;
+      color: #202936;
+    }
+
+    .section-head p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 1.45;
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .panel,
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel {
+      padding: 16px;
+    }
+
+    .card {
+      padding: 14px;
+    }
+
+    .panel h3,
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 19px;
+      letter-spacing: 0;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .field[hidden] {
+      display: none;
+    }
+
+    .field label {
+      font-size: 13px;
+      color: #3e484b;
+      font-weight: 500;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      border-radius: 12px;
+      min-height: 42px;
+      padding: 10px 11px;
+      color: var(--text);
+    }
+
+    select.native-select {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .sheet-select {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+      color: var(--text);
+      padding: 10px 38px 10px 11px;
+      text-align: left;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(31, 41, 55, .04);
+    }
+
+    .sheet-select::after {
+      content: "";
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      border-right: 1.5px solid #8f969d;
+      border-bottom: 1.5px solid #8f969d;
+      transform: translateY(-65%) rotate(45deg);
+    }
+
+    textarea {
+      min-height: 96px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .banner {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: stretch;
+      margin-bottom: 22px;
+    }
+
+    .bmi-box {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 16px;
+      display: grid;
+      gap: 7px;
+      box-shadow: var(--shadow);
+    }
+
+    .bmi-box .small {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bmi-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .bmi-status-line {
+      font-size: 16px;
+      font-weight: 600;
+      color: #202936;
+      line-height: 1.35;
+    }
+
+    .bmi-status-line .bmi-number {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .bmi-status-line .normal {
+      color: #0b9e61;
+    }
+
+    .bmi-status-line .risk {
+      color: var(--red);
+    }
+
+    .bmi-status-line .caution {
+      color: var(--gold);
+    }
+
+    .bmi-value {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .bmi-demo-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .bmi-demo-btn {
+      min-height: 28px;
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      color: #79818c;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .bmi-demo-btn.active {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .weight-disclaimer {
+      color: #9aa2ad;
+      font-size: 12px;
+      line-height: 1.45;
+      margin: 18px 4px 34px;
+      text-align: center;
+    }
+
+    .weight-advice {
+      display: none;
+      background: var(--red-soft);
+      border-color: #ffd0c9;
+      box-shadow: 0 6px 14px rgba(231, 76, 60, .06);
+    }
+
+    .weight-advice.show {
+      display: block;
+    }
+
+    .weight-advice h3 {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #202936;
+    }
+
+    .weight-advice .highlight {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .weight-advice .action {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 14px;
+      font-weight: 600;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .tag.coral {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .tag.teal {
+      background: var(--green-soft);
+      color: #0b9e61;
+    }
+
+    .tag.gold {
+      background: var(--gold-soft);
+      color: var(--gold);
+    }
+
+    .calendar-panel {
+      display: grid;
+      gap: 20px;
+    }
+
+    .app-card {
+      padding: 16px 14px;
+    }
+
+    .calendar-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 10px 14px;
+    }
+
+    .calendar-head h3 {
+      margin: 0;
+      font-size: 18px;
+      text-align: center;
+      flex: 1;
+      color: #202936;
+    }
+
+    .month-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 600;
+      display: grid;
+      place-items: center;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: white;
+      overflow: hidden;
+    }
+
+    .day-label {
+      color: #78838b;
+      font-size: 14px;
+      text-align: center;
+      font-weight: 500;
+      padding: 8px 4px 12px;
+      background: white;
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .day-label.sunday {
+      color: var(--red);
+    }
+
+    .day {
+      min-height: 72px;
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      background: white;
+      padding: 9px 6px;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      position: relative;
+      text-align: center;
+    }
+
+    .calendar > :nth-child(7n) {
+      border-right: 0;
+    }
+
+    .calendar > :nth-last-child(-n+7) {
+      border-bottom: 0;
+    }
+
+    .day.empty {
+      opacity: 1;
+      pointer-events: auto;
+      color: var(--muted);
+    }
+
+    .day:hover {
+      background: #ffffff;
+    }
+
+    .day.selected {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+      background: var(--accent-soft);
+    }
+
+    .date-num {
+      font-weight: 600;
+      font-size: 16px;
+      color: var(--text);
+    }
+
+    .day.sunday .date-num {
+      color: var(--red);
+    }
+
+    .today-dot {
+      position: absolute;
+      top: 27px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--red);
+    }
+
+    .mini-badge {
+      display: inline-flex;
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 auto;
+      border-radius: 8px;
+      padding: 3px 7px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+      box-shadow: none;
+    }
+
+    .mini-badge.side {
+      background: #eef8f3;
+      color: #159060;
+      padding: 2px 5px;
+      font-size: 10px;
+      font-weight: 500;
+      border-radius: 999px;
+    }
+
+    .calendar-side-badges {
+      display: grid;
+      justify-items: center;
+      gap: 2px;
+      max-width: 100%;
+      margin-top: -2px;
+    }
+
+    .mini-badge.weight {
+      background: transparent;
+      box-shadow: none;
+      color: var(--accent);
+      padding: 0;
+      margin-top: 5px;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .day .add-mark {
+      color: #c5ccd5;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .calendar-action {
+      display: none;
+      align-items: stretch;
+      justify-content: stretch;
+      gap: 10px;
+      border-top: 0;
+      padding: 16px;
+      background: #ffffff;
+      border-radius: 16px;
+    }
+
+    .calendar-action.show {
+      display: grid;
+    }
+
+    .calendar-action > div {
+      display: grid;
+      gap: 13px;
+    }
+
+    .calendar-action strong {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--text);
+    }
+
+    .calendar-action .btn {
+      justify-self: center;
+      min-width: 142px;
+      border-radius: 12px;
+    }
+
+    .calendar-action-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      width: min(360px, 100%);
+      margin: 8px auto 0;
+    }
+
+    .calendar-action-buttons:has(#symptomDeleteBtn[hidden]) {
+      grid-template-columns: minmax(142px, 220px);
+      justify-content: center;
+    }
+
+    .calendar-action-buttons .btn {
+      width: 100%;
+      min-width: 0;
+      margin: 0;
+    }
+
+    .symptom-delete-btn {
+      background: #ffffff;
+      color: #8a94a3;
+      border: 1px solid var(--line);
+      box-shadow: none;
+      font-weight: 500;
+    }
+
+    .chart {
+      height: 300px;
+      display: block;
+      padding: 0;
+      border-bottom: 0;
+      overflow: hidden;
+      margin: 0 -4px;
+    }
+
+    .chart svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .range-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 14px 0 12px;
+    }
+
+    .range-btn {
+      min-height: 34px;
+      border: 1px solid #d9dee7;
+      border-radius: 999px;
+      background: white;
+      color: #666b72;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 6px;
+      white-space: nowrap;
+    }
+
+    .range-btn.active {
+      color: white;
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 8px 16px rgba(109, 53, 232, .18);
+    }
+
+    .custom-range {
+      display: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .custom-range.show {
+      display: grid;
+    }
+
+    .custom-range .field {
+      margin: 0;
+    }
+
+    .custom-range label {
+      font-size: 12px;
+    }
+
+    .symptom-detail {
+      display: grid;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .detail-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(35, 44, 58, .05);
+      padding: 12px;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.35;
+    }
+
+    .detail-row > span:first-child {
+      color: #7f8a98;
+      font-weight: 500;
+    }
+
+    .detail-row > span:last-child {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .label-note {
+      color: #a0a7b1;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .sync-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+      padding: 9px 10px;
+      margin-top: 8px;
+    }
+
+    .sync-panel strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #4b5563;
+    }
+
+    .sync-panel span {
+      display: block;
+      margin-top: 2px;
+      color: #98a1ad;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .sync-panel.enabled {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+    }
+
+    .sync-panel.enabled strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .sync-btn {
+      flex: 0 0 auto;
+      min-height: 32px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: var(--accent);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .sync-panel.enabled .sync-btn {
+      background: #ffffff;
+      color: var(--accent);
+      border: 1px solid var(--accent-line);
+    }
+
+    input[readonly] {
+      background: #f8fafc;
+      color: #6f7a87;
+    }
+
+    .symptom-detail .tag {
+      min-height: 26px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .symptom-detail .detail-row .tag {
+      font-size: 12px;
+    }
+
+    .tag-list {
+      display: flex;
+      justify-content: flex-end;
+      gap: 5px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .meal-box {
+      display: grid;
+      gap: 7px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #f1d99a;
+    }
+
+    .meal-item {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 8px;
+      align-items: center;
+      background: #ffffff;
+      border-left: 3px solid #a4afbd;
+      border-radius: 9px;
+      padding: 8px 9px;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .meal-item strong {
+      font-size: 14px;
+      font-weight: 600;
+      color: #202936;
+    }
+
+    .meal-item span {
+      font-size: 14px;
+      color: #6f7a87;
+    }
+
+    .symptom-detail .small {
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .symptom-detail .grid.two.summary-pair {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .med-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .med-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff;
+      box-shadow: 0 3px 10px rgba(31, 41, 55, .04);
+    }
+
+    .med-main {
+      display: grid;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .med-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .med-title strong {
+      font-size: 16px;
+      font-weight: 600;
+      color: #222832;
+    }
+
+    .med-alert {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 26px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .med-alert.off {
+      background: #f3f4f6;
+      color: #9aa2ad;
+      font-weight: 500;
+    }
+
+    .med-alert svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      fill: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .med-alert.off svg {
+      fill: none;
+    }
+
+    .med-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      color: #6f7a87;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .med-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: #68717d;
+      display: grid;
+      place-items: center;
+    }
+
+    .icon-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .empty-state {
+      min-height: 160px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed #d9dee7;
+      border-radius: 14px;
+      background: #ffffff;
+      padding: 18px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .empty-state strong {
+      display: block;
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 600;
+      color: #7f8998;
+    }
+
+    .empty-state .small {
+      margin-top: 4px;
+      font-size: 11.5px;
+      line-height: 1.45;
+      font-weight: 400;
+      color: #929baa;
+    }
+
+    .reminder-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .reminder-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr) 34px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .reminder-row .sheet-select,
+    .reminder-row input {
+      min-height: 40px;
+      border-radius: 11px;
+    }
+
+    .text-btn {
+      width: fit-content;
+      min-height: 34px;
+      border-radius: 999px;
+      padding: 7px 12px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .weekday-field {
+      display: none;
+    }
+
+    .weekday-field.show {
+      display: grid;
+    }
+
+    .weekday-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 4px;
+    }
+
+    .weekday-chip {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #ffffff;
+      color: #6f7a87;
+      font-size: 13px;
+      font-weight: 500;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    .weekday-chip input {
+      position: absolute;
+      opacity: 0;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .weekday-chip:has(input:checked) {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .check-grid.compact {
+      grid-template-columns: repeat(4, max-content);
+    }
+
+    .check {
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 12px;
+      background: #ffffff;
+      font-size: 14px;
+      color: #2f343b;
+      transition: border-color .15s ease, background .15s ease, color .15s ease;
+    }
+
+    .check input {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 1.5px solid #9aa1aa;
+      border-radius: 4px;
+      background: white;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+
+    .check input::after {
+      content: "";
+      width: 8px;
+      height: 4px;
+      border-left: 2px solid white;
+      border-bottom: 2px solid white;
+      transform: rotate(-45deg) translate(1px, -1px);
+      opacity: 0;
+    }
+
+    .check:has(input:checked) {
+      border-color: #83c5ff;
+      background: #eaf5ff;
+      color: #1f2937;
+    }
+
+    .check.dimmed {
+      opacity: .38;
+      cursor: not-allowed;
+      background: #f8fafc;
+      color: #a6adb5;
+    }
+
+    .check:has(input:checked) input {
+      border-color: #3b9df5;
+      background: #3b9df5;
+    }
+
+    .check:has(input:checked) input::after {
+      opacity: 1;
+    }
+
+    .check.radio-like input {
+      position: absolute;
+      opacity: 0;
+      width: 1px;
+      height: 1px;
+      pointer-events: none;
+    }
+
+    .check.radio-like input::after {
+      display: none;
+    }
+
+    .check.radio-like {
+      position: relative;
+      min-width: 86px;
+      min-height: 44px;
+      border-radius: 12px;
+      gap: 0;
+      font-weight: 500;
+    }
+
+    .check.radio-like:has(input:checked) {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .check.choice-like input {
+      position: absolute;
+      opacity: 0;
+      width: 1px;
+      height: 1px;
+      pointer-events: none;
+    }
+
+    .check.choice-like input::after {
+      display: none;
+    }
+
+    .check.choice-like {
+      position: relative;
+      min-height: 44px;
+      border-radius: 12px;
+      gap: 0;
+      font-weight: 500;
+    }
+
+    .check.choice-like:has(input:checked) {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .analysis-block {
+      display: grid;
+      gap: 14px;
+    }
+
+    .analysis-control {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .analysis-control .btn {
+      justify-self: stretch;
+      border-radius: 12px;
+    }
+
+    .analysis-result {
+      display: grid;
+      gap: 14px;
+    }
+
+    .analysis-result.hidden {
+      display: none;
+    }
+
+    .analysis-card {
+      border: 1px solid var(--line);
+      padding: 18px;
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(31, 41, 55, .045);
+    }
+
+    .analysis-meta-title {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+      font-size: 15px;
+      color: #202936;
+    }
+
+    .analysis-meta-card {
+      padding: 2px 0 4px;
+    }
+
+    .analysis-meta-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .analysis-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      min-height: 42px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f8fafc;
+      color: #7a8493;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .analysis-meta-row strong {
+      color: #202936;
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .analysis-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #202936;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eef0f4;
+    }
+
+    .analysis-title::before {
+      content: "AI";
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid var(--accent-line);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .analysis-loading {
+      min-height: 240px;
+      display: grid;
+      place-items: center;
+      gap: 18px;
+      text-align: center;
+      color: #7b8492;
+    }
+
+    .analysis-transient-loading {
+      min-height: 190px;
+      display: grid;
+      place-items: center;
+      gap: 16px;
+      text-align: center;
+      color: #7b8492;
+      overflow: hidden;
+      animation: analysisLoaderOut .9s ease forwards;
+    }
+
+    .analysis-transient-loading p {
+      margin: 0;
+    }
+
+    .analysis-complete-content {
+      display: grid;
+      gap: 12px;
+      animation: analysisContentIn .42s ease .22s both;
+    }
+
+    .spinner {
+      width: 46px;
+      height: 46px;
+      border-radius: 999px;
+      border: 6px solid #edf0f5;
+      border-top-color: var(--accent);
+      animation: spin .9s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes analysisLoaderOut {
+      0%, 62% {
+        opacity: 1;
+        max-height: 260px;
+        margin-top: 18px;
+        margin-bottom: 14px;
+      }
+      100% {
+        opacity: 0;
+        max-height: 0;
+        margin: 0;
+        min-height: 0;
+        pointer-events: none;
+      }
+    }
+
+    @keyframes analysisContentIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .analysis-item h4 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: #283244;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .analysis-item {
+      display: grid;
+      gap: 9px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: 0 5px 14px rgba(31, 41, 55, .025);
+    }
+
+    .analysis-item-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 9px;
+      display: inline-grid;
+      place-items: center;
+      background: var(--tone-bg, var(--accent-soft));
+      color: var(--tone, var(--accent));
+      font-size: 14px;
+    }
+
+    .analysis-panel {
+      border-radius: 14px;
+      padding: 13px;
+      color: #394456;
+      line-height: 1.58;
+      font-size: 14px;
+      display: grid;
+      gap: 11px;
+      background: var(--tone-bg, #f8fafc);
+      border: 1px solid var(--tone-line, #edf0f4);
+    }
+
+    .analysis-item:has(.analysis-panel.meal),
+    .analysis-panel.meal {
+      --tone: #6d35e8;
+      --tone-bg: #f5f1ff;
+      --tone-line: #e5dcff;
+    }
+
+    .analysis-item:has(.analysis-panel.water),
+    .analysis-panel.water {
+      --tone: #2f7de1;
+      --tone-bg: #f1f6ff;
+      --tone-line: #dbeaff;
+    }
+
+    .analysis-item:has(.analysis-panel.activity),
+    .analysis-panel.activity {
+      --tone: #169b72;
+      --tone-bg: #effaf6;
+      --tone-line: #d6f1e7;
+    }
+
+    .analysis-item:has(.analysis-panel.bowel),
+    .analysis-panel.bowel {
+      --tone: #8a6a10;
+      --tone-bg: #fff9e8;
+      --tone-line: #f3e6b9;
+    }
+
+    .analysis-item:has(.analysis-panel.effects),
+    .analysis-panel.effects {
+      --tone: #db4b4b;
+      --tone-bg: #fff4f4;
+      --tone-line: #ffdada;
+    }
+
+    .analysis-panel p {
+      margin: 0;
+      color: #394456;
+    }
+
+    .analysis-text {
+      display: grid;
+      gap: 6px;
+    }
+
+    .analysis-text p {
+      margin: 0;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
+    .previous-box {
+      border-top: 1px dashed var(--tone-line, #d9dee8);
+      padding-top: 10px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .previous-label {
+      width: fit-content;
+      border-radius: 7px;
+      padding: 4px 8px;
+      background: rgba(255, 255, 255, .74);
+      color: var(--tone, var(--accent));
+      font-weight: 600;
+      font-size: 12px;
+      border: 1px solid var(--tone-line, var(--accent-line));
+    }
+
+    .ai-comment-card {
+      border: 1px solid var(--accent-line);
+      border-radius: 16px;
+      background: linear-gradient(180deg, #fbf9ff 0%, #ffffff 100%);
+      padding: 15px;
+      color: #2f3948;
+      line-height: 1.68;
+      font-size: 14px;
+    }
+
+    .ai-comment-card p {
+      margin: 0;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
+    .ai-encouragement {
+      margin-top: 12px !important;
+      padding-top: 12px;
+      border-top: 1px dashed var(--accent-line);
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .analysis-detail-toggle {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #f9fafb;
+      color: #303948;
+      text-align: left;
+      padding: 11px 13px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .analysis-detail-list {
+      display: none;
+      gap: 10px;
+    }
+
+    .analysis-detail-list.show {
+      display: grid;
+    }
+
+    .analysis-note-card {
+      border: 1px solid #f4dfae;
+      border-left: 3px solid #f59e0b;
+      border-radius: 13px;
+      background: #fff9e8;
+      box-shadow: none;
+      padding: 13px 14px;
+      color: #8a3b12;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .analysis-note-card strong {
+      display: block;
+      margin-bottom: 7px;
+      color: #9a4412;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .analysis-note-card p {
+      margin: 0;
+      white-space: pre-line;
+    }
+
+    .disclaimer {
+      background: #fffaf0;
+      color: #7a5814;
+      border: 1px solid #f0dfb8;
+      border-radius: 14px;
+      padding: 13px;
+      line-height: 1.52;
+      font-size: 12.5px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, .28);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .modal-backdrop.show { display: flex; }
+
+    .modal {
+      width: min(600px, 100%);
+      max-height: min(88vh, 860px);
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 18px 50px rgba(31, 41, 55, .18);
+      border: 1px solid var(--line);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .modal-head {
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .modal-head h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .modal-body {
+      padding: 18px 20px;
+      overflow: auto;
+    }
+
+    .modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px 20px;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, .78);
+    }
+
+    .modal .field {
+      margin-bottom: 16px;
+    }
+
+    .modal .field label {
+      font-size: 15px;
+      color: #30343a;
+      margin-bottom: 8px;
+    }
+
+    .required::after {
+      content: " *";
+      color: var(--red);
+    }
+
+    .modal input,
+    .modal select,
+    .modal textarea {
+      background: white;
+      border-radius: 13px;
+      border-color: #dfe5ee;
+      box-shadow: 0 1px 3px rgba(31, 41, 55, .04);
+    }
+
+    .modal textarea {
+      min-height: 104px;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .modal-section {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #ffffff;
+      margin-bottom: 14px;
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 0;
+    }
+
+    .switch {
+      position: relative;
+      width: 48px;
+      height: 28px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      inset: 0;
+    }
+
+    .switch span {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #dfe4eb;
+      transition: background .18s ease;
+    }
+
+    .switch span::after {
+      content: "";
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      left: 3px;
+      top: 3px;
+      border-radius: 999px;
+      background: white;
+      box-shadow: 0 1px 4px rgba(31, 41, 55, .2);
+      transition: transform .18s ease;
+    }
+
+    .switch input:checked + span {
+      background: var(--accent);
+    }
+
+    .switch input:checked + span::after {
+      transform: translateX(20px);
+    }
+
+    .char-count {
+      margin-top: 6px;
+      text-align: right;
+      color: #8a9ab4;
+      font-size: 13px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      background: #1f2a2d;
+      color: white;
+      border-radius: 999px;
+      padding: 11px 15px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease;
+      z-index: 150;
+      max-width: min(520px, calc(100% - 24px));
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .bottom-sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 180;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(17, 24, 39, .26);
+      padding: 0 12px 12px;
+    }
+
+    .bottom-sheet-backdrop.show {
+      display: flex;
+    }
+
+    .bottom-sheet {
+      width: min(640px, 100%);
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 18px 44px rgba(31, 41, 55, .18);
+      overflow: hidden;
+      animation: sheetIn .18s ease-out;
+    }
+
+    @keyframes sheetIn {
+      from { transform: translateY(18px); opacity: .8; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .bottom-sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .bottom-sheet-head strong {
+      font-weight: 600;
+    }
+
+    .sheet-close {
+      min-height: 34px;
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .sheet-options {
+      display: grid;
+      gap: 4px;
+      padding: 10px;
+      max-height: 48vh;
+      overflow: auto;
+    }
+
+    .sheet-option {
+      min-height: 46px;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #ffffff;
+      color: var(--text);
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sheet-option:hover {
+      background: #fafafa;
+    }
+
+    .sheet-option.selected {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .sheet-option.selected::after {
+      content: "✓";
+      font-weight: 600;
+    }
+
+    input.native-date {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .date-trigger {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+      color: var(--text);
+      padding: 10px 38px 10px 11px;
+      text-align: left;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(31, 41, 55, .04);
+    }
+
+    .date-trigger::after {
+      content: "";
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      width: 15px;
+      height: 15px;
+      border: 1.5px solid #8f969d;
+      border-radius: 4px;
+      transform: translateY(-50%);
+    }
+
+    .date-sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 190;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(17, 24, 39, .26);
+      padding: 18px;
+    }
+
+    .date-sheet-backdrop.show {
+      display: flex;
+    }
+
+    .date-sheet {
+      width: min(430px, 100%);
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 18px 44px rgba(31, 41, 55, .18);
+      overflow: hidden;
+      animation: sheetIn .18s ease-out;
+    }
+
+    .date-sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .date-sheet-head strong {
+      font-weight: 600;
+    }
+
+    .date-sheet-body {
+      padding: 14px 16px 16px;
+    }
+
+    .date-month {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .date-month strong {
+      font-weight: 600;
+      font-size: 17px;
+    }
+
+    .date-nav {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .date-jump {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .date-jump input {
+      min-height: 38px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .date-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .date-weekday {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 5px 0;
+    }
+
+    .date-day {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      background: #ffffff;
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      font-weight: 400;
+    }
+
+    .date-day.blank {
+      pointer-events: none;
+    }
+
+    .date-day:hover {
+      background: #fafafa;
+    }
+
+    .date-day.selected {
+      background: var(--accent);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .profile-status {
+      margin-bottom: 14px;
+    }
+
+    .required-info-banner {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .required-info-banner.show {
+      display: block;
+    }
+
+    .profile-banner {
+      border: 1px solid var(--accent-line);
+      background: var(--accent-soft);
+      border-radius: 14px;
+      padding: 14px;
+      color: var(--text);
+    }
+
+    .profile-summary-card {
+      background: var(--accent-soft);
+      border-color: var(--accent-line);
+    }
+
+    .profile-banner strong {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .profile-banner .emphasis {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .summary-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: rgba(255, 255, 255, .72);
+    }
+
+    .summary-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+
+    .summary-item strong {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .submenu-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .submenu-item {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff;
+      padding: 13px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      text-align: left;
+      color: var(--text);
+    }
+
+    .submenu-item strong {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .submenu-item span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .submenu-item > div > span:not(.required-label) {
+      display: block;
+      margin-top: 2px;
+    }
+
+    .required-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+      flex: 0 0 auto;
+    }
+
+    .submenu-item::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-right: 1.5px solid #a6adb5;
+      border-bottom: 1.5px solid #a6adb5;
+      transform: rotate(-45deg);
+      flex: 0 0 auto;
+    }
+
+    .submenu-item.low {
+      color: #7a828c;
+    }
+
+    .submenu-item.low strong {
+      font-weight: 400;
+    }
+
+    .toggle-row {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff;
+      padding: 13px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text);
+    }
+
+    .toggle-row strong {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .toggle-row span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 28px;
+      flex: 0 0 auto;
+    }
+
+    .toggle-switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #d1d5db;
+      transition: background .16s ease;
+    }
+
+    .toggle-slider::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: white;
+      box-shadow: 0 1px 4px rgba(31, 41, 55, .18);
+      transition: transform .16s ease;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--accent);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::after {
+      transform: translateX(20px);
+    }
+
+    .profile-home.hidden {
+      display: none;
+    }
+
+    .profile-panel {
+      display: none;
+    }
+
+    .profile-panel.show {
+      display: block;
+    }
+
+    .subpage-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .back-btn {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+      color: var(--text);
+      display: grid;
+      place-items: center;
+    }
+
+    .subpage-head h3 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .policy-content {
+      display: grid;
+      gap: 14px;
+    }
+
+    .policy-intro {
+      border: 1px solid var(--accent-line);
+      background: var(--accent-soft);
+      border-radius: 14px;
+      padding: 14px;
+      color: #4b3d7f;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .policy-section {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .policy-section h4 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: #202936;
+    }
+
+    .policy-section p,
+    .policy-section li {
+      margin: 0;
+      color: #687385;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .policy-section ul {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .profile-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .plain-action {
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .plain-action.low {
+      color: #8a94a3;
+      font-weight: 400;
+    }
+
+    .app-version {
+      margin-top: 18px;
+      text-align: center;
+      color: #a0a7b1;
+      font-size: 12px;
+    }
+
+    @media (max-width: 860px) {
+      .layout {
+        padding: 28px 24px 84px;
+      }
+
+      .sidebar {
+        bottom: 0;
+        width: min(680px, 100%);
+        padding: 7px 14px 9px;
+      }
+
+      .nav {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .nav button {
+        min-width: 0;
+      }
+
+      .grid.two,
+      .grid.three,
+      .banner {
+        grid-template-columns: 1fr;
+      }
+
+      .day {
+        min-height: 76px;
+        padding: 8px 5px;
+      }
+
+      .check-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .check-grid.compact {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .range-tabs {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .section-head {
+        display: grid;
+      }
+
+      .calendar {
+        gap: 0;
+      }
+
+      .day {
+        min-height: 64px;
+      }
+
+      .mini-badge {
+        font-size: 11px;
+        padding: 2px 4px;
+      }
+
+      .calendar-action {
+        align-items: stretch;
+        display: none;
+        flex-direction: column;
+      }
+
+      .calendar-action.show { display: grid; }
+
+      .btn {
+        min-height: 36px;
+        padding: 8px 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="entry-screen" id="entryScreen">
+    <div class="entry-hero">
+      <div class="entry-brand">
+        <div class="entry-logo" aria-label="항암기록관리 앱 아이콘">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <rect x="5.8" y="7.4" width="20.4" height="20.1" rx="4.2"></rect>
+            <path d="M11.8 5.5h8.4a2 2 0 0 1 2 2v2.3H9.8V7.5a2 2 0 0 1 2-2Z"></path>
+            <path d="M10.8 14h4.9"></path>
+            <path d="M10.8 19h4.9"></path>
+            <path d="M10.8 24h4.9"></path>
+            <path d="m19.1 14.1 1.15 1.15 2.35-2.55"></path>
+            <path d="m19.1 19.1 1.15 1.15 2.35-2.55"></path>
+            <path d="m19.1 24.1 1.15 1.15 2.35-2.55"></path>
+            <path d="M11.8 5.5h8.4a2 2 0 0 1 2 2v2.3H9.8V7.5a2 2 0 0 1 2-2Z" fill="currentColor"></path>
+          </svg>
+        </div>
+        <div>
+          <strong>항암기록관리</strong>
+          <span>치료 중 일상 기록을 한곳에</span>
+        </div>
+      </div>
+
+      <div class="entry-copy">
+        <h1>항암 치료 기록을<br>가볍게 남기고 정리해요.</h1>
+        <div class="entry-feature-grid" aria-label="주요 기능 요약">
+          <div class="entry-feature-item">
+            <span class="entry-feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><g transform="rotate(-45 12 12)"><path d="M8.5 8H12v8H8.5a4 4 0 0 1 0-8Z" fill="currentColor" stroke="none"></path><rect x="4.5" y="8" width="15" height="8" rx="4"></rect><path d="M12 8v8"></path></g></svg>
+            </span>
+            <strong>복약관리</strong><span>복용 약과 알림을 관리해요.</span>
+          </div>
+          <div class="entry-feature-item">
+            <span class="entry-feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="16" rx="4"></rect><rect x="8.5" y="8" width="7" height="4" rx="1.5"></rect><path d="M9 17h6"></path></svg>
+            </span>
+            <strong>체중관리</strong><span>BMI와 체중 변화를 확인해요.</span>
+          </div>
+          <div class="entry-feature-item">
+            <span class="entry-feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="16" rx="3"></rect><path d="M8 3v4"></path><path d="M16 3v4"></path><path d="M5 10h14"></path><path d="M9 15h.01"></path><path d="M13 15h.01"></path></svg>
+            </span>
+            <strong>증상관리</strong><span>식사, 배변, 부작용을 기록해요.</span>
+          </div>
+          <div class="entry-feature-item">
+            <span class="entry-feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><text x="12" y="14.2" text-anchor="middle" font-size="6.5" font-weight="700" fill="currentColor" stroke="none" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">AI</text></svg>
+            </span>
+            <strong>AI요약</strong><span>회차별 기록을 요약하고 추이를 분석해요.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="entry-actions">
+      <button class="entry-primary" id="entryLoginBtn" type="button">로그인하고 시작하기</button>
+      <button class="entry-secondary" id="entryPreviewBtn" type="button">둘러보기</button>
+      <p class="entry-note">둘러보기에서는 앱 화면만 확인할 수 있고, 기록은 저장되지 않아요.</p>
+    </div>
+  </section>
+
+  <section class="login-screen" id="loginScreen">
+    <div class="login-head">
+      <button class="login-back" id="loginBackBtn" type="button" aria-label="이전">‹</button>
+      <h1>로그인</h1>
+      <p>회원 전용 서비스입니다.<br>비회원의 경우 가입 후 이용해주세요.</p>
+    </div>
+
+    <div class="login-card">
+      <button class="login-provider primary" id="emailLoginBtn" type="button">이메일로 계속하기</button>
+      <div class="login-divider">또는</div>
+      <button class="login-provider" id="appleLoginBtn" type="button">Apple로 계속하기</button>
+      <button class="login-provider" id="googleLoginBtn" type="button">Google로 계속하기</button>
+    </div>
+
+    <p class="login-mini-policy">
+      로그인하면 <strong>서비스 이용약관</strong>과 <strong>개인정보처리방침</strong>을 확인한 것으로 간주됩니다.
+      AI 분석은 참고용이며 의학적 진단이나 치료 결정을 대체하지 않아요.
+    </p>
+  </section>
+
+  <div class="app hidden" id="appShell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">CM</div>
+        <div>
+          <h1>항암기록관리</h1>
+          <p>증상, 체중, 복약 기록을 회차별로 정리합니다.</p>
+        </div>
+      </div>
+      <div class="auth-actions">
+        <span class="pill" id="modeLabel">sunhee@gmail.com</span>
+        <button class="btn warn" id="loginBtn">로그아웃</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <nav class="nav" aria-label="주요 기능">
+          <button data-view="profile"><span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg></span>마이페이지</button>
+          <button data-view="meds"><span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><path d="M8.5 8h3.5v8H8.5a4 4 0 0 1 0-8Z" fill="currentColor" stroke="none"></path><rect x="4.5" y="8" width="15" height="8" rx="4"></rect><path d="M12 8v8"></path></g></svg></span>복약관리</button>
+          <button data-view="weight"><span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="5" width="15" height="17" rx="4"></rect><rect x="8" y="8" width="8" height="4" rx="1.5"></rect><path d="M8.5 17h7"></path></svg></span>체중관리</button>
+          <button class="active" data-view="symptom"><span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="17" rx="2"></rect><path d="M8 3v4"></path><path d="M16 3v4"></path><path d="M4 10h16"></path><path d="M9 15h.01"></path><path d="M13 15h.01"></path><path d="M17 15h.01"></path></svg></span>증상관리</button>
+          <button data-view="analysis"><span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><text x="12" y="14.4" text-anchor="middle" font-size="6.8" font-weight="700" fill="currentColor" stroke="none" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">AI</text></svg></span>AI분석</button>
+        </nav>
+      </aside>
+
+      <main>
+        <section class="view" id="home">
+          <div class="section-head">
+            <div>
+              <h2>오늘의 기록</h2>
+              <p>회원 로그인 후 실제 기록을 저장할 수 있습니다. 둘러보기 모드에서는 앱 화면 구조만 확인할 수 있습니다.</p>
+            </div>
+            <button class="btn" data-view-jump="symptom">오늘 증상 기록</button>
+          </div>
+
+          <div class="grid three">
+            <div class="card">
+              <h3>오늘 컨디션 체크</h3>
+              <p class="small">식사량 보통, 수분섭취 1~1.5L, 활동량 4,820보로 기록되어 있습니다.</p>
+            </div>
+            <div class="card">
+              <h3>주의 신호</h3>
+              <span class="tag coral">식욕저하</span>
+              <p class="small">최근 2일간 식사량이 평소보다 줄어 상담 시 전달하면 좋습니다.</p>
+            </div>
+            <div class="card">
+              <h3>복약 알림</h3>
+              <p class="small">오전 9:00 항구토제, 오후 8:00 진통제 알림이 예정되어 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="profile">
+          <div class="section-head">
+            <div>
+              <h2>마이페이지</h2>
+              <p>서비스 이용과 AI 분석에 필요한 정보를 관리합니다.</p>
+            </div>
+          </div>
+
+          <div class="profile-home" id="profileHome">
+            <div class="profile-status" id="profileStatus"></div>
+
+            <div class="submenu-list">
+              <button class="submenu-item" type="button" data-profile-panel="profileInfoPanel">
+                <div><strong><i class="required-dot" aria-hidden="true"></i>사용자 정보</strong><span>성별, 생년월일, 질병 및 치료 정보</span></div>
+              </button>
+              <button class="submenu-item" type="button" data-profile-panel="cautionInfoPanel">
+                <div><strong><i class="required-dot" aria-hidden="true"></i>주의 정보</strong><span>알레르기, 기저질환, 복용 주의 약물</span></div>
+              </button>
+              <div class="toggle-row">
+                <div><strong>알림 권한</strong><span>앱의 알림 권한을 허용하거나 해제합니다.</span></div>
+                <label class="toggle-switch" aria-label="알림 권한">
+                  <input id="notificationToggle" type="checkbox" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <div><strong>걸음수 연동 권한</strong><span>휴대폰의 걸음수를 불러와 증상관리에 사용합니다.</span></div>
+                <label class="toggle-switch" aria-label="걸음수 연동 권한">
+                  <input id="stepsSyncToggle" type="checkbox">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <button class="submenu-item" type="button">
+                <div><strong>문의하기</strong><span>서비스 이용 중 궁금한 점을 보냅니다.</span></div>
+              </button>
+              <button class="submenu-item" type="button" data-profile-panel="termsPanel">
+                <div><strong>서비스 이용약관</strong><span>서비스 이용 조건과 책임 범위를 확인합니다.</span></div>
+              </button>
+              <button class="submenu-item" type="button" data-profile-panel="privacyPolicyPanel">
+                <div><strong>개인정보처리방침</strong><span>수집 항목과 이용 목적을 확인합니다.</span></div>
+              </button>
+            </div>
+
+            <div class="profile-actions">
+              <button class="plain-action" type="button" id="logoutBtn">로그아웃</button>
+              <button class="plain-action low" type="button" id="withdrawBtn">회원탈퇴</button>
+            </div>
+            <div class="app-version">앱 버전 1.0.0</div>
+          </div>
+
+          <div class="profile-panel" id="profileInfoPanel">
+            <div class="panel">
+              <div class="subpage-head">
+                <button class="back-btn" type="button" data-profile-back>‹</button>
+                <h3>사용자 정보</h3>
+              </div>
+              <div class="grid two">
+                <div class="field">
+                  <label for="sex">성별</label>
+                  <select id="sex">
+                    <option>여성</option>
+                    <option>남성</option>
+                    <option>기타</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="birthDate">생년월일</label>
+                  <input id="birthDate" type="date" value="1974-03-12">
+                </div>
+              </div>
+              <div class="field">
+                <label for="cancerType">암종</label>
+                <input id="cancerType" value="유방암">
+              </div>
+              <div class="field">
+                <label for="stage">병기</label>
+                <input id="stage" value="2기">
+              </div>
+              <div class="grid two">
+                <div class="field">
+                  <label for="diagnosis">진단일</label>
+                  <input id="diagnosis" type="date" value="2026-01-15">
+                </div>
+                <div class="field">
+                  <label for="metastasis">전이 여부</label>
+                  <select id="metastasis">
+                    <option>없음</option>
+                    <option>있음</option>
+                    <option>확인 필요</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid two">
+                <div class="field">
+                  <label for="treatment">항암치료 종류</label>
+                  <input id="treatment" value="주사 항암">
+                </div>
+                <div class="field">
+                  <label for="startDate">치료 시작일</label>
+                  <input id="startDate" type="date" value="2026-04-01">
+                </div>
+              </div>
+              <div class="field">
+                <label for="height">키(cm)</label>
+                <input id="height" type="number" value="162" min="1">
+              </div>
+              <button class="btn" id="saveProfile" type="button">저장</button>
+            </div>
+          </div>
+
+          <div class="profile-panel" id="cautionInfoPanel">
+            <div class="panel">
+              <div class="subpage-head">
+                <button class="back-btn" type="button" data-profile-back>‹</button>
+                <h3>주의 정보</h3>
+              </div>
+              <div class="field">
+                <label for="allergy">알레르기</label>
+                <input id="allergy" value="없음">
+              </div>
+              <div class="field">
+                <label for="conditions">기저질환</label>
+                <input id="conditions" value="고혈압">
+              </div>
+              <div class="field">
+                <label for="precautions">복용 금기 또는 주의 약물</label>
+                <input id="precautions" value="없음">
+              </div>
+              <div class="field">
+                <label for="extra">기타정보</label>
+                <textarea id="extra" maxlength="200" placeholder="환자에 대해 알아야 하는 정보나 분석 시 참고할 만한 내용을 모두 입력해 주세요."></textarea>
+              </div>
+              <button class="btn" id="saveCautionInfo" type="button">저장</button>
+            </div>
+          </div>
+
+          <div class="profile-panel" id="termsPanel">
+            <div class="panel">
+              <div class="subpage-head">
+                <button class="back-btn" type="button" data-profile-back>‹</button>
+                <h3>서비스 이용약관</h3>
+              </div>
+              <div class="policy-content">
+                <div class="policy-intro">
+                  본 약관은 항암기록관리 서비스 이용 조건과 사용자 및 서비스 제공자의 기본 책임 범위를 정리한 초안입니다. 정식 배포 전 사업자 정보, 시행일, 문의처를 확정해 고지합니다.
+                </div>
+                <div class="policy-section">
+                  <h4>1. 서비스 목적</h4>
+                  <p>본 서비스는 항암치료 중인 사용자가 증상, 체중, 복약, 식사, 수분섭취, 활동량을 기록하고 외래 진료 전 상담 준비를 돕기 위한 기록 관리 서비스입니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>2. 회원 이용</h4>
+                  <p>기록 저장, 복약 알림, AI 분석 등 주요 기능은 회원 로그인 후 이용할 수 있습니다. 둘러보기 모드는 앱 화면 구조 확인용이며 실제 건강정보 저장이나 권한 요청을 수행하지 않습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>3. 사용자 기록 책임</h4>
+                  <p>사용자는 본인의 정보를 정확히 입력해야 하며, 타인의 정보나 허위 정보를 입력해서는 안 됩니다. 입력한 기록이 부정확할 경우 분석 결과와 안내 내용도 제한적일 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>4. AI 분석과 의료 면책</h4>
+                  <p>AI 분석과 체중 변화 안내는 참고용 정보이며 의학적 진단, 처방, 치료 변경, 응급 판단을 대체하지 않습니다. 모든 증상과 건강 관련 결정은 반드시 담당 의료진과 상의해야 합니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>5. 알림과 걸음수 연동</h4>
+                  <p>복약 알림과 걸음수 연동은 기기 상태, 운영체제 권한, 네트워크 상태에 따라 누락되거나 지연될 수 있습니다. 알림 수신과 걸음수 연동 여부는 사용자가 앱 또는 운영체제 설정에서 변경할 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>6. 서비스 제한 및 중단</h4>
+                  <p>서비스 안정성 개선, 보안 점검, 외부 인프라 장애 등 필요한 경우 서비스의 일부 또는 전부가 변경되거나 일시 중단될 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>7. 탈퇴와 데이터 삭제</h4>
+                  <p>사용자는 언제든지 회원탈퇴 또는 데이터 삭제를 요청할 수 있습니다. 관련 법령상 보관이 필요한 정보를 제외한 앱 내 기록은 삭제 절차에 따라 처리됩니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>8. 문의</h4>
+                  <p>서비스 이용, 약관, 개인정보 처리와 관련한 문의는 앱의 문의하기 메뉴를 통해 접수할 수 있습니다.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-panel" id="privacyPolicyPanel">
+            <div class="panel">
+              <div class="subpage-head">
+                <button class="back-btn" type="button" data-profile-back>‹</button>
+                <h3>개인정보처리방침</h3>
+              </div>
+              <div class="policy-content">
+                <div class="policy-intro">
+                  항암기록관리 서비스는 사용자의 항암 치료 기록을 정리하고 외래 진료 전 확인할 수 있도록 돕기 위해 필요한 최소한의 개인정보와 건강 관련 기록을 처리합니다. 본 문서는 앱 출시 전 검토를 위한 초안입니다.
+                </div>
+                <div class="policy-section">
+                  <h4>1. 수집하는 정보</h4>
+                  <ul>
+                    <li>회원 정보: Firebase 로그인을 위한 이메일, 사용자 식별자, 로그인 제공자 정보</li>
+                    <li>사용자 정보: 성별, 생년월일, 키, 암종, 병기, 진단일, 치료 정보</li>
+                    <li>주의 정보: 알레르기, 기저질환, 복용 주의 약물, 기타 참고 정보</li>
+                    <li>건강 기록: 체중, 복약 정보, 항암 회차/일차, 식사량, 음수량, 배변, 주요 부작용, 주요증상 텍스트</li>
+                    <li>권한 및 설정: 알림 허용 여부, 걸음수 연동 허용 여부, 복약 알림 시간</li>
+                  </ul>
+                </div>
+                <div class="policy-section">
+                  <h4>2. 이용 목적</h4>
+                  <p>수집한 정보는 회원 인증, 항암 치료 기록 저장, 복약 알림, 체중 변화 확인, 증상 기록 관리, 회차별 AI 분석 요약, 외래 상담 준비용 기록 확인에 사용됩니다. 서비스는 사용자의 기록을 바탕으로 참고 정보를 제공하며 의학적 진단이나 치료 결정을 대체하지 않습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>3. 알림 권한</h4>
+                  <p>알림 권한은 복약 시간, 기록 안내 등 사용자가 설정한 알림을 보내기 위해 사용됩니다. 알림 권한을 해제하면 앱 내부 알림 기능이 제한될 수 있으며, 권한 상태는 마이페이지에서 확인하거나 운영체제 설정에서 변경할 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>4. 걸음수 연동</h4>
+                  <p>걸음수 연동은 사용자가 명시적으로 허용한 경우에만 휴대폰의 걸음수를 증상 기록에 불러오기 위해 사용됩니다. 실제 앱에서는 iOS HealthKit 또는 Android Health Connect를 통해 걸음수를 불러오며, 권한 요청은 사용자가 걸음수 연동을 켤 때만 진행됩니다. 연동하지 않는 경우 사용자는 걸음수를 직접 입력할 수 있습니다. 앱은 걸음수 데이터를 광고, 추적, 제3자 판매 목적으로 사용하지 않습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>5. AI 분석 활용</h4>
+                  <p>AI 분석은 사용자 정보, 주의 정보, 체중 기록, 증상 기록을 바탕으로 식사량, 음수량, 운동량, 배변, 부작용을 요약합니다. 분석 결과는 참고용이며, 진단명 단정, 처방 변경, 치료 중단 권고를 제공하지 않습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>6. 보관 및 삭제</h4>
+                  <p>사용자의 기록은 서비스 제공 기간 동안 보관되며, 회원탈퇴 또는 데이터 삭제 요청 시 관련 법령상 보관이 필요한 항목을 제외하고 삭제됩니다. 사용자는 앱 내 기능 또는 문의하기를 통해 개인정보 열람, 수정, 삭제를 요청할 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>7. 제3자 제공 및 위탁</h4>
+                  <p>서비스 운영을 위해 Firebase Authentication 등 인증 및 저장 인프라를 사용할 수 있습니다. 개인정보를 제3자에게 판매하지 않으며, 외부 서비스 이용 시에는 개인정보 보호와 보안에 필요한 조치를 적용합니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>8. 문의</h4>
+                  <p>개인정보 처리와 관련한 문의는 앱의 문의하기 메뉴를 통해 접수할 수 있습니다. 시행일과 사업자 정보, 개인정보 보호책임자 정보는 정식 배포 전 확정하여 고지합니다.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="meds">
+          <div class="section-head">
+            <div>
+              <h2>약물 관리</h2>
+              <p>복용 약물을 등록하고 개별 약물의 섭취 시간 알림을 설정합니다.</p>
+            </div>
+            <button class="btn" id="addMed">약물 등록</button>
+          </div>
+          <div class="required-info-banner" data-required-info-banner></div>
+          <div class="panel">
+            <div class="med-list" id="medList"></div>
+          </div>
+        </section>
+
+        <section class="view" id="weight">
+          <div class="section-head">
+            <div>
+              <h2>체중 관리</h2>
+              <p>최근 체중과 사용자정보의 키를 기준으로 BMI를 계산하고, 기간별 체중 변화를 확인합니다.</p>
+            </div>
+          </div>
+          <div class="required-info-banner" data-required-info-banner></div>
+
+          <div class="banner">
+            <div class="bmi-box" id="bmiBox">
+              <div class="bmi-status-line" id="bmiStatusLine">현재 BMI <span class="bmi-number" id="bmiValue">22.8</span> · <span id="bmiTag">정상</span></div>
+              <div id="bmiText" class="small">BMI가 정상이더라도 체중 변화, 식사량, 수분섭취를 함께 확인해 주세요.</div>
+              <div class="small" id="bmiMeta">최근 체중 59.8kg · 마지막 입력일 2026-06-02</div>
+              <div class="bmi-demo-tabs" aria-label="BMI 상태 예시">
+                <button class="bmi-demo-btn active" type="button" data-bmi-demo="normal">정상</button>
+                <button class="bmi-demo-btn" type="button" data-bmi-demo="under">저체중 위험</button>
+                <button class="bmi-demo-btn" type="button" data-bmi-demo="over">과체중 주의</button>
+              </div>
+            </div>
+            <div class="panel weight-advice" id="weightAdvice">
+              <h3><span aria-hidden="true">🚨</span>체중 변화 상담 권고</h3>
+              <p class="small" id="weightAdviceText"></p>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="panel calendar-panel app-card">
+              <div class="calendar-head">
+                <button class="month-btn" type="button" data-calendar-nav="weight" data-calendar-step="-12">«</button>
+                <button class="month-btn" type="button" data-calendar-nav="weight" data-calendar-step="-1">‹</button>
+                <h3 id="weightCalendarTitle">2026년 6월</h3>
+                <button class="month-btn" type="button" data-calendar-nav="weight" data-calendar-step="1">›</button>
+                <button class="month-btn" type="button" data-calendar-nav="weight" data-calendar-step="12">»</button>
+              </div>
+              <div class="calendar" id="weightCalendar"></div>
+            </div>
+            <div class="panel">
+              <h3>체중 변화 그래프</h3>
+              <div class="range-tabs">
+                <button class="range-btn active" type="button" data-weight-range="30">최근 30일</button>
+                <button class="range-btn" type="button" data-weight-range="90">최근 90일</button>
+                <button class="range-btn" type="button" data-weight-range="custom">기간 설정</button>
+              </div>
+              <div class="custom-range" id="weightCustomRange">
+                <div class="field">
+                  <label for="weightRangeStart">시작일</label>
+                  <input id="weightRangeStart" type="date" value="2026-06-01">
+                </div>
+                <div class="field">
+                  <label for="weightRangeEnd">종료일</label>
+                  <input id="weightRangeEnd" type="date" value="2026-06-30">
+                </div>
+              </div>
+              <div class="chart" id="weightChart"></div>
+            </div>
+          </div>
+          <div class="weight-disclaimer">BMI와 체중 변화 안내는 참고용 정보이며, 의학적 진단이나 치료 결정을 대체하지 않습니다.</div>
+        </section>
+
+        <section class="view active" id="symptom">
+          <div class="section-head">
+            <div>
+              <h2>증상 관리</h2>
+              <p>항암 회차, 식사량, 음수량, 운동량, 배변, 주요 부작용을 기록합니다.</p>
+            </div>
+          </div>
+          <div class="required-info-banner" data-required-info-banner></div>
+
+          <div class="panel calendar-panel app-card">
+            <div class="calendar-head">
+              <button class="month-btn" type="button" data-calendar-nav="symptom" data-calendar-step="-12">«</button>
+              <button class="month-btn" type="button" data-calendar-nav="symptom" data-calendar-step="-1">‹</button>
+              <h3 id="symptomCalendarTitle">2026년 6월</h3>
+              <button class="month-btn" type="button" data-calendar-nav="symptom" data-calendar-step="1">›</button>
+              <button class="month-btn" type="button" data-calendar-nav="symptom" data-calendar-step="12">»</button>
+            </div>
+            <div class="calendar" id="symptomCalendar"></div>
+            <div class="calendar-action" id="symptomAction">
+              <div>
+                <strong id="symptomActionTitle">날짜를 선택해 주세요</strong>
+                <div class="small" id="symptomActionText">기록이 없는 날짜를 선택하면 증상기록하기 버튼이 표시됩니다.</div>
+              </div>
+              <div class="calendar-action-buttons">
+                <button class="btn" id="symptomWriteBtn">증상기록하기</button>
+                <button class="btn symptom-delete-btn" id="symptomDeleteBtn" hidden>기록삭제하기</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="analysis">
+          <div class="section-head">
+            <div>
+              <h2>AI분석</h2>
+              <p>동일 항암 회차의 기록을 요약하고 분석합니다. 회차가 쌓일수록 이전 회차와의 비교 분석을 제공합니다.</p>
+            </div>
+          </div>
+          <div class="required-info-banner" data-required-info-banner></div>
+
+          <div class="panel analysis-control">
+            <div class="field">
+              <label for="cycleSelect">항암 회차 선택</label>
+              <select id="cycleSelect"></select>
+            </div>
+            <button class="btn" id="runAnalysis" type="button">분석하기</button>
+          </div>
+          <div class="analysis-result hidden" id="analysisResult"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="weightModal" role="dialog" aria-modal="true" aria-labelledby="weightModalTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="weightModalTitle">체중관리</h3>
+        <button class="btn secondary" data-close-modal="weightModal">닫기</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="modalDate">선택 날짜</label>
+          <input id="modalDate" readonly>
+        </div>
+        <div class="field">
+          <label for="modalWeight">체중(kg)</label>
+          <input id="modalWeight" type="number" step="0.1" min="1" placeholder="예: 59.8">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn secondary" id="deleteWeight">삭제</button>
+        <button class="btn" id="saveWeight">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="medModal" role="dialog" aria-modal="true" aria-labelledby="medModalTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="medModalTitle">약물 등록</h3>
+        <button class="btn secondary" data-close-modal="medModal">닫기</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="field">
+            <label class="required" for="medName">약물명</label>
+            <input id="medName" type="text" maxlength="40" placeholder="예: 항구토제">
+          </div>
+          <div class="grid two">
+            <div class="field">
+              <label class="required" for="medDose">복용량</label>
+              <input id="medDose" type="text" maxlength="30" placeholder="예: 1정">
+            </div>
+            <div class="field">
+              <label class="required" for="medFrequency">복용 주기</label>
+              <select id="medFrequency">
+                <option value="매일">매일</option>
+                <option value="필요시">필요시</option>
+                <option value="직접입력">직접입력</option>
+              </select>
+            </div>
+          </div>
+          <div class="field weekday-field" id="medWeekdayField">
+            <label class="required">복용 요일</label>
+            <div class="weekday-grid" id="medWeekdayGrid">
+              <label class="weekday-chip"><input type="checkbox" value="월"><span>월</span></label>
+              <label class="weekday-chip"><input type="checkbox" value="화"><span>화</span></label>
+              <label class="weekday-chip"><input type="checkbox" value="수"><span>수</span></label>
+              <label class="weekday-chip"><input type="checkbox" value="목"><span>목</span></label>
+              <label class="weekday-chip"><input type="checkbox" value="금"><span>금</span></label>
+              <label class="weekday-chip"><input type="checkbox" value="토"><span>토</span></label>
+              <label class="weekday-chip"><input type="checkbox" value="일"><span>일</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-section">
+          <div class="switch-row">
+            <div>
+              <label for="medReminder">섭취 시간 알림</label>
+              <div class="small">한 약물에 여러 복용 알림을 설정할 수 있습니다.</div>
+            </div>
+            <label class="switch">
+              <input id="medReminder" type="checkbox" checked>
+              <span aria-hidden="true"></span>
+            </label>
+          </div>
+          <div class="field">
+            <label class="required">알림 시간</label>
+            <div class="reminder-list" id="medReminderList"></div>
+            <button class="text-btn" id="addMedReminder" type="button">알림 추가</button>
+          </div>
+          <div class="field">
+            <label for="medMemo">메모</label>
+            <textarea id="medMemo" maxlength="100" placeholder="복용 시 주의사항이나 함께 기록할 내용을 입력해 주세요."></textarea>
+            <div class="char-count" id="medMemoCount">0/100</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn secondary" id="deleteMed" type="button">삭제</button>
+        <button class="btn" id="saveMed" type="button">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="symptomModal" role="dialog" aria-modal="true" aria-labelledby="symptomModalTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="symptomModalTitle">증상 기록</h3>
+        <button class="btn secondary" data-close-modal="symptomModal">닫기</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid two">
+          <div class="field">
+            <label class="required" for="cycleNo">항암 회차</label>
+            <input id="cycleNo" type="number" min="1" max="100" inputmode="numeric" placeholder="진행회차를 숫자로 입력하세요.">
+          </div>
+          <div class="field">
+            <label class="required" for="cycleDay">진행일차</label>
+            <input id="cycleDay" type="number" min="1" max="100" inputmode="numeric" placeholder="진행일차를 숫자로 입력하세요.">
+          </div>
+        </div>
+        <div class="field">
+          <label class="required" for="meal">식사량</label>
+          <select id="meal">
+            <option value="" selected>선택</option>
+            <option>평소와같음</option>
+            <option>평소의 절반</option>
+            <option>평소의 1/4</option>
+            <option>전혀 못 먹음</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="breakfastMemo">아침 식사 내용 (선택)</label>
+          <textarea id="breakfastMemo" maxlength="100" placeholder="식사 내용을 기록하세요. AI분석에 활용됩니다."></textarea>
+          <div class="char-count">0/100</div>
+        </div>
+        <div class="field">
+          <label for="lunchMemo">점심 식사 내용 (선택)</label>
+          <textarea id="lunchMemo" maxlength="100" placeholder="식사 내용을 기록하세요. AI분석에 활용됩니다."></textarea>
+          <div class="char-count">0/100</div>
+        </div>
+        <div class="field">
+          <label for="dinnerMemo">저녁 식사 내용 (선택)</label>
+          <textarea id="dinnerMemo" maxlength="100" placeholder="식사 내용을 기록하세요. AI분석에 활용됩니다."></textarea>
+          <div class="char-count">0/100</div>
+        </div>
+        <div class="field">
+          <label for="extraMealMemo">기타 식사 내용 (선택)</label>
+          <textarea id="extraMealMemo" maxlength="100" placeholder="아침, 점심, 저녁 외의 섭취한 식사를 기록하세요. AI분석에 활용됩니다."></textarea>
+          <div class="char-count">0/100</div>
+        </div>
+        <div class="grid two">
+          <div class="field">
+            <label class="required" for="water">음수량</label>
+            <select id="water">
+              <option value="" selected>선택</option>
+              <option>500ml 이하</option>
+              <option>500ml~1L</option>
+              <option>1~1.5L</option>
+              <option>2L 이상</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="required" for="steps">운동량</label>
+            <input id="steps" type="number" inputmode="numeric" placeholder="걸음수를 입력하세요">
+            <div class="sync-panel" id="stepsSyncPanel">
+              <div>
+                <strong id="stepsSyncTitle">걸음수 연동 꺼짐</strong>
+                <span id="stepsSyncText">디바이스 걸음수를 불러오려면 연동을 활성화하세요.</span>
+              </div>
+              <button class="sync-btn" type="button" id="stepsSyncBtn">연동하기</button>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="required">배변 유무</label>
+          <div class="check-grid compact">
+            <label class="check radio-like"><input type="radio" name="bowel" value="있음"><span>있음</span></label>
+            <label class="check radio-like"><input type="radio" name="bowel" value="없음"><span>없음</span></label>
+          </div>
+        </div>
+        <div class="field" id="stoolStatusField" hidden>
+          <label class="required">배변 상태</label>
+          <div class="check-grid compact">
+            <label class="check choice-like"><input type="radio" name="stoolStatus" value="정상"><span>정상</span></label>
+            <label class="check choice-like"><input type="radio" name="stoolStatus" value="설사"><span>설사</span></label>
+            <label class="check choice-like"><input type="radio" name="stoolStatus" value="묽은변"><span>묽은변</span></label>
+            <label class="check choice-like"><input type="radio" name="stoolStatus" value="딱딱한변"><span>딱딱한변</span></label>
+            <label class="check choice-like"><input type="radio" name="stoolStatus" value="혈변"><span>혈변</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="required">주요부작용</label>
+          <div class="check-grid" id="sideEffectGrid"></div>
+        </div>
+        <div class="field">
+          <label for="note">주요증상 (선택)</label>
+          <textarea id="note" maxlength="500" placeholder="작성된 내용을 참고하여 AI분석을 진행합니다. 기록하고싶은 내용을 자세히 작성해주세요."></textarea>
+          <div class="char-count">0/500</div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="saveSymptom">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="bottom-sheet-backdrop" id="selectSheet" aria-hidden="true">
+    <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="selectSheetTitle">
+      <div class="bottom-sheet-head">
+        <strong id="selectSheetTitle">선택</strong>
+        <button class="sheet-close" id="selectSheetClose" type="button">닫기</button>
+      </div>
+      <div class="sheet-options" id="selectSheetOptions"></div>
+    </div>
+  </div>
+
+  <div class="date-sheet-backdrop" id="dateSheet" aria-hidden="true">
+    <div class="date-sheet" role="dialog" aria-modal="true" aria-labelledby="dateSheetTitle">
+      <div class="date-sheet-head">
+        <strong id="dateSheetTitle">날짜 선택</strong>
+        <button class="sheet-close" id="dateSheetClose" type="button">닫기</button>
+      </div>
+      <div class="date-sheet-body">
+        <div class="date-month">
+          <button class="date-nav" id="datePrevMonth" type="button">‹</button>
+          <strong id="dateCurrentMonth">2026년 1월</strong>
+          <button class="date-nav" id="dateNextMonth" type="button">›</button>
+        </div>
+        <div class="date-jump">
+          <input id="dateYearInput" type="number" min="1900" max="2100" aria-label="연도">
+          <input id="dateMonthInput" type="number" min="1" max="12" aria-label="월">
+        </div>
+        <div class="date-grid" id="dateGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      isPreview: true,
+      forceEmptyProfile: false,
+      selectedSymptomDate: null,
+      selectedWeightDate: null,
+      selectedMedId: null,
+      bmiDemo: "normal",
+      weightCalendar: { year: 2026, month: 5 },
+      symptomCalendar: { year: 2026, month: 5 },
+      weightRange: "30",
+      stepsSyncEnabled: false,
+      deviceStepsToday: 4320,
+      profile: { heightCm: 162 },
+      meds: [
+        {
+          id: 1,
+          name: "항구토제",
+          dose: "1정",
+          frequency: "매일",
+          reminder: true,
+          reminders: [
+            { label: "아침식후", time: "09:00" },
+            { label: "점심식후", time: "13:00" },
+            { label: "저녁식후", time: "19:00" }
+          ],
+          memo: "식후 복용"
+        },
+        {
+          id: 2,
+          name: "진통제",
+          dose: "1정",
+          frequency: "저녁",
+          reminder: true,
+          reminders: [
+            { label: "저녁식후", time: "20:00" }
+          ],
+          memo: "통증이 심할 때 복용"
+        },
+        {
+          id: 3,
+          name: "영양제",
+          dose: "1포",
+          frequency: "직접입력",
+          weekdays: ["월", "수", "금"],
+          reminder: false,
+          reminders: [
+            { label: "점심식후", time: "12:00" }
+          ],
+          memo: ""
+        }
+      ],
+      weights: {
+        "2026-05-24": 52.1,
+        "2026-05-29": 50.8,
+        "2026-06-01": 50.6,
+        "2026-06-02": 51.0
+      },
+      symptoms: {
+        "2026-06-01": {
+          cycleNo: 2,
+          cycleDay: 1,
+          sideEffects: ["오심", "피로", "식욕저하"],
+          meals: ["만두국. 샐러드", "잠", "비빔국수"]
+        },
+        "2026-06-02": {
+          cycleNo: 2,
+          cycleDay: 2,
+          sideEffects: ["없음"],
+          meals: ["만두국. 샐러드", "잠", "비빔국수"]
+        }
+      }
+    };
+
+    const todayKey = "2026-06-02";
+    const dayLabels = ["월", "화", "수", "목", "금", "토", "일"];
+    const sideEffects = ["없음", "구토", "오심", "발열", "오한", "손발저림", "두통", "어지러움", "설사", "변비", "복통", "복부팽만", "피로", "식욕저하", "졸림"];
+    const defaultMedReminders = [
+      { label: "아침식후", time: "09:00" },
+      { label: "점심식후", time: "13:00" },
+      { label: "저녁식후", time: "19:00" }
+    ];
+    const medReminderLabels = ["아침식전", "아침식후", "점심식전", "점심식후", "저녁식전", "저녁식후", "취침전", "직접설정"];
+
+    function dateKey(year, month, day) {
+      return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+
+    function calendarState(type) {
+      return type === "weight" ? state.weightCalendar : state.symptomCalendar;
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function symptomMealRowsHtml(record) {
+      const meals = record.meals || [];
+      const extraMeal = (record.extraMealMemo || record.extraMeal || meals[3] || "").trim();
+      const rows = [
+        ["아침", meals[0] || "-"],
+        ["점심", meals[1] || "-"],
+        ["저녁", meals[2] || "-"]
+      ];
+      if (extraMeal) rows.push(["기타", extraMeal]);
+      return rows.map(([label, value]) => `
+        <div class="meal-item"><strong>${label}</strong><span>${escapeHtml(value)}</span></div>
+      `).join("");
+    }
+
+    function labelForSelect(select) {
+      const id = select.id;
+      if (!id) return "선택";
+      const label = document.querySelector(`label[for="${id}"]`);
+      return label ? label.textContent.replace("*", "").trim() : "선택";
+    }
+
+    function updateSheetButton(select) {
+      if (select._sheetButton) {
+        select._sheetButton.textContent = select.options[select.selectedIndex]?.textContent || "선택";
+      }
+    }
+
+    function closeSelectSheet() {
+      const sheet = document.getElementById("selectSheet");
+      sheet.classList.remove("show");
+      sheet.setAttribute("aria-hidden", "true");
+      sheet._activeSelect = null;
+    }
+
+    function openSelectSheet(select) {
+      const sheet = document.getElementById("selectSheet");
+      const title = document.getElementById("selectSheetTitle");
+      const options = document.getElementById("selectSheetOptions");
+      sheet._activeSelect = select;
+      title.textContent = labelForSelect(select);
+      options.innerHTML = "";
+
+      Array.from(select.options).forEach(option => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `sheet-option ${option.selected ? "selected" : ""}`;
+        button.textContent = option.textContent;
+        button.addEventListener("click", () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+          updateSheetButton(select);
+          closeSelectSheet();
+        });
+        options.appendChild(button);
+      });
+
+      sheet.classList.add("show");
+      sheet.setAttribute("aria-hidden", "false");
+    }
+
+    function enhanceSelects() {
+      document.querySelectorAll("select").forEach(select => {
+        if (select._sheetButton) return;
+        select.classList.add("native-select");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "sheet-select";
+        button.setAttribute("aria-haspopup", "dialog");
+        select.insertAdjacentElement("afterend", button);
+        select._sheetButton = button;
+        updateSheetButton(select);
+        button.addEventListener("click", () => openSelectSheet(select));
+        select.addEventListener("change", () => updateSheetButton(select));
+      });
+    }
+
+    const dateState = {
+      activeInput: null,
+      year: 2026,
+      month: 0
+    };
+
+    function formatDateValue(value) {
+      if (!value) return "날짜 선택";
+      const [year, month, day] = value.split("-");
+      return `${year}년 ${month}월 ${day}일`;
+    }
+
+    function updateDateButton(input) {
+      if (input._dateButton) {
+        input._dateButton.textContent = formatDateValue(input.value);
+      }
+    }
+
+    function closeDateSheet() {
+      const sheet = document.getElementById("dateSheet");
+      sheet.classList.remove("show");
+      sheet.setAttribute("aria-hidden", "true");
+      dateState.activeInput = null;
+    }
+
+    function renderDateCalendar() {
+      const grid = document.getElementById("dateGrid");
+      const title = document.getElementById("dateCurrentMonth");
+      const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
+      const selectedValue = dateState.activeInput?.value;
+      const firstDay = (new Date(dateState.year, dateState.month, 1).getDay() + 6) % 7;
+      const daysInMonth = new Date(dateState.year, dateState.month + 1, 0).getDate();
+
+      title.textContent = `${dateState.year}년 ${dateState.month + 1}월`;
+      document.getElementById("dateYearInput").value = dateState.year;
+      document.getElementById("dateMonthInput").value = dateState.month + 1;
+      grid.innerHTML = "";
+      weekdays.forEach(day => {
+        const label = document.createElement("div");
+        label.className = "date-weekday";
+        label.textContent = day;
+        grid.appendChild(label);
+      });
+
+      for (let i = 0; i < firstDay; i += 1) {
+        const blank = document.createElement("button");
+        blank.className = "date-day blank";
+        blank.type = "button";
+        grid.appendChild(blank);
+      }
+
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        const value = `${dateState.year}-${String(dateState.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const button = document.createElement("button");
+        button.className = `date-day ${value === selectedValue ? "selected" : ""}`;
+        button.type = "button";
+        button.textContent = day;
+        button.addEventListener("click", () => {
+          dateState.activeInput.value = value;
+          dateState.activeInput.dispatchEvent(new Event("change", { bubbles: true }));
+          updateDateButton(dateState.activeInput);
+          closeDateSheet();
+        });
+        grid.appendChild(button);
+      }
+    }
+
+    function openDateSheet(input) {
+      const [year, month] = (input.value || "2026-06-01").split("-").map(Number);
+      dateState.activeInput = input;
+      dateState.year = year;
+      dateState.month = month - 1;
+      document.getElementById("dateSheetTitle").textContent = labelForSelect(input);
+      renderDateCalendar();
+      document.getElementById("dateSheet").classList.add("show");
+      document.getElementById("dateSheet").setAttribute("aria-hidden", "false");
+    }
+
+    function enhanceDateInputs() {
+      document.querySelectorAll('input[type="date"]').forEach(input => {
+        if (input._dateButton) return;
+        input.classList.add("native-date");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "date-trigger";
+        button.setAttribute("aria-haspopup", "dialog");
+        input.insertAdjacentElement("afterend", button);
+        input._dateButton = button;
+        updateDateButton(input);
+        button.addEventListener("click", () => openDateSheet(input));
+        input.addEventListener("change", () => updateDateButton(input));
+      });
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add("show");
+      syncSaveButtons();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove("show");
+    }
+
+    function updateStoolStatusVisibility() {
+      const hasBowel = document.querySelector('input[name="bowel"]:checked')?.value === "있음";
+      document.getElementById("stoolStatusField").hidden = !hasBowel;
+    }
+
+    function updateStepsSyncUi() {
+      const panel = document.getElementById("stepsSyncPanel");
+      const title = document.getElementById("stepsSyncTitle");
+      const text = document.getElementById("stepsSyncText");
+      const button = document.getElementById("stepsSyncBtn");
+      const steps = document.getElementById("steps");
+      const toggle = document.getElementById("stepsSyncToggle");
+      const enabled = state.stepsSyncEnabled;
+      if (toggle) toggle.checked = enabled;
+      panel.classList.toggle("enabled", enabled);
+      title.textContent = enabled ? "걸음수 연동 켜짐" : "걸음수 연동 꺼짐";
+      text.textContent = enabled ? "오늘 디바이스 걸음수가 자동 입력되었습니다." : "디바이스 걸음수를 불러오려면 연동을 활성화하세요.";
+      button.textContent = enabled ? "연동됨" : "연동하기";
+      steps.readOnly = enabled;
+      if (enabled) steps.value = String(state.deviceStepsToday);
+    }
+
+    function requestStepsSyncPermission() {
+      return window.confirm("휴대폰의 걸음수를 불러와 증상관리에 사용합니다. 걸음수 연동을 켜시겠습니까?");
+    }
+
+    function enableStepsSyncWithPermission() {
+      if (state.stepsSyncEnabled) return true;
+      const granted = requestStepsSyncPermission();
+      if (!granted) {
+        updateStepsSyncUi();
+        showToast("걸음수 연동 권한 요청이 취소되었습니다.");
+        return false;
+      }
+      state.stepsSyncEnabled = true;
+      updateStepsSyncUi();
+      showToast("걸음수 연동 권한이 허용되었습니다.");
+      return true;
+    }
+
+    function resetSymptomForm() {
+      ["cycleNo", "cycleDay", "steps"].forEach(id => {
+        document.getElementById(id).value = "";
+      });
+      ["meal", "water"].forEach(id => {
+        const select = document.getElementById(id);
+        select.value = "";
+        updateSheetButton(select);
+      });
+      ["breakfastMemo", "lunchMemo", "dinnerMemo", "extraMealMemo", "note"].forEach(id => {
+        const field = document.getElementById(id);
+        field.value = "";
+        const count = field.parentElement.querySelector(".char-count");
+        if (count) count.textContent = `0/${field.maxLength}`;
+      });
+      document.querySelectorAll('input[name="bowel"]').forEach(input => {
+        input.checked = false;
+      });
+      document.querySelectorAll("#stoolStatusField input").forEach(input => {
+        input.checked = false;
+      });
+      updateStoolStatusVisibility();
+      renderSideEffects();
+      updateStepsSyncUi();
+    }
+
+    function updateTextCount(field) {
+      const count = field.parentElement.querySelector(".char-count");
+      if (count) count.textContent = `${field.value.length}/${field.maxLength}`;
+    }
+
+    function setRadioValue(name, value) {
+      document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
+        input.checked = input.value === value;
+      });
+    }
+
+    function setSideEffects(values = []) {
+      const selected = new Set(values);
+      document.querySelectorAll("#sideEffectGrid input").forEach(input => {
+        input.checked = selected.has(input.value);
+      });
+      updateSideEffectNoneState();
+    }
+
+    function fillSymptomForm(record) {
+      if (!record) return;
+      document.getElementById("cycleNo").value = record.cycleNo || "";
+      document.getElementById("cycleDay").value = record.cycleDay || "";
+
+      const meal = document.getElementById("meal");
+      meal.value = record.mealAmount || "평소와같음";
+      updateSheetButton(meal);
+
+      const mealMemos = record.meals || [];
+      [
+        ["breakfastMemo", mealMemos[0] || ""],
+        ["lunchMemo", mealMemos[1] || ""],
+        ["dinnerMemo", mealMemos[2] || ""],
+        ["extraMealMemo", record.extraMealMemo || record.extraMeal || mealMemos[3] || ""],
+        ["note", record.note || ""]
+      ].forEach(([id, value]) => {
+        const field = document.getElementById(id);
+        field.value = value === "-" ? "" : value;
+        updateTextCount(field);
+      });
+
+      const water = document.getElementById("water");
+      water.value = record.waterAmount || "1~1.5L";
+      updateSheetButton(water);
+
+      document.getElementById("steps").value = record.steps || 1500;
+      const bowel = record.bowel || "있음";
+      setRadioValue("bowel", bowel);
+      updateStoolStatusVisibility();
+      setRadioValue("stoolStatus", bowel === "있음" ? (record.stoolStatus || "딱딱한변") : "");
+      setSideEffects(record.sideEffects || []);
+    }
+
+    function visibleWeights() {
+      return state.isPreview ? {} : state.weights;
+    }
+
+    function visibleSymptoms() {
+      return state.isPreview ? {} : state.symptoms;
+    }
+
+    function visibleMeds() {
+      return state.isPreview ? [] : state.meds;
+    }
+
+    function latestWeightEntry() {
+      const entries = Object.entries(visibleWeights()).sort(([a], [b]) => a.localeCompare(b));
+      return entries[entries.length - 1];
+    }
+
+    function weightEntries() {
+      return Object.entries(visibleWeights()).sort(([a], [b]) => a.localeCompare(b));
+    }
+
+    function weightChangePercent(fromWeight, toWeight) {
+      return ((toWeight - fromWeight) / fromWeight) * 100;
+    }
+
+    function bmiCategory(bmi) {
+      if (bmi < 18.5) {
+        return {
+          label: "저체중 위험",
+          emoji: "⚠️",
+          className: "risk",
+          text: "식사량 저하나 체중 감소가 지속되면 의료진에게 공유해 주세요."
+        };
+      }
+      if (bmi < 25) {
+        return {
+          label: "정상",
+          emoji: "✅",
+          className: "normal",
+          text: "BMI가 정상이더라도 체중 변화, 식사량, 수분섭취를 함께 확인해 주세요."
+        };
+      }
+      return {
+        label: "과체중 주의",
+        emoji: "⚠️",
+        className: "caution",
+        text: "부종, 복부팽만, 식사량 변화를 함께 확인해 주세요."
+      };
+    }
+
+    function bmiDemoEntry() {
+      if (state.bmiDemo === "under") {
+        return ["2026-06-02", 47.8];
+      }
+      if (state.bmiDemo === "over") {
+        return ["2026-06-02", 68.2];
+      }
+      return latestWeightEntry();
+    }
+
+    function updateBmi() {
+      const actualLatest = latestWeightEntry();
+      const box = document.getElementById("bmiBox");
+      const value = document.getElementById("bmiValue");
+      const tag = document.getElementById("bmiTag");
+      const text = document.getElementById("bmiText");
+      const meta = document.getElementById("bmiMeta");
+      const heightM = state.profile.heightCm / 100;
+
+      if (state.isPreview || !actualLatest) {
+        box.hidden = true;
+        renderWeightAdvice();
+        return;
+      }
+
+      box.hidden = false;
+      const latest = bmiDemoEntry();
+      const [date, weight] = latest;
+      const bmi = weight / (heightM * heightM);
+      const category = bmiCategory(bmi);
+      value.textContent = bmi.toFixed(1);
+      tag.textContent = `${category.emoji} ${category.label}`;
+      tag.className = category.className;
+      text.textContent = category.text;
+      meta.textContent = `최근 체중 ${weight.toFixed(1)}kg · 마지막 입력일 ${date}`;
+      document.querySelectorAll("[data-bmi-demo]").forEach(button => {
+        button.classList.toggle("active", button.dataset.bmiDemo === state.bmiDemo);
+      });
+      renderWeightAdvice();
+    }
+
+    function weightAdviceInfo() {
+      if (state.isPreview) return null;
+      const entries = weightEntries();
+      if (entries.length < 2) return null;
+      const [latestDate, latestWeight] = entries[entries.length - 1];
+      const [baselineDate, baselineWeight] = entries[0];
+      const change = weightChangePercent(baselineWeight, latestWeight);
+      const latestBmi = latestWeight / ((state.profile.heightCm / 100) ** 2);
+      const absChange = Math.abs(change);
+      const periodDays = Math.max(1, Math.round((new Date(`${latestDate}T00:00:00`) - new Date(`${baselineDate}T00:00:00`)) / 86400000));
+
+      if (change <= -5) {
+        return {
+          type: "loss5",
+          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. <span class="highlight">5% 이상 감소</span> 기준에 해당해 <span class="action">의료진과 상담해 주세요.</span>`
+        };
+      }
+      if (latestBmi < 20 && change <= -2) {
+        return {
+          type: "lowBmiLoss",
+          html: `BMI 20 미만에서 최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. <span class="action">의료진과 상담해 주세요.</span>`
+        };
+      }
+      if (change <= -3) {
+        return {
+          type: "rapidLoss",
+          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. 식사량 저하가 함께 있으면 <span class="action">의료진과 상담해 주세요.</span>`
+        };
+      }
+      if (change >= 3) {
+        return {
+          type: "rapidGain",
+          html: `최근 ${periodDays}일 <span class="highlight">${change.toFixed(1)}% 증가</span>가 확인됩니다. 부종이나 복부팽만이 있으면 <span class="action">의료진과 상담해 주세요.</span>`
+        };
+      }
+      return null;
+    }
+
+    function renderWeightAdvice() {
+      const advice = document.getElementById("weightAdvice");
+      const text = document.getElementById("weightAdviceText");
+      if (!advice || !text) return;
+      const info = weightAdviceInfo();
+      advice.classList.toggle("show", Boolean(info));
+      text.innerHTML = info ? info.html : "";
+    }
+
+    function buildCalendar(containerId, type) {
+      const container = document.getElementById(containerId);
+      const cal = calendarState(type);
+      document.getElementById(`${type}CalendarTitle`).textContent = `${cal.year}년 ${cal.month + 1}월`;
+      container.innerHTML = "";
+      dayLabels.forEach((label, index) => {
+        const el = document.createElement("div");
+        el.className = `day-label ${index === 6 ? "sunday" : ""}`;
+        el.textContent = label;
+        container.appendChild(el);
+      });
+
+      const firstDay = (new Date(cal.year, cal.month, 1).getDay() + 6) % 7;
+      const daysInMonth = new Date(cal.year, cal.month + 1, 0).getDate();
+
+      for (let i = 0; i < firstDay; i += 1) {
+        const empty = document.createElement("button");
+        empty.className = "day empty";
+        empty.setAttribute("aria-hidden", "true");
+        container.appendChild(empty);
+      }
+
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        const key = dateKey(cal.year, cal.month, day);
+        const button = document.createElement("button");
+        const weekday = (firstDay + day - 1) % 7;
+        button.className = `day ${weekday === 6 ? "sunday" : ""} ${key === todayKey ? "selected" : ""}`;
+        button.dataset.date = key;
+        button.type = "button";
+        button.innerHTML = `<span class="date-num">${day}${type === "symptom" ? "일" : ""}</span>${key === todayKey ? '<span class="today-dot" aria-label="오늘"></span>' : ""}`;
+
+        if (type === "weight") {
+          const weights = visibleWeights();
+          if (weights[key]) {
+            button.innerHTML += `<span class="mini-badge weight">${weights[key].toFixed(1)}kg</span>`;
+          } else {
+            button.innerHTML += `<span class="add-mark">+</span>`;
+          }
+          button.addEventListener("click", () => openWeightModal(key));
+        } else {
+          const record = visibleSymptoms()[key];
+          if (record) {
+            button.innerHTML += `<span class="mini-badge">${record.cycleNo}-${record.cycleDay}</span>`;
+            const visibleEffects = record.sideEffects.filter(effect => effect !== "없음").slice(0, 3);
+            if (visibleEffects.length) {
+              button.innerHTML += `<span class="calendar-side-badges">${visibleEffects.map(effect => `<span class="mini-badge side">${effect}</span>`).join("")}</span>`;
+            }
+          }
+          button.addEventListener("click", () => selectSymptomDate(key));
+        }
+
+        container.appendChild(button);
+      }
+
+      const renderedCells = firstDay + daysInMonth;
+      const trailing = (35 - renderedCells % 35) % 35;
+      for (let nextDay = 1; nextDay <= trailing; nextDay += 1) {
+        const empty = document.createElement("button");
+        const weekday = (renderedCells + nextDay - 1) % 7;
+        empty.className = `day empty ${weekday === 6 ? "sunday" : ""}`;
+        empty.type = "button";
+        empty.innerHTML = `<span class="date-num">${nextDay}${type === "symptom" ? "일" : ""}</span>${type === "weight" ? '<span class="add-mark">+</span>' : ""}`;
+        container.appendChild(empty);
+      }
+    }
+
+    function openWeightModal(key) {
+      if (shouldShowRequiredInfoBanner()) {
+        showToast("마이페이지의 사용자정보/주의정보를 입력하세요.");
+        return;
+      }
+      state.selectedWeightDate = key;
+      document.getElementById("modalDate").value = key;
+      const weights = visibleWeights();
+      document.getElementById("modalWeight").value = weights[key] ? weights[key].toFixed(1) : "";
+      document.getElementById("deleteWeight").disabled = !weights[key];
+      openModal("weightModal");
+    }
+
+    function moveCalendar(type, monthStep) {
+      const cal = calendarState(type);
+      const next = new Date(cal.year, cal.month + monthStep, 1);
+      cal.year = next.getFullYear();
+      cal.month = next.getMonth();
+      buildCalendar(type === "weight" ? "weightCalendar" : "symptomCalendar", type);
+      if (type === "symptom") {
+        document.getElementById("symptomAction").classList.remove("show");
+        state.selectedSymptomDate = null;
+      }
+    }
+
+    function selectSymptomDate(key) {
+      state.selectedSymptomDate = key;
+      document.querySelectorAll("#symptomCalendar .day").forEach(day => {
+        day.classList.toggle("selected", day.dataset.date === key);
+      });
+      const action = document.getElementById("symptomAction");
+      const title = document.getElementById("symptomActionTitle");
+      const text = document.getElementById("symptomActionText");
+      const btn = document.getElementById("symptomWriteBtn");
+      const deleteBtn = document.getElementById("symptomDeleteBtn");
+      const record = visibleSymptoms()[key];
+      action.classList.add("show");
+
+      if (!record) {
+        title.textContent = key.replaceAll("-", "년 ").replace("년 06년", "년 06월") + "일";
+        text.textContent = "입력된 내용이 없습니다.";
+        btn.textContent = "증상기록하기";
+        deleteBtn.hidden = true;
+      } else {
+        title.textContent = key.replaceAll("-", "년 ").replace("년 06년", "년 06월") + "일";
+        text.innerHTML = `
+          <div class="symptom-detail">
+            <div class="detail-card">
+              <div class="detail-row"><span>▣ 항암 치료 정보</span><span>${record.cycleNo}차 · ${record.cycleDay}일차</span></div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-row"><span>▤ 식사</span><span class="tag gold">${record.mealAmount || "평소와 같음"}</span></div>
+              <div class="meal-box">
+                ${symptomMealRowsHtml(record)}
+              </div>
+            </div>
+            <div class="grid two summary-pair">
+              <div class="detail-card"><div class="detail-row"><span>♢ 음수량</span><span style="color:var(--accent)">${record.waterAmount || "1000ml"}</span></div></div>
+              <div class="detail-card"><div class="detail-row"><span>▥ 운동량<span class="label-note">(*걸음수)</span></span><span style="color:var(--green)">${record.steps || 1500}보</span></div></div>
+            </div>
+            <div class="detail-card"><div class="detail-row"><span>◎ 배변</span><span>${record.bowel ? `${record.bowel}${record.stoolStatus ? ` · ${record.stoolStatus}` : ""}` : "있음 · 딱딱한변"}</span></div></div>
+            <div class="detail-card"><div class="detail-row"><span>△ 주요 부작용</span><div class="tag-list">${record.sideEffects.map(effect => `<span class="tag teal">${effect}</span>`).join("")}</div></div></div>
+            <div class="detail-card"><div class="detail-row"><span>▤ 주요 증상</span></div><p class="small">${record.note || "입력된 내용이 없습니다."}</p></div>
+          </div>
+        `;
+        btn.textContent = "기록 수정하기";
+        deleteBtn.hidden = false;
+      }
+    }
+
+    function addDays(value, days) {
+      const date = new Date(`${value}T00:00:00`);
+      date.setDate(date.getDate() + days);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function chartSampleEntries() {
+      const values = [52.1, 52.1, 52.6, 51.9, 52.3, 52.1, 52.3, 52.0, 50.0, 50.4, 50.6, 51.6, 51.8, 51.5, 50.6, 50.6, 50.4, 51.6, 51.6, 51.1, 51.1, 51.4, 51.1, 51.3, 50.8, 51.2];
+      return values.map((weight, index) => ({ date: addDays("2026-05-07", index), weight }));
+    }
+
+    function chartWeightsForRange() {
+      const samples = state.isPreview ? [] : chartSampleEntries();
+      const saved = weightEntries().map(([date, weight]) => ({ date, weight }));
+      const byDate = new Map([...samples, ...saved].map(item => [item.date, item]));
+      const entries = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+      let start;
+      let end = "2026-06-30";
+
+      if (state.weightRange === "custom") {
+        start = document.getElementById("weightRangeStart").value || "2026-06-01";
+        end = document.getElementById("weightRangeEnd").value || "2026-06-30";
+      } else {
+        const days = Number(state.weightRange) || 30;
+        end = entries[entries.length - 1]?.date || todayKey;
+        start = addDays(end, -(days - 1));
+      }
+
+      return entries.filter(item => item.date >= start && item.date <= end);
+    }
+
+    function buildChart() {
+      const chart = document.getElementById("weightChart");
+      chart.innerHTML = "";
+      const weights = chartWeightsForRange();
+      const width = 700;
+      const height = 330;
+      const pad = { left: 46, right: 18, top: 22, bottom: 30 };
+      if (weights.length < 2) {
+        chart.innerHTML = `<div class="empty-state"><div><strong>그래프를 그릴 체중 기록이 부족합니다.</strong><div class="small">선택한 기간에 2개 이상의 체중 기록이 필요합니다.</div></div></div>`;
+        return;
+      }
+      const values = weights.map(item => item.weight);
+      const minValue = Math.min(...values);
+      const maxValue = Math.max(...values);
+      const min = Math.max(0, minValue - .8);
+      const max = maxValue + .8;
+      const x = index => pad.left + (index / (weights.length - 1)) * (width - pad.left - pad.right);
+      const y = value => pad.top + ((max - value) / (max - min)) * (height - pad.top - pad.bottom);
+      const points = weights.map((item, index) => `${x(index).toFixed(1)},${y(item.weight).toFixed(1)}`).join(" ");
+      const area = `${pad.left},${height - pad.bottom} ${points} ${width - pad.right},${height - pad.bottom}`;
+      const circles = weights.map((item, index) => `<circle cx="${x(index).toFixed(1)}" cy="${y(item.weight).toFixed(1)}" r="5.2" />`).join("");
+      const yTop = max.toFixed(1);
+      const yMid = ((min + max) / 2).toFixed(1);
+      const yBottom = min.toFixed(1);
+      chart.innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="선택 기간 체중 변화 라인 차트">
+          <defs>
+            <linearGradient id="weightFill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#6d35e8" stop-opacity=".22" />
+              <stop offset="1" stop-color="#6d35e8" stop-opacity=".03" />
+            </linearGradient>
+          </defs>
+          <g stroke="#e7e9ee" stroke-width="1">
+            <line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}" />
+            <line x1="${pad.left}" y1="${y(max)}" x2="${width - pad.right}" y2="${y(max)}" stroke-dasharray="5 5" />
+            <line x1="${pad.left}" y1="${y((min + max) / 2)}" x2="${width - pad.right}" y2="${y((min + max) / 2)}" stroke-dasharray="5 5" />
+            <line x1="${pad.left}" y1="${y(min)}" x2="${width - pad.right}" y2="${y(min)}" stroke-dasharray="5 5" />
+            <line x1="${pad.left}" y1="${height - pad.bottom}" x2="${width - pad.right}" y2="${height - pad.bottom}" />
+            <line x1="160" y1="${pad.top}" x2="160" y2="${height - pad.bottom}" stroke-dasharray="5 5" />
+            <line x1="280" y1="${pad.top}" x2="280" y2="${height - pad.bottom}" stroke-dasharray="5 5" />
+            <line x1="400" y1="${pad.top}" x2="400" y2="${height - pad.bottom}" stroke-dasharray="5 5" />
+            <line x1="520" y1="${pad.top}" x2="520" y2="${height - pad.bottom}" stroke-dasharray="5 5" />
+          </g>
+          <g fill="#9aa0a7" font-size="15" text-anchor="end">
+            <text x="42" y="${y(max) + 5}">${yTop}</text>
+            <text x="42" y="${y((min + max) / 2) + 5}">${yMid}</text>
+            <text x="42" y="${y(min) + 5}">${yBottom}</text>
+          </g>
+          <polygon points="${area}" fill="url(#weightFill)" />
+          <polyline points="${points}" fill="none" stroke="#6132d9" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+          <g fill="#c9b8ff" stroke="#6132d9" stroke-width="4">${circles}</g>
+        </svg>
+      `;
+    }
+
+    function renderMeds() {
+      const target = document.getElementById("medList");
+      const meds = visibleMeds();
+      if (!meds.length) {
+        target.innerHTML = `
+          <div class="empty-state">
+            <div>
+              <strong>등록된 약물이 없습니다.</strong>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      target.innerHTML = meds.map(med => `
+        <div class="med-item">
+          <div class="med-main">
+            <div class="med-title">
+              <strong>${escapeHtml(med.name)}</strong>
+              ${medAlertBadge(med.reminder)}
+            </div>
+            <div class="med-meta">
+              ${medMetaItems(med).map(item => `<span>${escapeHtml(item)}</span>`).join("<span>·</span>")}
+            </div>
+          </div>
+          <div class="med-actions">
+            <button class="icon-btn" type="button" data-edit-med="${med.id}" aria-label="${escapeHtml(med.name)} 수정">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function formatMedReminders(med) {
+      const reminders = med.reminders?.length ? med.reminders : [{ label: "알림", time: med.time || "09:00" }];
+      return reminders.map(item => `${item.label} ${item.time}`).join(" · ");
+    }
+
+    function medMetaItems(med) {
+      return [
+        formatMedFrequency(med),
+        formatMedReminders(med),
+        med.dose,
+        med.memo
+      ].filter(item => item && String(item).trim().length);
+    }
+
+    function medAlertBadge(isOn) {
+      if (isOn) {
+        return `
+          <span class="med-alert" aria-label="알림 켜짐">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+            켜짐
+          </span>
+        `;
+      }
+      return `
+        <span class="med-alert off" aria-label="알림 꺼짐">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-8.7-5.4"></path><path d="M6 8c0 7-3 7-3 9h14"></path><path d="M10 21h4"></path><path d="m3 3 18 18"></path></svg>
+          꺼짐
+        </span>
+      `;
+    }
+
+    function formatMedFrequency(med) {
+      if (med.frequency === "직접입력" && med.weekdays?.length) {
+        return med.weekdays.join("·");
+      }
+      return med.frequency;
+    }
+
+    function reminderRowHtml(reminder, index, total) {
+      const options = medReminderLabels.map(label => `<option value="${label}" ${label === reminder.label ? "selected" : ""}>${label}</option>`).join("");
+      return `
+        <div class="reminder-row" data-reminder-row>
+          <select class="med-reminder-label" id="medReminderLabel${index}" aria-label="알림 구분">
+            ${options}
+          </select>
+          <input class="med-reminder-time" type="time" value="${escapeHtml(reminder.time)}" aria-label="알림 시간">
+          <button class="icon-btn" type="button" data-remove-reminder ${total <= 1 ? "disabled" : ""} aria-label="알림 삭제">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderMedReminderRows(reminders = defaultMedReminders) {
+      const list = document.getElementById("medReminderList");
+      const normalized = reminders.length ? reminders : [{ label: "아침식후", time: "09:00" }];
+      list.innerHTML = normalized.map((reminder, index) => reminderRowHtml(reminder, index, normalized.length)).join("");
+      enhanceSelects();
+    }
+
+    function currentMedReminders() {
+      return Array.from(document.querySelectorAll("#medReminderList [data-reminder-row]")).map(row => ({
+        label: row.querySelector(".med-reminder-label").value,
+        time: row.querySelector(".med-reminder-time").value
+      }));
+    }
+
+    function addMedReminder() {
+      const reminders = currentMedReminders();
+      const next = defaultMedReminders.find(item => !reminders.some(existing => existing.label === item.label)) || { label: "직접설정", time: "09:00" };
+      renderMedReminderRows([...reminders, next]);
+    }
+
+    function removeMedReminder(button) {
+      const rows = Array.from(document.querySelectorAll("#medReminderList [data-reminder-row]"));
+      if (rows.length <= 1) return;
+      const index = rows.indexOf(button.closest("[data-reminder-row]"));
+      const reminders = currentMedReminders().filter((_, rowIndex) => rowIndex !== index);
+      renderMedReminderRows(reminders);
+    }
+
+    function resetMedForm() {
+      document.getElementById("medName").value = "";
+      document.getElementById("medDose").value = "";
+      document.getElementById("medFrequency").value = "매일";
+      setMedWeekdays([]);
+      document.getElementById("medReminder").checked = true;
+      document.getElementById("medMemo").value = "";
+      updateSheetButton(document.getElementById("medFrequency"));
+      updateMedWeekdayVisibility();
+      renderMedReminderRows(defaultMedReminders);
+      updateMedMemoCount();
+    }
+
+    function openMedModal(id = null) {
+      state.selectedMedId = id;
+      const isEdit = id !== null;
+      const med = state.meds.find(item => item.id === id);
+      document.getElementById("medModalTitle").textContent = isEdit ? "약물 수정" : "약물 등록";
+      document.getElementById("deleteMed").style.display = isEdit ? "inline-flex" : "none";
+
+      resetMedForm();
+      if (med) {
+        document.getElementById("medName").value = med.name;
+        document.getElementById("medDose").value = med.dose;
+        document.getElementById("medFrequency").value = med.frequency;
+        setMedWeekdays(med.weekdays || []);
+        document.getElementById("medReminder").checked = med.reminder;
+        document.getElementById("medMemo").value = med.memo;
+        updateSheetButton(document.getElementById("medFrequency"));
+        updateMedWeekdayVisibility();
+        renderMedReminderRows(med.reminders || [{ label: "알림", time: med.time || "09:00" }]);
+        updateMedMemoCount();
+      }
+
+      openModal("medModal");
+      setTimeout(() => document.getElementById("medName").focus(), 80);
+    }
+
+    function saveMed() {
+      if (state.isPreview) {
+        showToast("둘러보기 모드에서는 저장할 수 없습니다.");
+        return;
+      }
+      const name = document.getElementById("medName").value.trim();
+      const dose = document.getElementById("medDose").value.trim();
+      const frequency = document.getElementById("medFrequency").value;
+      const weekdays = selectedMedWeekdays();
+      const reminder = document.getElementById("medReminder").checked;
+      const reminders = currentMedReminders();
+      const memo = document.getElementById("medMemo").value.trim();
+
+      if (!name || !dose || !frequency || reminders.some(item => !item.label || !item.time)) {
+        showToast("약물명, 복용량, 복용 주기, 알림 시간을 입력해 주세요.");
+        return;
+      }
+      if (frequency === "직접입력" && !weekdays.length) {
+        showToast("복용 요일을 1개 이상 선택해 주세요.");
+        return;
+      }
+
+      const payload = { name, dose, frequency, weekdays: frequency === "직접입력" ? weekdays : [], reminder, reminders, memo };
+      if (state.selectedMedId === null) {
+        const nextId = state.meds.reduce((max, med) => Math.max(max, med.id), 0) + 1;
+        state.meds.unshift({ id: nextId, ...payload });
+      } else {
+        state.meds = state.meds.map(med => med.id === state.selectedMedId ? { ...med, ...payload } : med);
+      }
+
+      closeModal("medModal");
+      renderMeds();
+      showToast(state.isPreview ? "둘러보기 모드에서는 실제 저장되지 않습니다." : "약물 정보를 저장했습니다.");
+    }
+
+    function deleteMed() {
+      if (state.selectedMedId === null) return;
+      state.meds = state.meds.filter(med => med.id !== state.selectedMedId);
+      closeModal("medModal");
+      renderMeds();
+      showToast("약물 정보를 삭제했습니다.");
+    }
+
+    function updateMedMemoCount() {
+      const memo = document.getElementById("medMemo");
+      const count = document.getElementById("medMemoCount");
+      if (memo && count) count.textContent = `${memo.value.length}/100`;
+    }
+
+    function selectedMedWeekdays() {
+      return Array.from(document.querySelectorAll("#medWeekdayGrid input:checked")).map(input => input.value);
+    }
+
+    function setMedWeekdays(values) {
+      document.querySelectorAll("#medWeekdayGrid input").forEach(input => {
+        input.checked = values.includes(input.value);
+      });
+    }
+
+    function updateMedWeekdayVisibility() {
+      const isCustom = document.getElementById("medFrequency").value === "직접입력";
+      document.getElementById("medWeekdayField").classList.toggle("show", isCustom);
+    }
+
+    function renderSideEffects() {
+      document.getElementById("sideEffectGrid").innerHTML = sideEffects.map((effect, index) => `
+        <label class="check choice-like">
+          <input type="checkbox" value="${effect}">
+          <span>${effect}</span>
+        </label>
+      `).join("");
+      document.querySelectorAll("#sideEffectGrid input").forEach(input => {
+        input.addEventListener("change", updateSideEffectNoneState);
+      });
+      updateSideEffectNoneState();
+    }
+
+    function updateSideEffectNoneState() {
+      const inputs = Array.from(document.querySelectorAll("#sideEffectGrid input"));
+      const none = inputs.find(input => input.value === "없음");
+      const noneChecked = Boolean(none?.checked);
+      inputs.forEach(input => {
+        if (input.value === "없음") return;
+        if (noneChecked) input.checked = false;
+        input.disabled = noneChecked;
+        input.closest(".check")?.classList.toggle("dimmed", noneChecked);
+      });
+    }
+
+    function selectedSideEffects() {
+      const selected = Array.from(document.querySelectorAll("#sideEffectGrid input:checked")).map(input => input.value);
+      return selected.includes("없음") ? ["없음"] : selected;
+    }
+
+    function cycleNumbers() {
+      return [...new Set(Object.values(visibleSymptoms()).map(record => Number(record.cycleNo)).filter(Boolean))].sort((a, b) => b - a);
+    }
+
+    function recordsForCycle(cycleNo) {
+      return Object.entries(visibleSymptoms())
+        .filter(([, record]) => Number(record.cycleNo) === Number(cycleNo))
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([date, record]) => ({ date, ...record }));
+    }
+
+    function renderAnalysisControls() {
+      const select = document.getElementById("cycleSelect");
+      if (!select) return;
+      const cycles = cycleNumbers();
+      select.innerHTML = cycles.length
+        ? cycles.map(cycle => `<option value="${cycle}">${cycle}회차 (${recordsForCycle(cycle).length}일 기록)</option>`).join("")
+        : '<option value="">분석 가능한 기록 없음</option>';
+      if (select._sheetButton) updateSheetButton(select);
+      document.getElementById("runAnalysis").disabled = !cycles.length;
+    }
+
+    function compactText(value, fallback = "기록 없음") {
+      const text = String(value || "").trim();
+      return text || fallback;
+    }
+
+    function limitText(value, max) {
+      const text = String(value || "").replace(/\s+/g, " ").trim();
+      return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+    }
+
+    function latestWeightText() {
+      const entry = latestWeightEntry();
+      return entry ? `${Number(entry[1]).toFixed(1)}kg` : "체중 기록 없음";
+    }
+
+    function analysisPeriod(records) {
+      if (!records.length) return "-";
+      const first = records[0].date;
+      const last = records[records.length - 1].date;
+      return first === last ? first : `${first} ~ ${last}`;
+    }
+
+    function previousComparisonText(label, current, previous) {
+      if (!previous.length) return "";
+      const prevEffects = [...new Set(previous.flatMap(record => record.sideEffects || []).filter(effect => effect !== "없음"))];
+      const prevLowMeals = previous.filter(record => ["평소의 절반", "평소의 1/4", "전혀 못 먹음"].includes(record.mealAmount)).length;
+      const prevLowWater = previous.filter(record => record.waterAmount === "500ml 이하").length;
+      const prevSteps = previous.map(record => Number(record.steps)).filter(Boolean);
+      const prevAvgSteps = prevSteps.length ? Math.round(prevSteps.reduce((sum, value) => sum + value, 0) / prevSteps.length) : null;
+      const prevBowelIssues = previous.filter(record => record.bowel === "있음" && record.stoolStatus && record.stoolStatus !== "정상").length;
+      const currentEffects = [...new Set(current.flatMap(record => record.sideEffects || []).filter(effect => effect !== "없음"))];
+      const currentSteps = current.map(record => Number(record.steps)).filter(Boolean);
+      const currentAvgSteps = currentSteps.length ? Math.round(currentSteps.reduce((sum, value) => sum + value, 0) / currentSteps.length) : null;
+
+      const messages = {
+        meal: `이전 회차의 식사 저하 기록 ${prevLowMeals}일과 비교해 이번 회차의 섭취 패턴을 확인했습니다.`,
+        water: `이전 회차의 500ml 이하 기록 ${prevLowWater}일과 비교해 수분섭취 변화가 확인됩니다.`,
+        activity: prevAvgSteps && currentAvgSteps ? `이전 평균 ${prevAvgSteps.toLocaleString()}보 대비 이번 평균 ${currentAvgSteps.toLocaleString()}보입니다.` : "이전 회차와 비교할 걸음수 기록이 제한적입니다.",
+        bowel: `이전 회차의 배변 이상 ${prevBowelIssues}일과 비교해 이번 회차 배변 상태를 확인했습니다.`,
+        effects: `이전 주요 부작용 ${prevEffects.length ? prevEffects.join(", ") : "없음"} 대비 이번 회차는 ${currentEffects.length ? currentEffects.join(", ") : "특이 부작용 없음"}입니다.`
+      };
+      return limitText(messages[label], 150);
+    }
+
+    function summarizeAnalysis(cycleNo) {
+      const records = recordsForCycle(cycleNo);
+      const previous = recordsForCycle(Number(cycleNo) - 1);
+      const dayText = records.map(record => `${record.cycleDay}일차`).join(", ");
+      const sideEffects = [...new Set(records.flatMap(record => record.sideEffects || []).filter(effect => effect !== "없음"))];
+      const lowMeals = records.filter(record => ["평소의 절반", "평소의 1/4", "전혀 못 먹음"].includes(record.mealAmount));
+      const lowWater = records.filter(record => record.waterAmount === "500ml 이하");
+      const steps = records.map(record => Number(record.steps)).filter(Boolean);
+      const avgSteps = steps.length ? Math.round(steps.reduce((sum, value) => sum + value, 0) / steps.length) : null;
+      const bowelIssues = records.filter(record => record.bowel === "있음" && record.stoolStatus && record.stoolStatus !== "정상");
+      const notes = records.map(record => record.note).filter(Boolean);
+      const profileAge = ageFromBirthDate(profileValue("birthDate"));
+      const profileMeta = `만 ${profileAge}세, ${profileValue("cancerType")} ${profileValue("stage")}, 최근 체중 ${latestWeightText()}`;
+
+      const mealSummary = limitText(lowMeals.length
+        ? `${lowMeals.map(record => `${record.cycleDay}일차`).join(", ")}에 식사량 저하가 기록되었습니다. 섭취 음식, 체중 변화와 함께 상담 시 전달해 주세요.`
+        : `이번 회차 식사량은 큰 저하 없이 기록되었습니다. 기타 식사와 섭취 다양성도 함께 확인해 주세요.`, 150);
+      const waterSummary = limitText(lowWater.length
+        ? `${lowWater.length}일에서 500ml 이하 수분섭취가 기록되었습니다. 구토, 설사, 발열 동반 여부를 확인해 주세요.`
+        : `수분섭취는 기록 범위 내에서 큰 부족 신호가 두드러지지 않습니다.`, 150);
+      const activitySummary = limitText(avgSteps
+        ? `평균 활동량은 약 ${avgSteps.toLocaleString()}보입니다. 피로, 어지러움과 함께 감소하는지 확인해 주세요.`
+        : `걸음수 기록이 부족해 활동량 변화 판단이 제한됩니다.`, 150);
+      const bowelSummary = limitText(bowelIssues.length
+        ? `${bowelIssues.map(record => `${record.cycleDay}일차 ${record.stoolStatus}`).join(", ")} 기록이 있어 외래 시 전달하면 좋습니다.`
+        : `배변 기록에서 뚜렷한 이상 신호는 확인되지 않습니다.`, 150);
+      const sideEffectSummary = limitText(sideEffects.length
+        ? `주요 부작용은 ${sideEffects.slice(0, 6).join(", ")}입니다. 반복되거나 악화된 증상은 상담 시 전달해 주세요.`
+        : `주요 부작용은 없음으로 기록되었거나 특이 기록이 없습니다.`, 150);
+      const aiComment = limitText(`${profileMeta} 기준으로 이번 ${cycleNo}회차는 ${sideEffects.length ? `${sideEffects[0]} 등 증상` : "증상 기록"}과 식사, 수분, 활동량을 함께 확인해야 합니다. 외래 시 변화가 컸던 날짜와 부작용을 전달해 주세요.`, 240);
+      const encouragement = "오늘도 기록을 이어가고 계신 것만으로도 충분히 잘하고 있어요. 💜";
+
+      return {
+        records,
+        cycleNo,
+        period: analysisPeriod(records),
+        totalDays: records.length,
+        items: [
+          { key: "meal", icon: "🍽️", title: "식사량", tone: "meal", current: mealSummary, previous: previousComparisonText("meal", records, previous) },
+          { key: "water", icon: "💧", title: "음수량", tone: "water", current: waterSummary, previous: previousComparisonText("water", records, previous) },
+          { key: "activity", icon: "🚶", title: "운동량", tone: "activity", current: activitySummary, previous: previousComparisonText("activity", records, previous) },
+          { key: "bowel", icon: "🚽", title: "배변", tone: "bowel", current: bowelSummary, previous: previousComparisonText("bowel", records, previous) },
+          { key: "effects", icon: "⚠️", title: "특이사항 및 부작용", tone: "effects", current: sideEffectSummary, previous: previousComparisonText("effects", records, previous) }
+        ],
+        aiComment,
+        encouragement,
+        notes,
+        hasPrevious: previous.length > 0
+      };
+    }
+
+    function analysisRecordHtml(record) {
+      const note = String(record.note || "").trim();
+      if (!note) return "";
+      return `
+        <div class="analysis-note-card">
+          <strong>${record.cycleDay}일차 (${escapeHtml(record.date)})</strong>
+          <p>${escapeHtml(note)}</p>
+        </div>
+      `;
+    }
+
+    function analysisParagraphHtml(value, options = {}) {
+      const text = String(value || "").trim();
+      if (!text) return "<p>기록 없음</p>";
+      const sentences = text
+        .replace(/\s+/g, " ")
+        .replace(/(습니다\.|주세요\.|입니다\.|[.!?。！？])\s+/g, "$1\n")
+        .split("\n")
+        .map(sentence => sentence.trim())
+        .filter(Boolean);
+      if (options.eachSentence) {
+        return sentences.map(sentence => `<p>${escapeHtml(sentence)}</p>`).join("");
+      }
+      const chunks = [];
+      let current = "";
+      sentences.forEach(sentence => {
+        const next = current ? `${current} ${sentence}` : sentence;
+        if (current && next.length > (options.maxLineLength || 64)) {
+          chunks.push(current);
+          current = sentence;
+        } else {
+          current = next;
+        }
+      });
+      if (current) chunks.push(current);
+      return chunks.map(chunk => `<p>${escapeHtml(chunk)}</p>`).join("");
+    }
+
+    function analysisItemHtml(item, hasPrevious) {
+      return `
+        <div class="analysis-item">
+          <h4><span class="analysis-item-icon">${item.icon}</span>${escapeHtml(item.title)}</h4>
+          <div class="analysis-panel ${item.tone}">
+            <div class="analysis-text">${analysisParagraphHtml(item.current, { eachSentence: true })}</div>
+            ${hasPrevious && item.previous ? `
+              <div class="previous-box">
+                <span class="previous-label">📊 이전 비교</span>
+                <div class="analysis-text">${analysisParagraphHtml(item.previous, { eachSentence: true })}</div>
+              </div>
+            ` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAnalysisLoading() {
+      const result = document.getElementById("analysisResult");
+      result.innerHTML = `
+        <div class="analysis-card">
+          <div class="analysis-title">AI 분석 결과</div>
+          <div class="analysis-loading">
+            <div class="spinner" aria-label="분석 중"></div>
+            <p>AI가 증상 데이터를 분석하고 있습니다...</p>
+          </div>
+        </div>
+      `;
+      result.classList.remove("hidden");
+    }
+
+    function renderAnalysisResult() {
+      const select = document.getElementById("cycleSelect");
+      const result = document.getElementById("analysisResult");
+      const cycleNo = Number(select.value);
+      if (!cycleNo) {
+        showToast("분석할 회차 기록이 없습니다.");
+        return;
+      }
+      try {
+        renderAnalysisComplete(cycleNo);
+      } catch (error) {
+        console.error(error);
+        result.innerHTML = `
+          <div class="analysis-card">
+            <div class="analysis-title">AI 분석 결과</div>
+            <p class="small">분석 결과를 생성하는 중 오류가 발생했습니다. 기록 데이터를 다시 확인해 주세요.</p>
+          </div>
+        `;
+        result.classList.remove("hidden");
+      }
+    }
+
+    function renderAnalysisComplete(cycleNo) {
+      const result = document.getElementById("analysisResult");
+      const summary = summarizeAnalysis(cycleNo);
+      result.innerHTML = `
+        <div class="analysis-card">
+          <div class="analysis-block">
+            <div class="analysis-title">AI 분석 결과</div>
+            <div class="analysis-transient-loading" aria-hidden="true">
+              <div class="spinner"></div>
+              <p>AI가 증상 데이터를 분석하고 있습니다...</p>
+            </div>
+            <div class="analysis-complete-content">
+              <div class="analysis-meta-card">
+                <strong class="analysis-meta-title">선택된 기간</strong>
+                <div class="analysis-meta-grid">
+                  <div class="analysis-meta-row"><span>항암 회차</span><strong>${summary.cycleNo}회차</strong></div>
+                  <div class="analysis-meta-row"><span>기록 기간</span><strong>${escapeHtml(summary.period)}</strong></div>
+                  <div class="analysis-meta-row"><span>총 기록 일수</span><strong>${summary.totalDays}일</strong></div>
+                </div>
+              </div>
+              ${summary.items.map(item => analysisItemHtml(item, summary.hasPrevious)).join("")}
+              <div class="analysis-item">
+                <h4><span class="analysis-item-icon">AI</span>AI 코멘트 (참고용)</h4>
+                <div class="ai-comment-card">
+                  <div class="analysis-text">${analysisParagraphHtml(summary.aiComment, { maxLineLength: 72 })}</div>
+                  <p class="ai-encouragement">${escapeHtml(summary.encouragement)}</p>
+                </div>
+              </div>
+              <div class="disclaimer">⚠️ 중요 안내<br>본 AI 코멘트는 참고용 정보로, 의학적 진단이나 치료 결정을 대체할 수 없습니다. 모든 증상과 건강 관련 결정은 반드시 담당 의료진과 상의하시기 바랍니다.</div>
+              <button class="analysis-detail-toggle" id="analysisDetailToggle" type="button">▶ 일자별 상세 증상 기록 펼치기</button>
+              <div class="analysis-detail-list" id="analysisDetailList">
+                ${summary.records.map(analysisRecordHtml).join("") || '<p class="small">입력된 상세증상이 없습니다.</p>'}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      const toggle = document.getElementById("analysisDetailToggle");
+      const list = document.getElementById("analysisDetailList");
+      toggle.addEventListener("click", () => {
+        const show = !list.classList.contains("show");
+        list.classList.toggle("show", show);
+        toggle.textContent = show ? "▼ 일자별 상세 증상 기록 접기" : "▶ 일자별 상세 증상 기록 펼치기";
+      });
+      result.classList.remove("hidden");
+    }
+
+    function setMode(isPreview) {
+      state.isPreview = isPreview;
+      document.getElementById("appShell")?.classList.toggle("preview-mode", isPreview);
+      document.getElementById("modeLabel").textContent = isPreview ? "둘러보기 모드" : "회원 로그인 상태";
+      renderRequiredInfoBanners();
+      syncSaveButtons();
+      showToast(isPreview ? "둘러보기 모드입니다. 저장 기능은 로그인 후 사용할 수 있습니다." : "로그인 완료 상태로 전환했습니다.");
+    }
+
+    function hasRequiredUserProfile() {
+      const requiredIds = [
+        "sex",
+        "birthDate",
+        "cancerType",
+        "stage",
+        "diagnosis",
+        "metastasis",
+        "treatment",
+        "startDate",
+        "height",
+        "allergy",
+        "conditions",
+        "precautions"
+      ];
+      return requiredIds.every(id => {
+        const field = document.getElementById(id);
+        return field && String(field.value || "").trim().length > 0;
+      });
+    }
+
+    function profileValue(id) {
+      return document.getElementById(id)?.value || "-";
+    }
+
+    function ageFromBirthDate(value) {
+      if (!value) return "-";
+      const birth = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(birth.getTime())) return "-";
+      const today = new Date("2026-06-02T00:00:00");
+      let age = today.getFullYear() - birth.getFullYear();
+      const hasBirthdayPassed = today.getMonth() > birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
+      if (!hasBirthdayPassed) age -= 1;
+      return age;
+    }
+
+    function requiredInfoBannerHtml() {
+      return `
+        <div class="profile-banner">
+          <strong>🚨 원활한 서비스 이용을 위해 <span class="emphasis">사용자정보</span>와 <span class="emphasis">주의정보</span>를 입력해 주세요.</strong>
+          <div class="small">사용자정보 또는 주의정보가 미입력된 경우 서비스 이용이 제한됩니다.</div>
+        </div>
+      `;
+    }
+
+    function shouldShowRequiredInfoBanner() {
+      return state.forceEmptyProfile || !hasRequiredUserProfile();
+    }
+
+    function renderRequiredInfoBanners() {
+      const shouldShow = shouldShowRequiredInfoBanner();
+      document.querySelectorAll("[data-required-info-banner]").forEach(banner => {
+        banner.classList.toggle("show", shouldShow);
+        banner.innerHTML = shouldShow ? requiredInfoBannerHtml() : "";
+      });
+      const addMedButton = document.getElementById("addMed");
+      if (addMedButton) {
+        addMedButton.disabled = shouldShow;
+        addMedButton.classList.toggle("dimmed", shouldShow);
+        addMedButton.setAttribute("aria-disabled", String(shouldShow));
+      }
+      const saveWeightButton = document.getElementById("saveWeight");
+      if (saveWeightButton) {
+        const disabled = state.isPreview || shouldShow;
+        saveWeightButton.disabled = disabled;
+        saveWeightButton.classList.toggle("dimmed", disabled);
+        saveWeightButton.setAttribute("aria-disabled", String(disabled));
+      }
+      syncSaveButtons();
+    }
+
+    function syncSaveButtons() {
+      [
+        ["saveMed", state.isPreview],
+        ["saveSymptom", state.isPreview],
+        ["saveWeight", state.isPreview || shouldShowRequiredInfoBanner()]
+      ].forEach(([id, disabled]) => {
+        const button = document.getElementById(id);
+        if (!button) return;
+        button.disabled = disabled;
+        button.classList.toggle("dimmed", disabled);
+        button.setAttribute("aria-disabled", String(disabled));
+      });
+    }
+
+    function renderProfileStatus() {
+      const target = document.getElementById("profileStatus");
+      if (!target) return;
+
+      if (shouldShowRequiredInfoBanner()) {
+        target.innerHTML = requiredInfoBannerHtml();
+        return;
+      }
+
+      target.innerHTML = `
+        <div class="panel profile-summary-card">
+          <h3>사용자 정보 요약</h3>
+          <div class="summary-grid">
+            <div class="summary-item"><span>성별/연령</span><strong>${profileValue("sex")} · 만 ${ageFromBirthDate(profileValue("birthDate"))}세</strong></div>
+            <div class="summary-item"><span>암종/병기</span><strong>${profileValue("cancerType")} · ${profileValue("stage")}</strong></div>
+            <div class="summary-item"><span>치료</span><strong>${profileValue("treatment")}</strong></div>
+            <div class="summary-item"><span>키</span><strong>${profileValue("height")}cm</strong></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function closeProfilePanels() {
+      document.querySelectorAll(".profile-panel").forEach(panel => panel.classList.remove("show"));
+      document.getElementById("profileHome")?.classList.remove("hidden");
+    }
+
+    function saveProfileData() {
+      state.profile.heightCm = Number(document.getElementById("height").value) || 162;
+      updateBmi();
+      renderProfileStatus();
+      renderRequiredInfoBanners();
+      closeProfilePanels();
+      showToast(state.isPreview ? "둘러보기 모드에서는 실제 저장되지 않습니다." : "사용자정보를 저장했습니다.");
+      if (hasRequiredUserProfile()) {
+        showView("symptom");
+      }
+    }
+
+    function defaultViewByProfile() {
+      return hasRequiredUserProfile() ? "symptom" : "profile";
+    }
+
+    function showView(viewId, shouldScroll = true) {
+      document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === viewId));
+      document.querySelectorAll(".nav button").forEach(button => button.classList.toggle("active", button.dataset.view === viewId));
+      if (viewId === "profile") {
+        closeProfilePanels();
+        renderProfileStatus();
+      }
+      if (viewId === "analysis") {
+        renderAnalysisControls();
+      }
+      if (viewId === "weight") {
+        updateBmi();
+        buildChart();
+      }
+      renderRequiredInfoBanners();
+      if (shouldScroll) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+
+    function showEntryScreen() {
+      document.getElementById("entryScreen")?.classList.remove("hidden");
+      document.getElementById("loginScreen")?.classList.remove("show");
+      document.getElementById("appShell")?.classList.add("hidden");
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+
+    function showLoginScreen() {
+      document.getElementById("entryScreen")?.classList.add("hidden");
+      document.getElementById("loginScreen")?.classList.add("show");
+      document.getElementById("appShell")?.classList.add("hidden");
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+
+    function enterApp({ preview = false } = {}) {
+      document.getElementById("entryScreen")?.classList.add("hidden");
+      document.getElementById("loginScreen")?.classList.remove("show");
+      document.getElementById("appShell")?.classList.remove("hidden");
+      state.forceEmptyProfile = preview;
+      setMode(preview);
+      showView(preview ? "profile" : defaultViewByProfile(), false);
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+
+    function requestWithdraw() {
+      const confirmed = window.confirm("회원탈퇴 시 계정과 앱에 저장된 기록이 삭제되며 복구할 수 없습니다. 정말 탈퇴하시겠습니까?");
+      if (!confirmed) return;
+      showToast("회원탈퇴 요청이 접수되었습니다. 시안에서는 실제 데이터가 삭제되지 않습니다.");
+      showEntryScreen();
+    }
+
+    document.querySelectorAll(".nav button, [data-view-jump]").forEach(button => {
+      button.addEventListener("click", () => showView(button.dataset.view || button.dataset.viewJump));
+    });
+
+    document.getElementById("runAnalysis")?.addEventListener("click", event => {
+      event.stopPropagation();
+      renderAnalysisResult();
+    });
+
+    document.addEventListener("click", event => {
+      const target = event.target instanceof Element ? event.target.closest("#runAnalysis") : null;
+      if (target) {
+        renderAnalysisResult();
+      }
+    });
+
+    document.addEventListener("change", event => {
+      if (event.target instanceof Element && event.target.id === "cycleSelect") {
+        document.getElementById("analysisResult").classList.add("hidden");
+      }
+    });
+
+    document.getElementById("entryLoginBtn")?.addEventListener("click", showLoginScreen);
+    document.getElementById("entryPreviewBtn")?.addEventListener("click", () => enterApp({ preview: true }));
+    document.getElementById("loginBackBtn")?.addEventListener("click", showEntryScreen);
+    document.getElementById("emailLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
+    document.getElementById("appleLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
+    document.getElementById("googleLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
+    document.getElementById("loginBtn").addEventListener("click", showEntryScreen);
+    document.getElementById("logoutBtn").addEventListener("click", showEntryScreen);
+    document.getElementById("withdrawBtn")?.addEventListener("click", requestWithdraw);
+    document.getElementById("notificationToggle").addEventListener("change", event => {
+      showToast(event.target.checked ? "알림 권한 허용 상태입니다." : "알림 권한이 해제되었습니다.");
+    });
+    document.getElementById("stepsSyncToggle").addEventListener("change", event => {
+      if (event.target.checked) {
+        enableStepsSyncWithPermission();
+        return;
+      }
+      state.stepsSyncEnabled = false;
+      updateStepsSyncUi();
+      showToast("걸음수 연동 권한이 해제되었습니다.");
+    });
+    document.querySelectorAll("[data-profile-panel]").forEach(button => {
+      button.addEventListener("click", () => {
+        const panelId = button.dataset.profilePanel;
+        document.getElementById("profileHome")?.classList.add("hidden");
+        document.querySelectorAll(".profile-panel").forEach(panel => {
+          panel.classList.toggle("show", panel.id === panelId);
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+
+    document.querySelectorAll("[data-profile-back]").forEach(button => {
+      button.addEventListener("click", closeProfilePanels);
+    });
+
+    document.getElementById("saveProfile").addEventListener("click", saveProfileData);
+    document.getElementById("saveCautionInfo").addEventListener("click", saveProfileData);
+
+    document.getElementById("addMed").addEventListener("click", () => {
+      if (shouldShowRequiredInfoBanner()) {
+        showToast("사용자정보와 주의정보를 먼저 입력해 주세요.");
+        return;
+      }
+      openMedModal();
+    });
+    document.getElementById("medList").addEventListener("click", event => {
+      const button = event.target.closest("[data-edit-med]");
+      if (button) openMedModal(Number(button.dataset.editMed));
+    });
+    document.getElementById("saveMed").addEventListener("click", saveMed);
+    document.getElementById("deleteMed").addEventListener("click", deleteMed);
+    document.getElementById("medMemo").addEventListener("input", updateMedMemoCount);
+    document.getElementById("medFrequency").addEventListener("change", updateMedWeekdayVisibility);
+    document.getElementById("addMedReminder").addEventListener("click", addMedReminder);
+    document.getElementById("medReminderList").addEventListener("click", event => {
+      const button = event.target.closest("[data-remove-reminder]");
+      if (button) removeMedReminder(button);
+    });
+    document.querySelectorAll("[data-bmi-demo]").forEach(button => {
+      button.addEventListener("click", () => {
+        state.bmiDemo = button.dataset.bmiDemo;
+        updateBmi();
+      });
+    });
+    document.querySelectorAll("[data-weight-range]").forEach(button => {
+      button.addEventListener("click", () => {
+        state.weightRange = button.dataset.weightRange;
+        document.querySelectorAll("[data-weight-range]").forEach(item => item.classList.toggle("active", item === button));
+        const isCustom = button.dataset.weightRange === "custom";
+        document.getElementById("weightCustomRange").classList.toggle("show", isCustom);
+        buildChart();
+        if (isCustom) {
+          document.getElementById("weightRangeStart")._dateButton?.focus();
+        }
+      });
+    });
+    document.getElementById("weightRangeStart").addEventListener("change", buildChart);
+    document.getElementById("weightRangeEnd").addEventListener("change", buildChart);
+    document.querySelectorAll("[data-calendar-nav]").forEach(button => {
+      button.addEventListener("click", () => moveCalendar(button.dataset.calendarNav, Number(button.dataset.calendarStep)));
+    });
+
+    document.getElementById("saveWeight").addEventListener("click", () => {
+      if (state.isPreview) {
+        showToast("둘러보기 모드에서는 저장할 수 없습니다.");
+        return;
+      }
+      if (shouldShowRequiredInfoBanner()) {
+        showToast("마이페이지의 사용자정보/주의정보를 입력하세요.");
+        return;
+      }
+      const value = Number(document.getElementById("modalWeight").value);
+      if (!value) {
+        showToast("체중을 입력해 주세요.");
+        return;
+      }
+      state.weights[state.selectedWeightDate] = value;
+      state.bmiDemo = "normal";
+      closeModal("weightModal");
+      buildCalendar("weightCalendar", "weight");
+      buildChart();
+      updateBmi();
+      showToast(state.isPreview ? "둘러보기 모드에서는 실제 저장되지 않습니다." : "체중을 저장했습니다.");
+    });
+
+    document.getElementById("deleteWeight").addEventListener("click", () => {
+      if (state.selectedWeightDate) {
+        delete state.weights[state.selectedWeightDate];
+        closeModal("weightModal");
+        buildCalendar("weightCalendar", "weight");
+        buildChart();
+        updateBmi();
+        showToast("체중 기록을 삭제했습니다.");
+      }
+    });
+
+    document.getElementById("symptomWriteBtn").addEventListener("click", () => {
+      if (!state.selectedSymptomDate) return;
+      const record = state.symptoms[state.selectedSymptomDate];
+      resetSymptomForm();
+      fillSymptomForm(record);
+      openModal("symptomModal");
+    });
+
+    document.getElementById("symptomDeleteBtn").addEventListener("click", () => {
+      if (!state.selectedSymptomDate || !state.symptoms[state.selectedSymptomDate]) return;
+      const confirmed = window.confirm("삭제된 기록은 복구되지 않습니다. 정말 삭제하시겠습니까?");
+      if (!confirmed) return;
+      delete state.symptoms[state.selectedSymptomDate];
+      buildCalendar("symptomCalendar", "symptom");
+      renderAnalysisControls();
+      selectSymptomDate(state.selectedSymptomDate);
+      showToast("증상 기록을 삭제했습니다.");
+    });
+
+    document.getElementById("stepsSyncBtn").addEventListener("click", () => {
+      if (state.stepsSyncEnabled) return;
+      enableStepsSyncWithPermission();
+    });
+
+    document.getElementById("saveSymptom").addEventListener("click", () => {
+      if (state.isPreview) {
+        showToast("둘러보기 모드에서는 저장할 수 없습니다.");
+        return;
+      }
+      if (!state.selectedSymptomDate) return;
+      const cycleNo = Number(document.getElementById("cycleNo").value);
+      const cycleDay = Number(document.getElementById("cycleDay").value);
+      const mealAmount = document.getElementById("meal").value;
+      const waterAmount = document.getElementById("water").value;
+      const steps = Number(document.getElementById("steps").value);
+      const note = document.getElementById("note").value.trim();
+      const bowel = document.querySelector('input[name="bowel"]:checked')?.value || "";
+      const stoolStatus = document.querySelector('input[name="stoolStatus"]:checked')?.value || "";
+      const sideEffectValues = selectedSideEffects();
+      if (!cycleNo || !cycleDay || !mealAmount || !waterAmount || !steps || !bowel || !sideEffectValues.length) {
+        showToast("필수 항목을 모두 입력해 주세요.");
+        return;
+      }
+      if (bowel === "있음" && !stoolStatus) {
+        showToast("배변 상태를 선택해 주세요.");
+        return;
+      }
+      state.symptoms[state.selectedSymptomDate] = {
+        cycleNo,
+        cycleDay,
+        mealAmount,
+        waterAmount,
+        steps,
+        stepsSource: state.stepsSyncEnabled ? "연동" : "수동",
+        bowel,
+        stoolStatus: bowel === "있음" ? stoolStatus : "",
+        note,
+        meals: [
+          document.getElementById("breakfastMemo").value.trim() || "-",
+          document.getElementById("lunchMemo").value.trim() || "-",
+          document.getElementById("dinnerMemo").value.trim() || "-"
+        ],
+        extraMealMemo: document.getElementById("extraMealMemo").value.trim(),
+        extraMeal: document.getElementById("extraMealMemo").value.trim(),
+        sideEffects: sideEffectValues
+      };
+      closeModal("symptomModal");
+      buildCalendar("symptomCalendar", "symptom");
+      renderAnalysisControls();
+      selectSymptomDate(state.selectedSymptomDate);
+      showToast(state.isPreview ? "둘러보기 모드에서는 실제 저장되지 않습니다." : "증상 기록을 저장했습니다.");
+    });
+
+    document.querySelectorAll('input[name="bowel"]').forEach(input => {
+      input.addEventListener("change", updateStoolStatusVisibility);
+    });
+
+    document.querySelectorAll("[data-close-modal]").forEach(button => {
+      button.addEventListener("click", () => closeModal(button.dataset.closeModal));
+    });
+
+    document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
+      backdrop.addEventListener("click", event => {
+        if (event.target === backdrop) closeModal(backdrop.id);
+      });
+    });
+
+    document.getElementById("selectSheetClose").addEventListener("click", closeSelectSheet);
+    document.getElementById("selectSheet").addEventListener("click", event => {
+      if (event.target === event.currentTarget) closeSelectSheet();
+    });
+
+    document.getElementById("dateSheetClose").addEventListener("click", closeDateSheet);
+    document.getElementById("dateSheet").addEventListener("click", event => {
+      if (event.target === event.currentTarget) closeDateSheet();
+    });
+    document.getElementById("datePrevMonth").addEventListener("click", () => {
+      dateState.month -= 1;
+      if (dateState.month < 0) {
+        dateState.month = 11;
+        dateState.year -= 1;
+      }
+      renderDateCalendar();
+    });
+    document.getElementById("dateNextMonth").addEventListener("click", () => {
+      dateState.month += 1;
+      if (dateState.month > 11) {
+        dateState.month = 0;
+        dateState.year += 1;
+      }
+      renderDateCalendar();
+    });
+    document.getElementById("dateYearInput").addEventListener("change", event => {
+      const year = Number(event.target.value);
+      if (year >= 1900 && year <= 2100) {
+        dateState.year = year;
+        renderDateCalendar();
+      }
+    });
+    document.getElementById("dateMonthInput").addEventListener("change", event => {
+      const month = Number(event.target.value);
+      if (month >= 1 && month <= 12) {
+        dateState.month = month - 1;
+        renderDateCalendar();
+      }
+    });
+
+    renderAnalysisControls();
+    enhanceSelects();
+    enhanceDateInputs();
+    renderMeds();
+    renderSideEffects();
+    buildCalendar("weightCalendar", "weight");
+    buildCalendar("symptomCalendar", "symptom");
+    buildChart();
+    updateBmi();
+    renderProfileStatus();
+    renderRequiredInfoBanners();
+    document.getElementById("appShell")?.classList.add("hidden");
+    document.getElementById("entryScreen")?.classList.remove("hidden");
+    document.getElementById("loginScreen")?.classList.remove("show");
+    window.scrollTo(0, 0);
+  </script>
+</body>
+</html>

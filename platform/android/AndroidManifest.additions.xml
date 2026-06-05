@@ -1,0 +1,2 @@
+<!-- Add this permission to android/app/src/main/AndroidManifest.xml after running flutter create. -->
+<uses-permission android:name="android.permission.health.READ_STEPS" />
