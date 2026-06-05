@@ -135,10 +135,11 @@ GitHub 저장소는 `https://github.com/nanimi74/cancer-monitor` 1개만 사용�
 
 - Firebase Authentication을 이용해 회원가입/로그인을 구현한다.
 - 지원 로그인 방식은 Firebase 이메일 로그인을 기본으로 한다.
-- 소셜 로그인은 Apple 로그인과 Google 로그인을 지원한다.
+- 이메일 로그인은 이메일/비밀번호 입력 방식으로 우선 구현한다.
+- 이메일로 계속하기를 선택한 사용자가 기존 회원이면 로그인하고, 기존 회원이 아니면 동일 흐름에서 가입을 처리한다.
+- Apple 로그인과 Google 로그인은 출시 준비 단계에서 연결한다.
 - Firebase 설정 파일이 없는 개발 초기 상태에서는 mock 인증으로 앱 실행이 유지되도록 구성한다.
 - Firebase 설정 파일이 추가되면 `FirebaseAuthService`를 통해 실제 인증으로 전환한다.
-- 이메일 로그인은 별도 이메일 입력 화면에서 이메일/비밀번호 또는 이메일 링크 방식으로 확장한다.
 - 로그인 화면 안내 문구는 `회원 전용 서비스입니다.`와 `비회원의 경우 가입 후 이용해주세요.`를 줄바꿈해 표시한다.
 - 로그인 완료 후 사용자정보 입력 화면으로 이동한다.
 - 사용자정보 필수 입력이 완료되어야 복약관리, 체중관리, 증상관리, AI분석 기능을 정상 사용할 수 있다.
@@ -1075,6 +1076,15 @@ Google Play:
 - 앱 내 개인정보처리방침 링크와 계정/데이터 삭제 방법을 제공한다.
 
 ## 9. 데이터 모델 초안
+
+사용자별 데이터는 Firebase Authentication UID를 기준으로 분리한다. 기본 저장 경로는 다음 구조를 사용한다.
+
+- 사용자 기본 문서: `users/{uid}`
+- 사용자 정보: `users/{uid}/profile/main`
+- 복약관리: `users/{uid}/medications/{medicationId}`
+- 체중관리: `users/{uid}/weights/{dateKey}`
+- 증상관리: `users/{uid}/symptoms/{dateKey}`
+- AI분석 결과: `users/{uid}/analysis/{cycleKey}`
 
 ### 9.1 AuthUser
 

@@ -80,7 +80,7 @@ class _AppStartFlowState extends State<AppStartFlow> {
             ),
           _StartStage.shell => HomeShell(
               isPreview: _session?.isPreview ?? false,
-              hasRequiredInfo: !(_session?.isPreview ?? false),
+              hasRequiredInfo: false,
               onExitPreview: _backToEntry,
             ),
         };
