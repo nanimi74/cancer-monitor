@@ -24,12 +24,15 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   late var _index = widget.hasRequiredInfo ? 3 : 0;
 
-  static const _screens = [
-    ProfileScreen(),
-    MedicationScreen(),
-    WeightScreen(),
-    SymptomScreen(),
-    AnalysisScreen(),
+  late final _screens = [
+    ProfileScreen(
+      hasRequiredInfo: widget.hasRequiredInfo,
+      isPreview: widget.isPreview,
+    ),
+    const MedicationScreen(),
+    const WeightScreen(),
+    const SymptomScreen(),
+    const AnalysisScreen(),
   ];
 
   @override
