@@ -1,4 +1,4 @@
-package com.example.cancer_monitor_app
+package com.nanimi74.cancermonitor
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="cancer_monitor_app"
+        android:label="항암기록관리"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
