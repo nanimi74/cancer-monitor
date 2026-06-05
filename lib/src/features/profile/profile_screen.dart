@@ -143,7 +143,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           requiredMark: true,
           onTap: _openCautionInfo,
         ),
-        const SizedBox(height: 8),
         _ToggleCard(
           title: '알림 권한',
           subtitle: '앱의 알림 권한을 허용하거나 해제합니다.',
@@ -159,7 +158,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           value: _stepSyncEnabled,
           onChanged: _setStepSync,
         ),
-        const SizedBox(height: 10),
         _MenuTile(
           title: '문의하기',
           subtitle: '서비스 이용 중 궁금한 점을 보냅니다.',
