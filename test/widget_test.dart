@@ -54,9 +54,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('사용자정보와 주의정보를 입력해 주세요'), findsOneWidget);
+    expect(find.textContaining('사용자정보를 입력해 주세요'), findsOneWidget);
     expect(find.text('사용자 정보'), findsOneWidget);
-    expect(find.text('주의 정보'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const ValueKey('profile-info-menu')));
     await tester.tap(find.byKey(const ValueKey('profile-info-menu')));
@@ -69,8 +68,11 @@ void main() {
     await tester.tap(find.byTooltip('이전'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text('회원탈퇴'), 350);
-    await tester.tap(find.text('회원탈퇴'));
+    final withdrawalButton = find.widgetWithText(OutlinedButton, '회원탈퇴');
+    await tester.scrollUntilVisible(withdrawalButton, 350);
+    await tester.drag(find.byType(ListView), const Offset(0, -160));
+    await tester.pumpAndSettle();
+    await tester.tap(withdrawalButton);
     await tester.pumpAndSettle();
 
     expect(find.text('회원탈퇴'), findsWidgets);

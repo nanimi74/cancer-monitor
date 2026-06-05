@@ -75,7 +75,7 @@ class RequiredInfoBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '🚨 사용자정보와 주의정보를 입력해 주세요.',
+            '🚨 사용자정보를 입력해 주세요.',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 4),

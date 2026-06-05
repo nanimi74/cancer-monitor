@@ -22,12 +22,10 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late _ProfileInfo? _profileInfo =
       widget.hasRequiredInfo ? _ProfileInfo.sample() : null;
-  late _CautionInfo? _cautionInfo =
-      widget.hasRequiredInfo ? _CautionInfo.sample() : null;
   var _notificationEnabled = true;
   var _stepSyncEnabled = false;
 
-  bool get _hasRequiredInfo => _profileInfo != null && _cautionInfo != null;
+  bool get _hasRequiredInfo => _profileInfo != null;
 
   Future<void> _openProfileInfo() async {
     final result = await Navigator.of(context).push<_ProfileInfo>(
@@ -37,17 +35,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (result != null) {
       setState(() => _profileInfo = result);
-    }
-  }
-
-  Future<void> _openCautionInfo() async {
-    final result = await Navigator.of(context).push<_CautionInfo>(
-      MaterialPageRoute(
-        builder: (_) => _CautionInfoPage(initialValue: _cautionInfo),
-      ),
-    );
-    if (result != null) {
-      setState(() => _cautionInfo = result);
     }
   }
 
@@ -135,13 +122,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           subtitle: '성별, 생년월일, 질병 및 치료 정보',
           requiredMark: true,
           onTap: _openProfileInfo,
-        ),
-        _MenuTile(
-          tileKey: const ValueKey('caution-info-menu'),
-          title: '주의 정보',
-          subtitle: '알레르기, 기저질환, 복용 주의 약물',
-          requiredMark: true,
-          onTap: _openCautionInfo,
         ),
         _ToggleCard(
           title: '알림 권한',
@@ -662,62 +642,6 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
   }
 }
 
-class _CautionInfoPage extends StatefulWidget {
-  const _CautionInfoPage({this.initialValue});
-
-  final _CautionInfo? initialValue;
-
-  @override
-  State<_CautionInfoPage> createState() => _CautionInfoPageState();
-}
-
-class _CautionInfoPageState extends State<_CautionInfoPage> {
-  final _formKey = GlobalKey<FormState>();
-  late final _allergy =
-      TextEditingController(text: widget.initialValue?.allergy ?? '');
-  late final _conditions =
-      TextEditingController(text: widget.initialValue?.conditions ?? '');
-  late final _precautions =
-      TextEditingController(text: widget.initialValue?.precautions ?? '');
-
-  @override
-  void dispose() {
-    _allergy.dispose();
-    _conditions.dispose();
-    _precautions.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    Navigator.of(context).pop(
-      _CautionInfo(
-        allergy: _allergy.text.trim(),
-        conditions: _conditions.text.trim(),
-        precautions: _precautions.text.trim(),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _FormPageScaffold(
-      title: '주의 정보',
-      action: _save,
-      child: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            _TextInput(label: '알레르기', controller: _allergy),
-            _TextInput(label: '기저질환', controller: _conditions),
-            _TextInput(label: '복용 금기 또는 주의 약물', controller: _precautions),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _FormPageScaffold extends StatelessWidget {
   const _FormPageScaffold({
     required this.title,
@@ -916,24 +840,6 @@ class _ProfileInfo {
     if (!birthdayPassed) value -= 1;
     return value;
   }
-}
-
-class _CautionInfo {
-  const _CautionInfo({
-    required this.allergy,
-    required this.conditions,
-    required this.precautions,
-  });
-
-  factory _CautionInfo.sample() => const _CautionInfo(
-        allergy: '없음',
-        conditions: '고혈압',
-        precautions: '없음',
-      );
-
-  final String allergy;
-  final String conditions;
-  final String precautions;
 }
 
 String _formatDate(DateTime? date) {

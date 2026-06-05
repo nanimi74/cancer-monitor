@@ -5,7 +5,6 @@ class UserProfile {
     required this.cancerType,
     required this.stage,
     required this.heightCm,
-    required this.cautions,
   });
 
   final String sex;
@@ -13,7 +12,6 @@ class UserProfile {
   final String cancerType;
   final String stage;
   final double heightCm;
-  final String cautions;
 
   int age(DateTime today) {
     var value = today.year - birthDate.year;

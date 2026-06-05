@@ -2822,9 +2822,6 @@
               <button class="submenu-item" type="button" data-profile-panel="profileInfoPanel">
                 <div><strong><i class="required-dot" aria-hidden="true"></i>사용자 정보</strong><span>성별, 생년월일, 질병 및 치료 정보</span></div>
               </button>
-              <button class="submenu-item" type="button" data-profile-panel="cautionInfoPanel">
-                <div><strong><i class="required-dot" aria-hidden="true"></i>주의 정보</strong><span>알레르기, 기저질환, 복용 주의 약물</span></div>
-              </button>
               <div class="toggle-row">
                 <div><strong>알림 권한</strong><span>앱의 알림 권한을 허용하거나 해제합니다.</span></div>
                 <label class="toggle-switch" aria-label="알림 권한">
@@ -2921,28 +2918,6 @@
             </div>
           </div>
 
-          <div class="profile-panel" id="cautionInfoPanel">
-            <div class="panel">
-              <div class="subpage-head">
-                <button class="back-btn" type="button" data-profile-back>‹</button>
-                <h3>주의 정보</h3>
-              </div>
-              <div class="field">
-                <label for="allergy">알레르기</label>
-                <input id="allergy" value="없음">
-              </div>
-              <div class="field">
-                <label for="conditions">기저질환</label>
-                <input id="conditions" value="고혈압">
-              </div>
-              <div class="field">
-                <label for="precautions">복용 금기 또는 주의 약물</label>
-                <input id="precautions" value="없음">
-              </div>
-              <button class="btn" id="saveCautionInfo" type="button">저장</button>
-            </div>
-          </div>
-
           <div class="profile-panel" id="termsPanel">
             <div class="panel">
               <div class="subpage-head">
@@ -3004,7 +2979,6 @@
                   <ul>
                     <li>회원 정보: Firebase 로그인을 위한 이메일, 사용자 식별자, 로그인 제공자 정보</li>
                     <li>사용자 정보: 성별, 생년월일, 키, 암종, 병기, 진단일, 치료 정보, 기타 참고 정보</li>
-                    <li>주의 정보: 알레르기, 기저질환, 복용 주의 약물</li>
                     <li>건강 기록: 체중, 복약 정보, 항암 회차/일차, 식사량, 음수량, 배변, 주요 부작용, 주요증상 텍스트</li>
                     <li>권한 및 설정: 알림 허용 여부, 걸음수 연동 허용 여부, 복약 알림 시간</li>
                   </ul>
@@ -3023,7 +2997,7 @@
                 </div>
                 <div class="policy-section">
                   <h4>5. AI 분석 활용</h4>
-                  <p>AI 분석은 사용자 정보, 주의 정보, 체중 기록, 증상 기록을 바탕으로 식사량, 음수량, 운동량, 배변, 부작용을 요약합니다. 분석 결과는 참고용이며, 진단명 단정, 처방 변경, 치료 중단 권고를 제공하지 않습니다.</p>
+                  <p>AI 분석은 사용자 정보, 체중 기록, 증상 기록을 바탕으로 식사량, 음수량, 운동량, 배변, 부작용을 요약합니다. 분석 결과는 참고용이며, 진단명 단정, 처방 변경, 치료 중단 권고를 제공하지 않습니다.</p>
                 </div>
                 <div class="policy-section">
                   <h4>6. 보관 및 삭제</h4>
@@ -4009,7 +3983,7 @@
 
     function openWeightModal(key) {
       if (shouldShowRequiredInfoBanner()) {
-        showToast("마이페이지의 사용자정보/주의정보를 입력하세요.");
+        showToast("마이페이지의 사용자정보를 입력하세요.");
         return;
       }
       state.selectedWeightDate = key;
@@ -4684,10 +4658,7 @@
         "metastasis",
         "treatment",
         "startDate",
-        "height",
-        "allergy",
-        "conditions",
-        "precautions"
+        "height"
       ];
       return requiredIds.every(id => {
         const field = document.getElementById(id);
@@ -4713,7 +4684,7 @@
     function requiredInfoBannerHtml() {
       return `
         <div class="profile-banner">
-          <strong>🚨 <span class="emphasis">사용자정보</span>와 <span class="emphasis">주의정보</span>를 입력해 주세요.</strong>
+          <strong>🚨 <span class="emphasis">사용자정보</span>를 입력해 주세요.</strong>
           <div class="small">미입력된 경우 서비스 이용이 제한됩니다.</div>
         </div>
       `;
@@ -4912,11 +4883,9 @@
     });
 
     document.getElementById("saveProfile").addEventListener("click", saveProfileData);
-    document.getElementById("saveCautionInfo").addEventListener("click", saveProfileData);
-
     document.getElementById("addMed").addEventListener("click", () => {
       if (shouldShowRequiredInfoBanner()) {
-        showToast("사용자정보와 주의정보를 먼저 입력해 주세요.");
+        showToast("사용자정보를 먼저 입력해 주세요.");
         return;
       }
       openMedModal();
@@ -4964,7 +4933,7 @@
         return;
       }
       if (shouldShowRequiredInfoBanner()) {
-        showToast("마이페이지의 사용자정보/주의정보를 입력하세요.");
+        showToast("마이페이지의 사용자정보를 입력하세요.");
         return;
       }
       const value = Number(document.getElementById("modalWeight").value);
