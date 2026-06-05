@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
+import '../../services/auth/auth_service.dart';
 import '../legal/legal_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -12,11 +13,15 @@ class ProfileScreen extends StatefulWidget {
     this.hasRequiredInfo = true,
     this.isPreview = false,
     this.onExitPreview,
+    this.onSignOut,
+    this.onDeleteAccount,
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
   final VoidCallback? onExitPreview;
+  final Future<void> Function()? onSignOut;
+  final Future<void> Function()? onDeleteAccount;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -26,6 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   _ProfileInfo? _profileInfo;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
+  var _accountActionInProgress = false;
 
   bool get _hasRequiredInfo => _profileInfo != null;
 
@@ -131,7 +137,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (confirmed == true) {
-      _showMessage('회원탈퇴 요청이 접수되었습니다.');
+      await _runAccountAction(
+        action: widget.onDeleteAccount,
+        fallbackMessage: '회원탈퇴 기능을 연결할 수 없습니다.',
+      );
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    await _runAccountAction(
+      action: widget.onSignOut,
+      fallbackMessage: '로그아웃 기능을 연결할 수 없습니다.',
+    );
+  }
+
+  Future<void> _runAccountAction({
+    required Future<void> Function()? action,
+    required String fallbackMessage,
+  }) async {
+    if (_accountActionInProgress) return;
+    if (action == null) {
+      _showMessage(fallbackMessage);
+      return;
+    }
+
+    setState(() => _accountActionInProgress = true);
+    try {
+      await action();
+    } on AuthFailure catch (error) {
+      if (!mounted) return;
+      _showMessage(error.message);
+      setState(() => _accountActionInProgress = false);
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+      setState(() => _accountActionInProgress = false);
     }
   }
 
@@ -206,14 +246,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => _showMessage('로그아웃되었습니다.'),
+                  onPressed: _accountActionInProgress ? null : _handleSignOut,
                   child: const Text('로그아웃'),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _confirmWithdrawal,
+                  onPressed:
+                      _accountActionInProgress ? null : _confirmWithdrawal,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.muted,
                     side: const BorderSide(color: AppColors.line),

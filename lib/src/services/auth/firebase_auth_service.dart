@@ -101,6 +101,35 @@ class FirebaseAuthService implements AuthService {
     );
   }
 
+  @override
+  Future<void> signOut() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {
+      // Google 로그인이 아니면 별도 처리 없이 Firebase 세션만 종료합니다.
+    }
+    await _firebaseAuth.signOut();
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw const AuthFailure('로그인 정보를 확인할 수 없습니다.');
+    }
+
+    try {
+      await user.delete();
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {
+        // Google 로그인이 아니면 별도 처리 없이 넘어갑니다.
+      }
+    } on FirebaseAuthException catch (error) {
+      throw AuthFailure(_deleteAccountMessage(error));
+    }
+  }
+
   Future<void> _initializeGoogleSignIn() async {
     if (_googleInitialized) {
       return;
@@ -157,6 +186,14 @@ class FirebaseAuthService implements AuthService {
       'invalid-credential' => '$providerLabel 로그인 정보를 확인할 수 없습니다.',
       'network-request-failed' => '네트워크 연결을 확인해 주세요.',
       _ => '$providerLabel 로그인 중 문제가 발생했습니다.',
+    };
+  }
+
+  String _deleteAccountMessage(FirebaseAuthException error) {
+    return switch (error.code) {
+      'requires-recent-login' => '보안을 위해 다시 로그인한 뒤 회원탈퇴를 진행해 주세요.',
+      'network-request-failed' => '네트워크 연결을 확인해 주세요.',
+      _ => '회원탈퇴 처리 중 문제가 발생했습니다.',
     };
   }
 }
