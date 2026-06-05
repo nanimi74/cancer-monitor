@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cancer_monitor/src/app/cancer_monitor_app.dart';
@@ -41,5 +42,35 @@ void main() {
     expect(find.text('체중관리'), findsOneWidget);
     expect(find.text('증상관리'), findsOneWidget);
     expect(find.text('AI분석'), findsOneWidget);
+  });
+
+  testWidgets('preview profile shows required info flow and withdrawal alert',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const CancerMonitorApp());
+
+    await tester.tap(find.text('둘러보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('사용자정보와 주의정보를 입력해 주세요'), findsOneWidget);
+    expect(find.text('사용자 정보'), findsOneWidget);
+    expect(find.text('주의 정보'), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const ValueKey('profile-info-menu')));
+    await tester.tap(find.byKey(const ValueKey('profile-info-menu')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('사용자 정보'), findsWidgets);
+    expect(find.byType(TextFormField), findsWidgets);
+    expect(find.text('저장'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('이전'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('회원탈퇴'), 350);
+    await tester.tap(find.text('회원탈퇴'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('회원탈퇴'), findsWidgets);
+    expect(find.textContaining('복구할 수 없습니다'), findsOneWidget);
   });
 }
