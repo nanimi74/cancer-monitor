@@ -144,28 +144,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onTap: _openCautionInfo,
         ),
         const SizedBox(height: 8),
-        AppCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              _ToggleRow(
-                title: '알림 권한',
-                subtitle: '앱의 알림 권한을 허용하거나 해제합니다.',
-                value: _notificationEnabled,
-                onChanged: (value) {
-                  setState(() => _notificationEnabled = value);
-                  _showMessage(value ? '알림 권한 허용 상태입니다.' : '알림 권한이 해제되었습니다.');
-                },
-              ),
-              const Divider(height: 1),
-              _ToggleRow(
-                title: '걸음수 연동 권한',
-                subtitle: '휴대폰의 걸음수를 불러와 증상관리에 사용합니다.',
-                value: _stepSyncEnabled,
-                onChanged: _setStepSync,
-              ),
-            ],
-          ),
+        _ToggleCard(
+          title: '알림 권한',
+          subtitle: '앱의 알림 권한을 허용하거나 해제합니다.',
+          value: _notificationEnabled,
+          onChanged: (value) {
+            setState(() => _notificationEnabled = value);
+            _showMessage(value ? '알림 권한 허용 상태입니다.' : '알림 권한이 해제되었습니다.');
+          },
+        ),
+        _ToggleCard(
+          title: '걸음수 연동 권한',
+          subtitle: '휴대폰의 걸음수를 불러와 증상관리에 사용합니다.',
+          value: _stepSyncEnabled,
+          onChanged: _setStepSync,
         ),
         const SizedBox(height: 10),
         _MenuTile(
@@ -187,7 +179,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             MaterialPageRoute(builder: (_) => LegalScreen.privacy),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+        const Divider(height: 1),
+        const SizedBox(height: 14),
         Row(
           children: [
             Expanded(
@@ -346,7 +340,7 @@ class _MenuTile extends StatelessWidget {
                         ],
                         Text(
                           title,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          style: _profileTileTitleStyle,
                         ),
                       ],
                     ),
@@ -355,7 +349,7 @@ class _MenuTile extends StatelessWidget {
                       subtitle,
                       style: const TextStyle(
                         color: AppColors.muted,
-                        fontSize: 12,
+                        fontSize: _profileTileSubtitleSize,
                       ),
                     ),
                   ],
@@ -370,8 +364,8 @@ class _MenuTile extends StatelessWidget {
   }
 }
 
-class _ToggleRow extends StatelessWidget {
-  const _ToggleRow({
+class _ToggleCard extends StatelessWidget {
+  const _ToggleCard({
     required this.title,
     required this.subtitle,
     required this.value,
@@ -385,18 +379,45 @@ class _ToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile.adaptive(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: _profileTileTitleStyle),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: _profileTileSubtitleSize,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch.adaptive(
+              value: value,
+              onChanged: onChanged,
+              activeThumbColor: AppColors.accent,
+            ),
+          ],
+        ),
       ),
-      value: value,
-      onChanged: onChanged,
     );
   }
 }
+
+const double _profileTileSubtitleSize = 12;
+
+const TextStyle _profileTileTitleStyle = TextStyle(
+  fontSize: 14,
+  fontWeight: FontWeight.w600,
+);
 
 class _ProfileInfoPage extends StatefulWidget {
   const _ProfileInfoPage({this.initialValue});
