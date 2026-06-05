@@ -400,10 +400,9 @@ class _ToggleCard extends StatelessWidget {
                 ],
               ),
             ),
-            Switch.adaptive(
+            _ProfileSwitch(
               value: value,
               onChanged: onChanged,
-              activeThumbColor: AppColors.accent,
             ),
           ],
         ),
@@ -418,6 +417,54 @@ const TextStyle _profileTileTitleStyle = TextStyle(
   fontSize: 14,
   fontWeight: FontWeight.w600,
 );
+
+class _ProfileSwitch extends StatelessWidget {
+  const _ProfileSwitch({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        width: 48,
+        height: 28,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: value ? AppColors.accent : const Color(0xFFD1D5DB),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.text.withValues(alpha: .18),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _ProfileInfoPage extends StatefulWidget {
   const _ProfileInfoPage({this.initialValue});

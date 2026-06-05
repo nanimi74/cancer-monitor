@@ -20,8 +20,8 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: backgroundColor,
-      elevation: 2,
-      shadowColor: const Color(0x1A1F2937),
+      elevation: 1,
+      shadowColor: const Color(0x101F2937),
       shape: RoundedRectangleBorder(
         side: BorderSide(color: borderColor),
         borderRadius: BorderRadius.circular(16),
@@ -75,7 +75,7 @@ class RequiredInfoBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '🚨 원활한 서비스 이용을 위해 사용자정보와 주의정보를 입력해 주세요.',
+            '🚨 사용자정보와 주의정보를 입력해 주세요.',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 4),

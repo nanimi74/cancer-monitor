@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cancer_monitor/src/app/cancer_monitor_app.dart';
+import 'package:cancer_monitor/src/features/home_shell.dart';
 
 void main() {
   testWidgets('starts from entry screen and opens preview shell',
@@ -46,9 +47,11 @@ void main() {
 
   testWidgets('preview profile shows required info flow and withdrawal alert',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const CancerMonitorApp());
-
-    await tester.tap(find.text('둘러보기'));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: HomeShell(isPreview: true, hasRequiredInfo: false),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.textContaining('사용자정보와 주의정보를 입력해 주세요'), findsOneWidget);
