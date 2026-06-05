@@ -488,6 +488,8 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
       TextEditingController(text: widget.initialValue?.treatmentType ?? '');
   late final _height = TextEditingController(
       text: widget.initialValue?.heightCm.toStringAsFixed(0) ?? '');
+  late final _extra =
+      TextEditingController(text: widget.initialValue?.extra ?? '');
 
   @override
   void dispose() {
@@ -495,6 +497,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
     _stage.dispose();
     _treatmentType.dispose();
     _height.dispose();
+    _extra.dispose();
     super.dispose();
   }
 
@@ -576,6 +579,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
         treatmentType: _treatmentType.text.trim(),
         treatmentStartDate: _treatmentStartDate!,
         heightCm: double.parse(_height.text),
+        extra: _extra.text.trim(),
       ),
     );
   }
@@ -643,6 +647,14 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
               controller: _height,
               keyboardType: TextInputType.number,
             ),
+            _TextInput(
+              label: '기타정보',
+              controller: _extra,
+              required: false,
+              maxLength: 200,
+              maxLines: 4,
+              hintText: '환자에 대해 알아야 하는 정보나 분석 시 참고할 만한 내용을 모두 입력해 주세요.',
+            ),
           ],
         ),
       ),
@@ -667,15 +679,12 @@ class _CautionInfoPageState extends State<_CautionInfoPage> {
       TextEditingController(text: widget.initialValue?.conditions ?? '');
   late final _precautions =
       TextEditingController(text: widget.initialValue?.precautions ?? '');
-  late final _extra =
-      TextEditingController(text: widget.initialValue?.extra ?? '');
 
   @override
   void dispose() {
     _allergy.dispose();
     _conditions.dispose();
     _precautions.dispose();
-    _extra.dispose();
     super.dispose();
   }
 
@@ -686,7 +695,6 @@ class _CautionInfoPageState extends State<_CautionInfoPage> {
         allergy: _allergy.text.trim(),
         conditions: _conditions.text.trim(),
         precautions: _precautions.text.trim(),
-        extra: _extra.text.trim(),
       ),
     );
   }
@@ -703,14 +711,6 @@ class _CautionInfoPageState extends State<_CautionInfoPage> {
             _TextInput(label: '알레르기', controller: _allergy),
             _TextInput(label: '기저질환', controller: _conditions),
             _TextInput(label: '복용 금기 또는 주의 약물', controller: _precautions),
-            _TextInput(
-              label: '기타정보',
-              controller: _extra,
-              required: false,
-              maxLength: 200,
-              maxLines: 4,
-              hintText: '환자에 대해 알아야 하는 정보나 분석 시 참고할 만한 내용을 모두 입력해 주세요.',
-            ),
           ],
         ),
       ),
@@ -881,6 +881,7 @@ class _ProfileInfo {
     required this.treatmentType,
     required this.treatmentStartDate,
     required this.heightCm,
+    this.extra = '',
   });
 
   factory _ProfileInfo.sample() => _ProfileInfo(
@@ -893,6 +894,7 @@ class _ProfileInfo {
         treatmentType: '주사 항암',
         treatmentStartDate: DateTime(2026, 4, 1),
         heightCm: 162,
+        extra: '',
       );
 
   final String sex;
@@ -904,6 +906,7 @@ class _ProfileInfo {
   final String treatmentType;
   final DateTime treatmentStartDate;
   final double heightCm;
+  final String extra;
 
   int get age {
     final today = DateTime(2026, 6, 5);
@@ -920,7 +923,6 @@ class _CautionInfo {
     required this.allergy,
     required this.conditions,
     required this.precautions,
-    this.extra = '',
   });
 
   factory _CautionInfo.sample() => const _CautionInfo(
@@ -932,7 +934,6 @@ class _CautionInfo {
   final String allergy;
   final String conditions;
   final String precautions;
-  final String extra;
 }
 
 String _formatDate(DateTime? date) {
