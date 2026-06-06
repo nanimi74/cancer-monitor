@@ -103,7 +103,7 @@ void main() {
     expect(find.text('둘러보기'), findsOneWidget);
   });
 
-  testWidgets('preview profile shows required info flow and exit action',
+  testWidgets('preview profile blocks user info access and shows exit action',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -119,12 +119,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('profile-info-menu')));
     await tester.pumpAndSettle();
 
-    expect(find.text('사용자 정보'), findsWidgets);
-    expect(find.byType(TextFormField), findsWidgets);
-    expect(find.text('저장'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('이전'));
-    await tester.pumpAndSettle();
+    expect(find.text('회원만 이용할 수 있습니다.'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+    expect(find.text('저장'), findsNothing);
 
     final exitPreviewButton = find.widgetWithText(OutlinedButton, '둘러보기 나가기');
     await tester.scrollUntilVisible(exitPreviewButton, 350);

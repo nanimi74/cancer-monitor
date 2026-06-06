@@ -72,6 +72,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _openProfileInfo() async {
+    if (widget.isPreview) {
+      _showMessage('회원만 이용할 수 있습니다.');
+      return;
+    }
     final result = await Navigator.of(context).push<_ProfileInfo>(
       MaterialPageRoute(
         builder: (_) => _ProfileInfoPage(initialValue: _profileInfo),
@@ -624,6 +628,19 @@ class _ProfileInfoPage extends StatefulWidget {
 
 class _ProfileInfoPageState extends State<_ProfileInfoPage> {
   final _formKey = GlobalKey<FormState>();
+  final _sexKey = GlobalKey();
+  final _birthDateKey = GlobalKey();
+  final _cancerTypeKey = GlobalKey();
+  final _stageKey = GlobalKey();
+  final _diagnosisDateKey = GlobalKey();
+  final _metastasisKey = GlobalKey();
+  final _treatmentTypeKey = GlobalKey();
+  final _treatmentStartDateKey = GlobalKey();
+  final _heightKey = GlobalKey();
+  final _cancerTypeFocus = FocusNode();
+  final _stageFocus = FocusNode();
+  final _treatmentTypeFocus = FocusNode();
+  final _heightFocus = FocusNode();
   late String _sex = widget.initialValue?.sex ?? '';
   late DateTime? _birthDate = widget.initialValue?.birthDate;
   late DateTime? _diagnosisDate = widget.initialValue?.diagnosisDate;
@@ -642,6 +659,10 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
 
   @override
   void dispose() {
+    _cancerTypeFocus.dispose();
+    _stageFocus.dispose();
+    _treatmentTypeFocus.dispose();
+    _heightFocus.dispose();
     _cancerType.dispose();
     _stage.dispose();
     _treatmentType.dispose();
@@ -721,16 +742,75 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
     };
   }
 
-  void _save() {
-    final valid = _formKey.currentState?.validate() ?? false;
-    if (!valid ||
-        _sex.isEmpty ||
-        _birthDate == null ||
-        _diagnosisDate == null ||
-        _metastasis.isEmpty ||
-        _treatmentStartDate == null) {
+  Future<void> _moveToField(GlobalKey key, [FocusNode? focusNode]) async {
+    final targetContext = key.currentContext;
+    if (targetContext != null) {
+      await Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        alignment: .08,
+      );
+    }
+    if (focusNode != null) {
+      focusNode.requestFocus();
+      Future<void>.delayed(const Duration(milliseconds: 40), () {
+        if (!mounted || !focusNode.hasFocus) return;
+        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      });
+    }
+  }
+
+  _MissingProfileField? _firstMissingRequiredField() {
+    if (_sex.isEmpty) return _MissingProfileField('성별을 입력해주세요.', _sexKey);
+    if (_birthDate == null) {
+      return _MissingProfileField('생년월일을 입력해주세요.', _birthDateKey);
+    }
+    if (_cancerType.text.trim().isEmpty) {
+      return _MissingProfileField(
+        '암종을 입력해주세요.',
+        _cancerTypeKey,
+        _cancerTypeFocus,
+      );
+    }
+    if (_stage.text.trim().isEmpty) {
+      return _MissingProfileField('병기를 입력해주세요.', _stageKey, _stageFocus);
+    }
+    if (_diagnosisDate == null) {
+      return _MissingProfileField('진단일을 입력해주세요.', _diagnosisDateKey);
+    }
+    if (_metastasis.isEmpty) {
+      return _MissingProfileField('전이 여부를 입력해주세요.', _metastasisKey);
+    }
+    if (_treatmentType.text.trim().isEmpty) {
+      return _MissingProfileField(
+        '항암치료 종류를 입력해주세요.',
+        _treatmentTypeKey,
+        _treatmentTypeFocus,
+      );
+    }
+    if (_treatmentStartDate == null) {
+      return _MissingProfileField('치료 시작일을 입력해주세요.', _treatmentStartDateKey);
+    }
+    if (_height.text.trim().isEmpty) {
+      return _MissingProfileField('키를 입력해주세요.', _heightKey, _heightFocus);
+    }
+    return null;
+  }
+
+  Future<void> _save() async {
+    final missing = _firstMissingRequiredField();
+    if (missing != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('필수 정보를 모두 입력해 주세요.')),
+        SnackBar(content: Text(missing.message)),
+      );
+      await _moveToField(missing.fieldKey, missing.focusNode);
+      return;
+    }
+    final valid = _formKey.currentState?.validate() ?? false;
+    if (!valid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('입력값을 다시 확인해 주세요.')),
       );
       return;
     }
@@ -766,6 +846,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                   twoColumn: twoColumn,
                   children: [
                     _PickerField(
+                      key: _sexKey,
                       label: '성별',
                       value: _sex,
                       onTap: () {
@@ -777,6 +858,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                       },
                     ),
                     _PickerField(
+                      key: _birthDateKey,
                       label: '생년월일',
                       value: _formatDate(_birthDate),
                       onTap: () => _pickDate(
@@ -787,12 +869,25 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                     ),
                   ],
                 ),
-                _TextInput(label: '암종', controller: _cancerType),
-                _TextInput(label: '병기', controller: _stage),
+                _TextInput(
+                  key: _cancerTypeKey,
+                  label: '암종',
+                  controller: _cancerType,
+                  focusNode: _cancerTypeFocus,
+                  keyboardType: TextInputType.text,
+                ),
+                _TextInput(
+                  key: _stageKey,
+                  label: '병기',
+                  controller: _stage,
+                  focusNode: _stageFocus,
+                  keyboardType: TextInputType.text,
+                ),
                 _FieldGrid(
                   twoColumn: twoColumn,
                   children: [
                     _PickerField(
+                      key: _diagnosisDateKey,
                       label: '진단일',
                       value: _formatDate(_diagnosisDate),
                       onTap: () => _pickDate(
@@ -802,6 +897,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                       ),
                     ),
                     _PickerField(
+                      key: _metastasisKey,
                       label: '전이 여부',
                       value: _metastasis,
                       onTap: () {
@@ -818,8 +914,15 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                 _FieldGrid(
                   twoColumn: twoColumn,
                   children: [
-                    _TextInput(label: '항암치료 종류', controller: _treatmentType),
+                    _TextInput(
+                      key: _treatmentTypeKey,
+                      label: '항암치료 종류',
+                      controller: _treatmentType,
+                      focusNode: _treatmentTypeFocus,
+                      keyboardType: TextInputType.text,
+                    ),
                     _PickerField(
+                      key: _treatmentStartDateKey,
                       label: '치료 시작일',
                       value: _formatDate(_treatmentStartDate),
                       onTap: () => _pickDate(
@@ -831,14 +934,17 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                   ],
                 ),
                 _TextInput(
+                  key: _heightKey,
                   label: '키(cm)',
                   controller: _height,
+                  focusNode: _heightFocus,
                   keyboardType: TextInputType.number,
                 ),
                 _TextInput(
                   label: '기타정보',
                   controller: _extra,
                   required: false,
+                  keyboardType: TextInputType.multiline,
                   maxLength: 500,
                   maxLines: 4,
                   hintText: '환자에 대해 알아야 하는 정보나 분석 시 참고할 만한 내용을 모두 입력해 주세요.',
@@ -850,6 +956,14 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
       ),
     );
   }
+}
+
+class _MissingProfileField {
+  const _MissingProfileField(this.message, this.fieldKey, [this.focusNode]);
+
+  final String message;
+  final GlobalKey fieldKey;
+  final FocusNode? focusNode;
 }
 
 class _FormPageScaffold extends StatelessWidget {
@@ -1289,6 +1403,7 @@ class _FieldGrid extends StatelessWidget {
 
 class _PickerField extends StatelessWidget {
   const _PickerField({
+    super.key,
     required this.label,
     required this.value,
     required this.onTap,
@@ -1318,6 +1433,7 @@ class _PickerField extends StatelessWidget {
 
 class _TextInput extends StatefulWidget {
   const _TextInput({
+    super.key,
     required this.label,
     required this.controller,
     this.required = true,
@@ -1325,6 +1441,7 @@ class _TextInput extends StatefulWidget {
     this.maxLength,
     this.maxLines = 1,
     this.hintText,
+    this.focusNode,
   });
 
   final String label;
@@ -1334,17 +1451,18 @@ class _TextInput extends StatefulWidget {
   final int? maxLength;
   final int maxLines;
   final String? hintText;
+  final FocusNode? focusNode;
 
   @override
   State<_TextInput> createState() => _TextInputState();
 }
 
 class _TextInputState extends State<_TextInput> {
-  final _focusNode = FocusNode();
+  late final _focusNode = widget.focusNode ?? FocusNode();
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    if (widget.focusNode == null) _focusNode.dispose();
     super.dispose();
   }
 
@@ -1364,10 +1482,13 @@ class _TextInputState extends State<_TextInput> {
       child: TextFormField(
         controller: widget.controller,
         focusNode: _focusNode,
-        keyboardType: widget.keyboardType,
+        keyboardType: widget.keyboardType ?? TextInputType.text,
         textInputAction: widget.maxLines > 1
             ? TextInputAction.newline
             : TextInputAction.done,
+        autocorrect: false,
+        enableSuggestions: false,
+        enableIMEPersonalizedLearning: false,
         inputFormatters: widget.keyboardType == TextInputType.number
             ? [FilteringTextInputFormatter.digitsOnly]
             : null,

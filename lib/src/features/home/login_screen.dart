@@ -122,7 +122,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextField(
                         controller: _emailController,
                         focusNode: _emailFocusNode,
+                        keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
+                        autocorrect: false,
+                        enableSuggestions: false,
                         autofillHints: const [AutofillHints.email],
                         onTap: () => _showSoftKeyboard(_emailFocusNode),
                         onSubmitted: (_) =>
