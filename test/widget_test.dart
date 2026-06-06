@@ -217,7 +217,7 @@ void main() {
     expect(find.text('항구토제'), findsOneWidget);
   });
 
-  testWidgets('turning notification off also disables medication reminders',
+  testWidgets('profile notification toggle syncs medication reminders',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -250,12 +250,30 @@ void main() {
     await tester
         .tap(find.byKey(const ValueKey('notification-permission-switch')));
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('복약관리'));
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
     expect(find.text('꺼짐'), findsOneWidget);
     expect(find.text('켜짐'), findsNothing);
+
+    await tester.tap(find.text('마이페이지'));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(const ValueKey('notification-permission-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('허용'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('항구토제'), findsOneWidget);
+    expect(find.text('켜짐'), findsOneWidget);
+    expect(find.text('꺼짐'), findsNothing);
   });
 }
 

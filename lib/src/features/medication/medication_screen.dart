@@ -37,12 +37,10 @@ class _MedicationScreenState extends State<MedicationScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.notificationEnabled != widget.notificationEnabled) {
       _notificationEnabled = widget.notificationEnabled;
-      if (!widget.notificationEnabled) {
-        for (var index = 0; index < _medications.length; index += 1) {
-          _medications[index] = _medications[index].copyWith(
-            reminderEnabled: false,
-          );
-        }
+      for (var index = 0; index < _medications.length; index += 1) {
+        _medications[index] = _medications[index].copyWith(
+          reminderEnabled: widget.notificationEnabled,
+        );
       }
     }
   }
@@ -129,7 +127,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
       children: [
         const SectionHeader(
           title: '약물 관리',
-          subtitle: '복용 약물을 등록하고 개별 약물의 섭취 시간 알림을 설정합니다.',
+          subtitle: '복용 약물을 등록하고 섭취 시간 알림을 설정합니다.',
         ),
         ElevatedButton(
           onPressed: addEnabled
