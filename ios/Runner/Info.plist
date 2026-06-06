@@ -37,6 +37,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>휴대폰의 걸음수를 불러와 증상관리에 사용합니다.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>항암기록관리는 건강 앱에 데이터를 저장하지 않습니다.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
