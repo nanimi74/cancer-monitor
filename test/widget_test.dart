@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cancer_monitor/src/app/cancer_monitor_app.dart';
 import 'package:cancer_monitor/src/features/home_shell.dart';
+import 'package:cancer_monitor/src/features/medication/medication_screen.dart';
+import 'package:cancer_monitor/src/services/notifications/notification_permission_service.dart';
 
 void main() {
   testWidgets('starts from entry screen and opens preview shell',
@@ -129,4 +131,66 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, '로그아웃'), findsNothing);
     expect(find.widgetWithText(OutlinedButton, '회원탈퇴'), findsNothing);
   });
+
+  testWidgets('medication add is disabled until required profile exists',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MedicationScreen(hasRequiredInfo: false),
+        ),
+      ),
+    );
+
+    expect(find.text('약물 관리'), findsOneWidget);
+    expect(find.text('등록된 약물이 없습니다.'), findsOneWidget);
+    expect(find.textContaining('사용자정보를 입력해 주세요'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약물 등록'), findsOneWidget);
+  });
+
+  testWidgets('medication can be added with multiple default reminders',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MedicationScreen(
+            notificationEnabled: true,
+            notificationPermissionService: _FakeNotificationPermissionService(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), '항구토제');
+    await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('항구토제'), findsOneWidget);
+    expect(find.textContaining('아침식후 09:00'), findsOneWidget);
+    expect(find.textContaining('점심식후 13:00'), findsOneWidget);
+    expect(find.textContaining('저녁식후 19:00'), findsOneWidget);
+    expect(find.textContaining('1정'), findsOneWidget);
+    expect(find.text('켜짐'), findsOneWidget);
+  });
+}
+
+class _FakeNotificationPermissionService
+    implements NotificationPermissionService {
+  @override
+  Future<bool> requestPermission() async => true;
+
+  @override
+  Future<void> scheduleMedicationReminder({
+    required String medicationId,
+    required String title,
+    required DateTime scheduledAt,
+  }) async {}
 }
