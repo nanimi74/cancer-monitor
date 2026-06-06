@@ -199,7 +199,7 @@ class _FeatureList extends StatelessWidget {
       ),
       _FeatureItemData(
         title: '증상관리',
-        description: '식사, 배변, 부작용을 기록해요.',
+        description: '식사, 배변, 운동량, 부작용을 기록해요.',
         icon: _FeatureIconType.symptom,
       ),
       _FeatureItemData(
