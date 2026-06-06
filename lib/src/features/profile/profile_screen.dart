@@ -20,7 +20,9 @@ class ProfileScreen extends StatefulWidget {
     this.notificationPermissionService,
     this.stepSyncService,
     this.notificationEnabled = false,
+    this.stepSyncEnabled = false,
     this.onNotificationPermissionChanged,
+    this.onStepSyncChanged,
     this.onRequiredInfoChanged,
     this.onHeightChanged,
   });
@@ -33,7 +35,9 @@ class ProfileScreen extends StatefulWidget {
   final NotificationPermissionService? notificationPermissionService;
   final StepSyncService? stepSyncService;
   final bool notificationEnabled;
+  final bool stepSyncEnabled;
   final ValueChanged<bool>? onNotificationPermissionChanged;
+  final ValueChanged<bool>? onStepSyncChanged;
   final ValueChanged<bool>? onRequiredInfoChanged;
   final ValueChanged<double?>? onHeightChanged;
 
@@ -44,7 +48,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   _ProfileInfo? _profileInfo;
   late var _notificationEnabled = widget.notificationEnabled;
-  var _stepSyncEnabled = false;
+  late var _stepSyncEnabled = widget.stepSyncEnabled;
   var _accountActionInProgress = false;
   var _notificationPermissionInProgress = false;
   var _stepSyncPermissionInProgress = false;
@@ -61,6 +65,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.notificationEnabled != widget.notificationEnabled) {
       _notificationEnabled = widget.notificationEnabled;
+    }
+    if (oldWidget.stepSyncEnabled != widget.stepSyncEnabled) {
+      _stepSyncEnabled = widget.stepSyncEnabled;
     }
   }
 
@@ -81,6 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_stepSyncPermissionInProgress) return;
     if (!value) {
       setState(() => _stepSyncEnabled = false);
+      widget.onStepSyncChanged?.call(false);
       _showMessage('걸음수 연동 권한이 해제되었습니다.');
       return;
     }
@@ -118,6 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final granted = await _stepSyncService.requestPermission();
       if (!mounted) return;
       setState(() => _stepSyncEnabled = granted);
+      widget.onStepSyncChanged?.call(granted);
       _showMessage(
         granted
             ? '걸음수 연동 권한이 허용되었습니다.'
@@ -126,6 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _stepSyncEnabled = false);
+      widget.onStepSyncChanged?.call(false);
       _showMessage('걸음수 연동 권한 요청 중 문제가 발생했습니다.');
     } finally {
       if (mounted) setState(() => _stepSyncPermissionInProgress = false);

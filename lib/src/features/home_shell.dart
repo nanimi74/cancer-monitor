@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../services/health/step_sync_service.dart';
 import '../services/notifications/notification_permission_service.dart';
 import 'analysis/analysis_screen.dart';
 import 'medication/medication_screen.dart';
@@ -17,6 +18,7 @@ class HomeShell extends StatefulWidget {
     this.onSignOut,
     this.onDeleteAccount,
     this.notificationPermissionService,
+    this.stepSyncService,
   });
 
   final bool isPreview;
@@ -25,6 +27,7 @@ class HomeShell extends StatefulWidget {
   final Future<void> Function()? onSignOut;
   final Future<void> Function()? onDeleteAccount;
   final NotificationPermissionService? notificationPermissionService;
+  final StepSyncService? stepSyncService;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -34,6 +37,7 @@ class _HomeShellState extends State<HomeShell> {
   late var _hasRequiredInfo = widget.hasRequiredInfo;
   late var _index = _hasRequiredInfo ? 3 : 0;
   var _notificationEnabled = false;
+  var _stepSyncEnabled = false;
   double? _heightCm;
 
   @override
@@ -158,9 +162,13 @@ class _HomeShellState extends State<HomeShell> {
           onSignOut: widget.onSignOut,
           onDeleteAccount: widget.onDeleteAccount,
           notificationPermissionService: widget.notificationPermissionService,
+          stepSyncService: widget.stepSyncService,
           notificationEnabled: _notificationEnabled,
+          stepSyncEnabled: _stepSyncEnabled,
           onNotificationPermissionChanged: (value) =>
               setState(() => _notificationEnabled = value),
+          onStepSyncChanged: (value) =>
+              setState(() => _stepSyncEnabled = value),
           onRequiredInfoChanged: (value) =>
               setState(() => _hasRequiredInfo = value),
           onHeightChanged: (value) => setState(() => _heightCm = value),
@@ -178,7 +186,14 @@ class _HomeShellState extends State<HomeShell> {
           isPreview: widget.isPreview,
           heightCm: _heightCm,
         ),
-        const SymptomScreen(),
+        SymptomScreen(
+          hasRequiredInfo: _hasRequiredInfo,
+          isPreview: widget.isPreview,
+          stepSyncEnabled: _stepSyncEnabled,
+          stepSyncService: widget.stepSyncService,
+          onStepSyncChanged: (value) =>
+              setState(() => _stepSyncEnabled = value),
+        ),
         const AnalysisScreen(),
       ];
 }
