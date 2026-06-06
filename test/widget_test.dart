@@ -216,6 +216,47 @@ void main() {
 
     expect(find.text('항구토제'), findsOneWidget);
   });
+
+  testWidgets('turning notification off also disables medication reminders',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: true,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), '항구토제');
+    await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('허용'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('켜짐'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('마이페이지'));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(const ValueKey('notification-permission-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('항구토제'), findsOneWidget);
+    expect(find.text('꺼짐'), findsOneWidget);
+    expect(find.text('켜짐'), findsNothing);
+  });
 }
 
 class _FakeNotificationPermissionService
