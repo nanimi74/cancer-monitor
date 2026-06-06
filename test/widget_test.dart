@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cancer_monitor/src/app/cancer_monitor_app.dart';
 import 'package:cancer_monitor/src/features/home_shell.dart';
 import 'package:cancer_monitor/src/features/medication/medication_screen.dart';
+import 'package:cancer_monitor/src/features/symptom/symptom_screen.dart';
 import 'package:cancer_monitor/src/features/weight/weight_screen.dart';
+import 'package:cancer_monitor/src/services/health/step_sync_service.dart';
 import 'package:cancer_monitor/src/services/notifications/notification_permission_service.dart';
 
 void main() {
@@ -246,6 +248,119 @@ void main() {
     expect(find.textContaining('부종, 복부팽만, 숨참'), findsOneWidget);
   });
 
+  testWidgets('symptom input is blocked until required profile exists',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SymptomScreen(hasRequiredInfo: false),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(ValueKey('symptom-day-${_testFormatDate()}')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ElevatedButton, '증상기록하기'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final writeButton = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, '증상기록하기'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(writeButton.onPressed, isNull);
+    expect(find.text('증상 기록'), findsNothing);
+  });
+
+  testWidgets('symptom record can be added and shown in calendar',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SymptomScreen(
+            stepSyncService: _FakeStepSyncService(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(ValueKey('symptom-day-${_testFormatDate()}')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ElevatedButton, '증상기록하기'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    tester
+        .widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, '증상기록하기'),
+        )
+        .onPressed
+        ?.call();
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), '2');
+    await tester.enterText(find.byType(TextFormField).at(1), '2');
+    await tester.tap(find.text('선택').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('평소와 같음'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(_symptomEditorScrollable, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('선택').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1~1.5L'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('symptom-steps-field')),
+      220,
+      scrollable: _symptomEditorScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('symptom-steps-field')),
+      '1500',
+    );
+
+    await tester.drag(_symptomEditorScrollable, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('있음'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('딱딱한변'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(_symptomEditorScrollable, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('오심'),
+      220,
+      scrollable: _symptomEditorScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('오심'));
+    await tester.scrollUntilVisible(
+      find.text('피로'),
+      220,
+      scrollable: _symptomEditorScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('피로'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2-2'), findsWidgets);
+    expect(find.text('평소와 같음'), findsOneWidget);
+    expect(find.text('1~1.5L'), findsOneWidget);
+    expect(find.text('1500보'), findsOneWidget);
+    expect(find.text('오심'), findsWidgets);
+    expect(find.text('피로'), findsWidgets);
+  });
+
   testWidgets('medication can be added with multiple default reminders',
       (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -384,9 +499,24 @@ class _FakeNotificationPermissionService
   }) async {}
 }
 
+class _FakeStepSyncService implements StepSyncService {
+  @override
+  Future<bool> requestPermission() async => true;
+
+  @override
+  Future<int?> readTodaySteps() async => 2400;
+}
+
 String _testFormatDate([DateTime? value]) {
   final date = value ?? DateTime.now();
   final month = date.month.toString().padLeft(2, '0');
   final day = date.day.toString().padLeft(2, '0');
   return '${date.year}-$month-$day';
 }
+
+Finder get _symptomEditorScrollable => find
+    .descendant(
+      of: find.byKey(const ValueKey('symptom-editor-scroll')),
+      matching: find.byType(Scrollable),
+    )
+    .first;
