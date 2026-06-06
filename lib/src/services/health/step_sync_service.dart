@@ -1,12 +1,27 @@
 import 'dart:io';
 
+import 'package:health/health.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 abstract interface class StepSyncService {
   Future<bool> requestPermission();
   Future<int?> readTodaySteps();
 }
 
 class PlatformStepSyncService implements StepSyncService {
-  const PlatformStepSyncService();
+  PlatformStepSyncService({Health? health}) : _health = health ?? Health();
+
+  final Health _health;
+  var _configured = false;
+
+  static const _stepTypes = [HealthDataType.STEPS];
+  static const _stepPermissions = [HealthDataAccess.READ];
+
+  Future<void> _ensureConfigured() async {
+    if (_configured) return;
+    await _health.configure();
+    _configured = true;
+  }
 
   @override
   Future<bool> requestPermission() async {
@@ -31,25 +46,42 @@ class PlatformStepSyncService implements StepSyncService {
   }
 
   Future<bool> _requestHealthKitPermission() async {
-    // TODO: Implement with HealthKit via a Flutter plugin or MethodChannel.
-    // Required iOS capability: HealthKit.
-    // Required Info.plist usage text: NSHealthShareUsageDescription.
-    return false;
+    return _requestStepPermission();
   }
 
   Future<int?> _readHealthKitSteps() async {
-    // TODO: Read HKQuantityTypeIdentifierStepCount for the selected date.
-    return null;
+    return _readTodayStepCount();
   }
 
   Future<bool> _requestHealthConnectPermission() async {
-    // TODO: Implement with Android Health Connect permission request.
-    // Required permission: android.permission.health.READ_STEPS.
-    return false;
+    final activityPermission = await Permission.activityRecognition.request();
+    if (!activityPermission.isGranted) return false;
+
+    final isAvailable = await _health.isHealthConnectAvailable();
+    if (!isAvailable) {
+      await _health.installHealthConnect();
+      return false;
+    }
+
+    return _requestStepPermission();
   }
 
   Future<int?> _readHealthConnectSteps() async {
-    // TODO: Read StepsRecord for the selected date range.
-    return null;
+    return _readTodayStepCount();
+  }
+
+  Future<bool> _requestStepPermission() async {
+    await _ensureConfigured();
+    return _health.requestAuthorization(
+      _stepTypes,
+      permissions: _stepPermissions,
+    );
+  }
+
+  Future<int?> _readTodayStepCount() async {
+    await _ensureConfigured();
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    return _health.getTotalStepsInInterval(startOfDay, now);
   }
 }

@@ -5,6 +5,8 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
 import '../../services/auth/auth_service.dart';
+import '../../services/health/step_sync_service.dart';
+import '../../services/notifications/notification_permission_service.dart';
 import '../legal/legal_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -15,6 +17,8 @@ class ProfileScreen extends StatefulWidget {
     this.onExitPreview,
     this.onSignOut,
     this.onDeleteAccount,
+    this.notificationPermissionService,
+    this.stepSyncService,
   });
 
   final bool hasRequiredInfo;
@@ -22,6 +26,8 @@ class ProfileScreen extends StatefulWidget {
   final VoidCallback? onExitPreview;
   final Future<void> Function()? onSignOut;
   final Future<void> Function()? onDeleteAccount;
+  final NotificationPermissionService? notificationPermissionService;
+  final StepSyncService? stepSyncService;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -32,6 +38,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
   var _accountActionInProgress = false;
+  var _notificationPermissionInProgress = false;
+  var _stepSyncPermissionInProgress = false;
+  late final NotificationPermissionService _notificationPermissionService =
+      widget.notificationPermissionService ??
+          LocalNotificationPermissionService();
+  late final StepSyncService _stepSyncService =
+      widget.stepSyncService ?? PlatformStepSyncService();
 
   bool get _hasRequiredInfo => _profileInfo != null;
 
@@ -47,8 +60,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _setStepSync(bool value) async {
+    if (_stepSyncPermissionInProgress) return;
     if (!value) {
       setState(() => _stepSyncEnabled = false);
+      _showMessage('걸음수 연동 권한이 해제되었습니다.');
       return;
     }
     if (widget.isPreview) {
@@ -75,12 +90,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (!mounted) return;
-    setState(() => _stepSyncEnabled = confirmed ?? false);
-    _showMessage(
-        _stepSyncEnabled ? '걸음수 연동 권한이 허용되었습니다.' : '걸음수 연동 권한 요청이 취소되었습니다.');
+    if (confirmed != true) {
+      _showMessage('걸음수 연동 권한 요청이 취소되었습니다.');
+      return;
+    }
+
+    setState(() => _stepSyncPermissionInProgress = true);
+    try {
+      final granted = await _stepSyncService.requestPermission();
+      if (!mounted) return;
+      setState(() => _stepSyncEnabled = granted);
+      _showMessage(
+        granted
+            ? '걸음수 연동 권한이 허용되었습니다.'
+            : '걸음수 연동 권한이 허용되지 않았습니다. 직접 입력을 사용할 수 있습니다.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _stepSyncEnabled = false);
+      _showMessage('걸음수 연동 권한 요청 중 문제가 발생했습니다.');
+    } finally {
+      if (mounted) setState(() => _stepSyncPermissionInProgress = false);
+    }
   }
 
   Future<void> _setNotificationPermission(bool value) async {
+    if (_notificationPermissionInProgress) return;
     if (!value) {
       setState(() => _notificationEnabled = false);
       _showMessage('알림 권한이 해제되었습니다.');
@@ -110,10 +145,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (!mounted) return;
-    setState(() => _notificationEnabled = confirmed ?? false);
-    _showMessage(
-      _notificationEnabled ? '알림 권한이 허용되었습니다.' : '알림 권한 요청이 취소되었습니다.',
-    );
+    if (confirmed != true) {
+      _showMessage('알림 권한 요청이 취소되었습니다.');
+      return;
+    }
+
+    setState(() => _notificationPermissionInProgress = true);
+    try {
+      final granted = await _notificationPermissionService.requestPermission();
+      if (!mounted) return;
+      setState(() => _notificationEnabled = granted);
+      _showMessage(
+        granted ? '알림 권한이 허용되었습니다.' : '알림 권한이 허용되지 않았습니다. 기기 설정을 확인해 주세요.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _notificationEnabled = false);
+      _showMessage('알림 권한 요청 중 문제가 발생했습니다.');
+    } finally {
+      if (mounted) setState(() => _notificationPermissionInProgress = false);
+    }
   }
 
   Future<void> _confirmWithdrawal() async {

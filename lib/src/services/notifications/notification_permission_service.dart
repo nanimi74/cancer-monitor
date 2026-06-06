@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 abstract interface class NotificationPermissionService {
   Future<bool> requestPermission();
   Future<void> scheduleMedicationReminder({
@@ -7,12 +11,54 @@ abstract interface class NotificationPermissionService {
   });
 }
 
-class LocalNotificationPermissionService implements NotificationPermissionService {
-  const LocalNotificationPermissionService();
+class LocalNotificationPermissionService
+    implements NotificationPermissionService {
+  LocalNotificationPermissionService({
+    FlutterLocalNotificationsPlugin? notificationsPlugin,
+  }) : _notificationsPlugin =
+            notificationsPlugin ?? FlutterLocalNotificationsPlugin();
+
+  final FlutterLocalNotificationsPlugin _notificationsPlugin;
+  var _initialized = false;
+
+  Future<void> _ensureInitialized() async {
+    if (_initialized) return;
+
+    const initializationSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
+    );
+    await _notificationsPlugin.initialize(settings: initializationSettings);
+    _initialized = true;
+  }
 
   @override
   Future<bool> requestPermission() async {
-    // TODO: Implement with local notifications package and platform permission.
+    await _ensureInitialized();
+
+    if (Platform.isIOS) {
+      final iosPlugin =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+      return await iosPlugin?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
+          false;
+    }
+
+    if (Platform.isAndroid) {
+      final androidPlugin =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      return await androidPlugin?.requestNotificationsPermission() ?? true;
+    }
+
     return false;
   }
 
@@ -22,6 +68,7 @@ class LocalNotificationPermissionService implements NotificationPermissionServic
     required String title,
     required DateTime scheduledAt,
   }) async {
-    // TODO: Schedule local notification after permission is granted.
+    await _ensureInitialized();
+    // Medication scheduling will be connected when 복약관리 storage is added.
   }
 }
