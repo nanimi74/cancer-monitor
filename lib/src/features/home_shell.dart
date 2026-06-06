@@ -12,10 +12,16 @@ class HomeShell extends StatefulWidget {
     super.key,
     this.isPreview = false,
     this.hasRequiredInfo = true,
+    this.onExitPreview,
+    this.onSignOut,
+    this.onDeleteAccount,
   });
 
   final bool isPreview;
   final bool hasRequiredInfo;
+  final VoidCallback? onExitPreview;
+  final Future<void> Function()? onSignOut;
+  final Future<void> Function()? onDeleteAccount;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -24,59 +30,127 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   late var _index = widget.hasRequiredInfo ? 3 : 0;
 
-  static const _screens = [
-    ProfileScreen(),
-    MedicationScreen(),
-    WeightScreen(),
-    SymptomScreen(),
-    AnalysisScreen(),
+  late final _screens = [
+    ProfileScreen(
+      hasRequiredInfo: widget.hasRequiredInfo,
+      isPreview: widget.isPreview,
+      onExitPreview: widget.onExitPreview,
+      onSignOut: widget.onSignOut,
+      onDeleteAccount: widget.onDeleteAccount,
+    ),
+    const MedicationScreen(),
+    const WeightScreen(),
+    const SymptomScreen(),
+    const AnalysisScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
-            child: _screens[_index],
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width =
+                constraints.maxWidth > 680 ? 680.0 : constraints.maxWidth;
+            return Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                width: width,
+                height: constraints.maxHeight,
+                child: _screens[_index],
+              ),
+            );
+          },
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        height: 74,
-        backgroundColor: Colors.white,
-        indicatorColor: AppColors.accentSoft,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        onDestinationSelected: (index) => setState(() => _index = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: '마이페이지',
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .97),
+          border: const Border(top: BorderSide(color: AppColors.line)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.text.withValues(alpha: .08),
+              blurRadius: 24,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 74,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 680),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 7, 14, 9),
+                  child: NavigationBarTheme(
+                    data: NavigationBarThemeData(
+                      indicatorColor: Colors.transparent,
+                      labelTextStyle: WidgetStateProperty.resolveWith(
+                        (states) => TextStyle(
+                          color: states.contains(WidgetState.selected)
+                              ? AppColors.accent
+                              : AppColors.muted,
+                          fontSize: 12,
+                          fontWeight: states.contains(WidgetState.selected)
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                      ),
+                      iconTheme: WidgetStateProperty.resolveWith(
+                        (states) => IconThemeData(
+                          color: states.contains(WidgetState.selected)
+                              ? AppColors.accent
+                              : AppColors.muted,
+                          size: 27,
+                        ),
+                      ),
+                    ),
+                    child: NavigationBar(
+                      selectedIndex: _index,
+                      height: 58,
+                      elevation: 0,
+                      backgroundColor: Colors.transparent,
+                      indicatorColor: Colors.transparent,
+                      labelBehavior:
+                          NavigationDestinationLabelBehavior.alwaysShow,
+                      onDestinationSelected: (index) =>
+                          setState(() => _index = index),
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.person_outline),
+                          selectedIcon: Icon(Icons.person_outline),
+                          label: '마이페이지',
+                        ),
+                        NavigationDestination(
+                          icon: _CapsuleIcon(),
+                          selectedIcon: _CapsuleIcon(selected: true),
+                          label: '복약관리',
+                        ),
+                        NavigationDestination(
+                          icon: _ScaleIcon(),
+                          selectedIcon: _ScaleIcon(selected: true),
+                          label: '체중관리',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.calendar_month_outlined),
+                          selectedIcon: Icon(Icons.calendar_month_outlined),
+                          label: '증상관리',
+                        ),
+                        NavigationDestination(
+                          icon: _AiIcon(),
+                          selectedIcon: _AiIcon(selected: true),
+                          label: 'AI분석',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          NavigationDestination(
-            icon: _CapsuleIcon(),
-            selectedIcon: _CapsuleIcon(selected: true),
-            label: '복약관리',
-          ),
-          NavigationDestination(
-            icon: _ScaleIcon(),
-            selectedIcon: _ScaleIcon(selected: true),
-            label: '체중관리',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: '증상관리',
-          ),
-          NavigationDestination(
-            icon: _AiIcon(),
-            selectedIcon: _AiIcon(selected: true),
-            label: 'AI분석',
-          ),
-        ],
+        ),
       ),
     );
   }

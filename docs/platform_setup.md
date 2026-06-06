@@ -10,7 +10,9 @@
 필요 설정:
 
 - Firebase iOS 앱 등록 및 `GoogleService-Info.plist` 추가
+- Firebase Authentication에서 Apple 로그인 제공자 활성화
 - Apple Developer 계정에서 Bundle ID 생성
+- Sign in with Apple Capability 활성화
 - HealthKit Capability 활성화
 - Push Notifications 또는 Local Notifications 권한 설정
 - `Info.plist`에 HealthKit 및 알림 권한 설명 추가
@@ -40,6 +42,8 @@ HealthKit 권한 문구 예시:
 필요 설정:
 
 - Firebase Android 앱 등록 및 `google-services.json` 추가
+- Firebase Authentication에서 Google 로그인 제공자 활성화
+- Android `google-services.json` 추가 후 `com.google.gms.google-services` Gradle 플러그인 적용
 - Health Connect 사용 준비
 - Android 14 이상은 시스템 Health Connect를 사용하고, Android 13 이하는 Health Connect 앱 설치/사용 가능 여부를 확인한다.
 - 걸음수 읽기 권한은 `READ_STEPS`로 제한한다.
@@ -58,6 +62,10 @@ Health Connect 권한 예시:
 
 ## 공통
 
+- Firebase 설정 파일이 없는 개발 초기 상태에서는 mock 인증으로 앱 실행을 유지한다.
+- Firebase 설정 파일을 추가한 뒤에는 Android/iOS 양쪽에서 Google/Apple 로그인 동작을 각각 검증한다.
+- 이메일 로그인은 별도 이메일 입력 화면에서 이메일/비밀번호 또는 이메일 링크 방식 중 하나를 확정해 구현한다.
+- `sign_in_with_apple` 패키지는 Android 빌드 시 Kotlin Gradle Plugin 호환성 경고가 발생할 수 있으므로 출시 전 패키지 업데이트 여부를 확인한다.
 - 민감 건강정보는 암호화 전송을 기본으로 한다.
 - 서버 저장 데이터는 사용자 ID 기준으로 분리한다.
 - 회원탈퇴 시 Firebase 계정과 앱 데이터 삭제 플로우를 제공한다.

@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "210055151747",
+    "project_id": "cancer-monitor-f40ab",
+    "storage_bucket": "cancer-monitor-f40ab.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:210055151747:android:7a79ec2ada7e7310e49bb6",
+        "android_client_info": {
+          "package_name": "com.nanimi74.cancermonitor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "210055151747-55unmj200gsqgi57d9cjt952s3lrua7u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nanimi74.cancermonitor",
+            "certificate_hash": "f825ef6cc9bd60071f4ed2bc2b7cf7e6301e0c6f"
+          }
+        },
+        {
+          "client_id": "210055151747-2a166q7h53om9deb7ri5rtktqths62u4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIKON6370EHDKwV6ew9PihWyCK-Dql5r0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "210055151747-2a166q7h53om9deb7ri5rtktqths62u4.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "210055151747-ap0ac39o8mjog7akg6vitfcse9sjvbtg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.nanimi74.cancermonitor"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

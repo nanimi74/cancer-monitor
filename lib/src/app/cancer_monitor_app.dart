@@ -5,6 +5,7 @@ import '../features/home/entry_screen.dart';
 import '../features/home/login_screen.dart';
 import '../features/home_shell.dart';
 import '../services/auth/auth_service.dart';
+import '../services/auth/firebase_bootstrap.dart';
 
 class CancerMonitorApp extends StatelessWidget {
   const CancerMonitorApp({super.key});
@@ -28,7 +29,8 @@ class AppStartFlow extends StatefulWidget {
 }
 
 class _AppStartFlowState extends State<AppStartFlow> {
-  final AuthService _authService = const MockAuthService();
+  late final Future<AuthService> _authServiceFuture =
+      const FirebaseBootstrap().buildAuthService();
   _StartStage _stage = _StartStage.entry;
   AuthSession? _session;
 
@@ -53,27 +55,57 @@ class _AppStartFlowState extends State<AppStartFlow> {
     });
   }
 
+  Future<void> _signOut(AuthService authService) async {
+    await authService.signOut();
+    if (!mounted) return;
+    setState(() {
+      _session = null;
+      _stage = _StartStage.entry;
+    });
+  }
+
+  Future<void> _deleteAccount(AuthService authService) async {
+    await authService.deleteAccount();
+    if (!mounted) return;
+    setState(() {
+      _session = null;
+      _stage = _StartStage.entry;
+    });
+  }
+
   void _backToEntry() {
-    setState(() => _stage = _StartStage.entry);
+    setState(() {
+      _session = null;
+      _stage = _StartStage.entry;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return switch (_stage) {
-      _StartStage.entry => EntryScreen(
-          onLogin: _showLogin,
-          onPreview: _startPreview,
-        ),
-      _StartStage.login => LoginScreen(
-          authService: _authService,
-          onBack: _backToEntry,
-          onSignedIn: _completeSignIn,
-        ),
-      _StartStage.shell => HomeShell(
-          isPreview: _session?.isPreview ?? false,
-          hasRequiredInfo: !(_session?.isPreview ?? false),
-        ),
-    };
+    return FutureBuilder<AuthService>(
+      future: _authServiceFuture,
+      builder: (context, snapshot) {
+        final authService = snapshot.data ?? const MockAuthService();
+        return switch (_stage) {
+          _StartStage.entry => EntryScreen(
+              onLogin: _showLogin,
+              onPreview: _startPreview,
+            ),
+          _StartStage.login => LoginScreen(
+              authService: authService,
+              onBack: _backToEntry,
+              onSignedIn: _completeSignIn,
+            ),
+          _StartStage.shell => HomeShell(
+              isPreview: _session?.isPreview ?? false,
+              hasRequiredInfo: false,
+              onExitPreview: _backToEntry,
+              onSignOut: () => _signOut(authService),
+              onDeleteAccount: () => _deleteAccount(authService),
+            ),
+        };
+      },
+    );
   }
 }
 

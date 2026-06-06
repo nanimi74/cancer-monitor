@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/auth/auth_service.dart';
@@ -20,18 +21,55 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   AuthProvider? _loadingProvider;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
+  }
 
   Future<void> _signIn(AuthProvider provider) async {
-    setState(() => _loadingProvider = provider);
-    final session = switch (provider) {
-      AuthProvider.email => await widget.authService.signInWithEmail(),
-      AuthProvider.apple => await widget.authService.signInWithApple(),
-      AuthProvider.google => await widget.authService.signInWithGoogle(),
-    };
-    if (!mounted) return;
-    setState(() => _loadingProvider = null);
-    widget.onSignedIn(session);
+    setState(() {
+      _loadingProvider = provider;
+      _errorMessage = null;
+    });
+    try {
+      final session = switch (provider) {
+        AuthProvider.email => await widget.authService.signInWithEmail(
+            email: _emailController.text,
+            password: _passwordController.text,
+          ),
+        AuthProvider.apple => await widget.authService.signInWithApple(),
+        AuthProvider.google => await widget.authService.signInWithGoogle(),
+      };
+      if (!mounted) return;
+      setState(() => _loadingProvider = null);
+      widget.onSignedIn(session);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingProvider = null;
+        _errorMessage =
+            error is AuthFailure ? error.message : '로그인 중 문제가 발생했습니다.';
+      });
+    }
+  }
+
+  void _showSoftKeyboard(FocusNode focusNode) {
+    focusNode.requestFocus();
+    Future<void>.delayed(const Duration(milliseconds: 40), () {
+      if (!mounted || !focusNode.hasFocus) return;
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    });
   }
 
   @override
@@ -81,8 +119,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Column(
                     children: [
+                      TextField(
+                        controller: _emailController,
+                        focusNode: _emailFocusNode,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
+                        onTap: () => _showSoftKeyboard(_emailFocusNode),
+                        onSubmitted: (_) =>
+                            _showSoftKeyboard(_passwordFocusNode),
+                        decoration: const InputDecoration(
+                          hintText: '이메일을 입력해 주세요.',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _passwordController,
+                        focusNode: _passwordFocusNode,
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
+                        onTap: () => _showSoftKeyboard(_passwordFocusNode),
+                        onSubmitted: (_) => _signIn(AuthProvider.email),
+                        decoration: const InputDecoration(
+                          hintText: '비밀번호를 입력해 주세요.',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       _ProviderButton(
-                        label: '이메일로 계속하기',
+                        label: '이메일로 로그인/가입',
                         provider: AuthProvider.email,
                         loadingProvider: _loadingProvider,
                         primary: true,
@@ -120,6 +184,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         loadingProvider: _loadingProvider,
                         onPressed: _signIn,
                       ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.danger,
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
