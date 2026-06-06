@@ -34,6 +34,7 @@ class _HomeShellState extends State<HomeShell> {
   late var _hasRequiredInfo = widget.hasRequiredInfo;
   late var _index = _hasRequiredInfo ? 3 : 0;
   var _notificationEnabled = false;
+  double? _heightCm;
 
   @override
   Widget build(BuildContext context) {
@@ -162,6 +163,7 @@ class _HomeShellState extends State<HomeShell> {
               setState(() => _notificationEnabled = value),
           onRequiredInfoChanged: (value) =>
               setState(() => _hasRequiredInfo = value),
+          onHeightChanged: (value) => setState(() => _heightCm = value),
         ),
         MedicationScreen(
           hasRequiredInfo: _hasRequiredInfo,
@@ -171,7 +173,11 @@ class _HomeShellState extends State<HomeShell> {
           onNotificationPermissionChanged: (value) =>
               setState(() => _notificationEnabled = value),
         ),
-        const WeightScreen(),
+        WeightScreen(
+          hasRequiredInfo: _hasRequiredInfo,
+          isPreview: widget.isPreview,
+          heightCm: _heightCm,
+        ),
         const SymptomScreen(),
         const AnalysisScreen(),
       ];

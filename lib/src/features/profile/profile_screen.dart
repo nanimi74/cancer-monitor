@@ -22,6 +22,7 @@ class ProfileScreen extends StatefulWidget {
     this.notificationEnabled = false,
     this.onNotificationPermissionChanged,
     this.onRequiredInfoChanged,
+    this.onHeightChanged,
   });
 
   final bool hasRequiredInfo;
@@ -34,6 +35,7 @@ class ProfileScreen extends StatefulWidget {
   final bool notificationEnabled;
   final ValueChanged<bool>? onNotificationPermissionChanged;
   final ValueChanged<bool>? onRequiredInfoChanged;
+  final ValueChanged<double?>? onHeightChanged;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -71,6 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result != null) {
       setState(() => _profileInfo = result);
       widget.onRequiredInfoChanged?.call(true);
+      widget.onHeightChanged?.call(result.heightCm);
     }
   }
 

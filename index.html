@@ -611,6 +611,10 @@
     }
 
     .bmi-box .small {
+      line-height: 1.45;
+    }
+
+    .bmi-box #bmiMeta {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -3056,7 +3060,7 @@
           <div class="banner">
             <div class="bmi-box" id="bmiBox">
               <div class="bmi-status-line" id="bmiStatusLine">현재 BMI <span class="bmi-number" id="bmiValue">22.8</span> · <span id="bmiTag">정상</span></div>
-              <div id="bmiText" class="small">BMI가 정상이더라도 체중 변화, 식사량, 수분섭취를 함께 확인해 주세요.</div>
+              <div id="bmiText" class="small">체중 변화와 식사·수분섭취를 함께 확인해 주세요.</div>
               <div class="small" id="bmiMeta">최근 체중 59.8kg · 마지막 입력일 2026-06-02</div>
               <div class="bmi-demo-tabs" aria-label="BMI 상태 예시">
                 <button class="bmi-demo-btn active" type="button" data-bmi-demo="normal">정상</button>
@@ -3101,7 +3105,7 @@
               <div class="chart" id="weightChart"></div>
             </div>
           </div>
-          <div class="weight-disclaimer">BMI와 체중 변화 안내는 참고용 정보이며, 의학적 진단이나 치료 결정을 대체하지 않습니다.</div>
+          <div class="weight-disclaimer">BMI와 체중 변화 안내는 참고용 정보이며,<br>의학적 진단이나 치료 결정을 대체하지 않습니다.</div>
         </section>
 
         <section class="view active" id="symptom">
@@ -3822,7 +3826,7 @@
           label: "저체중 위험",
           emoji: "⚠️",
           className: "risk",
-          text: "식사량 저하나 체중 감소가 지속되면 의료진에게 공유해 주세요."
+          text: "식사량과 체중 감소 추이를 의료진에게 공유해 주세요."
         };
       }
       if (bmi < 25) {
@@ -3830,7 +3834,7 @@
           label: "정상",
           emoji: "✅",
           className: "normal",
-          text: "BMI가 정상이더라도 체중 변화, 식사량, 수분섭취를 함께 확인해 주세요."
+          text: "체중 변화와 식사·수분섭취를 함께 확인해 주세요."
         };
       }
       return {
@@ -3889,6 +3893,7 @@
       const [latestDate, latestWeight] = entries[entries.length - 1];
       const [baselineDate, baselineWeight] = entries[0];
       const change = weightChangePercent(baselineWeight, latestWeight);
+      const weightDelta = latestWeight - baselineWeight;
       const latestBmi = latestWeight / ((state.profile.heightCm / 100) ** 2);
       const absChange = Math.abs(change);
       const periodDays = Math.max(1, Math.round((new Date(`${latestDate}T00:00:00`) - new Date(`${baselineDate}T00:00:00`)) / 86400000));
@@ -3896,25 +3901,25 @@
       if (change <= -5) {
         return {
           type: "loss5",
-          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. <span class="highlight">5% 이상 감소</span> 기준에 해당해 <span class="action">의료진과 상담해 주세요.</span>`
+          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. <span class="highlight">5% 이상 감소</span> 기준에 해당해<br><span class="action">의료진과 상담해 주세요.</span>`
         };
       }
       if (latestBmi < 20 && change <= -2) {
         return {
           type: "lowBmiLoss",
-          html: `BMI 20 미만에서 최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. <span class="action">의료진과 상담해 주세요.</span>`
+          html: `BMI 20 미만에서 최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다.<br><span class="action">의료진과 상담해 주세요.</span>`
         };
       }
       if (change <= -3) {
         return {
           type: "rapidLoss",
-          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. 식사량 저하가 함께 있으면 <span class="action">의료진과 상담해 주세요.</span>`
+          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. 식사량 저하가 함께 있으면<br><span class="action">의료진과 상담해 주세요.</span>`
         };
       }
-      if (change >= 3) {
+      if (periodDays <= 7 && (change >= 3 || weightDelta >= 1.5)) {
         return {
           type: "rapidGain",
-          html: `최근 ${periodDays}일 <span class="highlight">${change.toFixed(1)}% 증가</span>가 확인됩니다. 부종이나 복부팽만이 있으면 <span class="action">의료진과 상담해 주세요.</span>`
+          html: `최근 ${periodDays}일 <span class="highlight">${change.toFixed(1)}% 증가</span>가 확인됩니다.<br>부종, 복부팽만, 숨참이 있으면 확인이 필요합니다.<br><span class="action">의료진과 상담해 주세요.</span>`
         };
       }
       return null;
