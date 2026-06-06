@@ -4782,6 +4782,11 @@
     }
 
     function saveProfileData() {
+      if (state.isPreview) {
+        showToast("회원만 이용할 수 있습니다.");
+        closeProfilePanels();
+        return;
+      }
       state.profile.heightCm = Number(document.getElementById("height").value) || 162;
       updateBmi();
       renderProfileStatus();
@@ -4894,6 +4899,10 @@
     });
     document.querySelectorAll("[data-profile-panel]").forEach(button => {
       button.addEventListener("click", () => {
+        if (state.isPreview && button.dataset.profilePanel === "profileInfoPanel") {
+          showToast("회원만 이용할 수 있습니다.");
+          return;
+        }
         const panelId = button.dataset.profilePanel;
         document.getElementById("profileHome")?.classList.add("hidden");
         document.querySelectorAll(".profile-panel").forEach(panel => {
