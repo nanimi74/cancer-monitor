@@ -28,21 +28,9 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  late var _index = widget.hasRequiredInfo ? 3 : 0;
-
-  late final _screens = [
-    ProfileScreen(
-      hasRequiredInfo: widget.hasRequiredInfo,
-      isPreview: widget.isPreview,
-      onExitPreview: widget.onExitPreview,
-      onSignOut: widget.onSignOut,
-      onDeleteAccount: widget.onDeleteAccount,
-    ),
-    const MedicationScreen(),
-    const WeightScreen(),
-    const SymptomScreen(),
-    const AnalysisScreen(),
-  ];
+  late var _hasRequiredInfo = widget.hasRequiredInfo;
+  late var _index = _hasRequiredInfo ? 3 : 0;
+  var _notificationEnabled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -154,6 +142,31 @@ class _HomeShellState extends State<HomeShell> {
       ),
     );
   }
+
+  List<Widget> get _screens => [
+        ProfileScreen(
+          hasRequiredInfo: _hasRequiredInfo,
+          isPreview: widget.isPreview,
+          onExitPreview: widget.onExitPreview,
+          onSignOut: widget.onSignOut,
+          onDeleteAccount: widget.onDeleteAccount,
+          notificationEnabled: _notificationEnabled,
+          onNotificationPermissionChanged: (value) =>
+              setState(() => _notificationEnabled = value),
+          onRequiredInfoChanged: (value) =>
+              setState(() => _hasRequiredInfo = value),
+        ),
+        MedicationScreen(
+          hasRequiredInfo: _hasRequiredInfo,
+          isPreview: widget.isPreview,
+          notificationEnabled: _notificationEnabled,
+          onNotificationPermissionChanged: (value) =>
+              setState(() => _notificationEnabled = value),
+        ),
+        const WeightScreen(),
+        const SymptomScreen(),
+        const AnalysisScreen(),
+      ];
 }
 
 class _CapsuleIcon extends StatelessWidget {

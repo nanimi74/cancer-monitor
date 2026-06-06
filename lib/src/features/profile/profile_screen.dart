@@ -19,6 +19,9 @@ class ProfileScreen extends StatefulWidget {
     this.onDeleteAccount,
     this.notificationPermissionService,
     this.stepSyncService,
+    this.notificationEnabled = false,
+    this.onNotificationPermissionChanged,
+    this.onRequiredInfoChanged,
   });
 
   final bool hasRequiredInfo;
@@ -28,6 +31,9 @@ class ProfileScreen extends StatefulWidget {
   final Future<void> Function()? onDeleteAccount;
   final NotificationPermissionService? notificationPermissionService;
   final StepSyncService? stepSyncService;
+  final bool notificationEnabled;
+  final ValueChanged<bool>? onNotificationPermissionChanged;
+  final ValueChanged<bool>? onRequiredInfoChanged;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -35,7 +41,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   _ProfileInfo? _profileInfo;
-  var _notificationEnabled = false;
+  late var _notificationEnabled = widget.notificationEnabled;
   var _stepSyncEnabled = false;
   var _accountActionInProgress = false;
   var _notificationPermissionInProgress = false;
@@ -48,6 +54,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool get _hasRequiredInfo => _profileInfo != null;
 
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.notificationEnabled != widget.notificationEnabled) {
+      _notificationEnabled = widget.notificationEnabled;
+    }
+  }
+
   Future<void> _openProfileInfo() async {
     final result = await Navigator.of(context).push<_ProfileInfo>(
       MaterialPageRoute(
@@ -56,6 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (result != null) {
       setState(() => _profileInfo = result);
+      widget.onRequiredInfoChanged?.call(true);
     }
   }
 
@@ -118,6 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_notificationPermissionInProgress) return;
     if (!value) {
       setState(() => _notificationEnabled = false);
+      widget.onNotificationPermissionChanged?.call(false);
       _showMessage('알림 권한이 해제되었습니다.');
       return;
     }
@@ -155,6 +171,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final granted = await _notificationPermissionService.requestPermission();
       if (!mounted) return;
       setState(() => _notificationEnabled = granted);
+      widget.onNotificationPermissionChanged?.call(granted);
       _showMessage(
         granted ? '알림 권한이 허용되었습니다.' : '알림 권한이 허용되지 않았습니다. 기기 설정을 확인해 주세요.',
       );
