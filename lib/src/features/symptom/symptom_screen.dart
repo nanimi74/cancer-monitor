@@ -278,7 +278,7 @@ class _SymptomCalendar extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                childAspectRatio: .82,
+                childAspectRatio: .68,
               ),
               itemCount: days.length,
               itemBuilder: (context, index) {
@@ -339,7 +339,7 @@ class _SymptomDayCell extends StatelessWidget {
             alignment: Alignment.topCenter,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+                padding: const EdgeInsets.fromLTRB(3, 7, 3, 3),
                 child: Column(
                   children: [
                     Text(
@@ -348,27 +348,29 @@ class _SymptomDayCell extends StatelessWidget {
                         color: isCurrentMonth
                             ? (isSunday ? AppColors.danger : AppColors.text)
                             : AppColors.muted.withValues(alpha: .6),
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (record != null) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       Expanded(
                         child: ClipRect(
-                          child: SingleChildScrollView(
-                            physics: const NeverScrollableScrollPhysics(),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.topCenter,
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 _CalendarBadge(
                                   label: '${record.cycleNo}-${record.cycleDay}',
                                   color: AppColors.accent,
                                   backgroundColor: AppColors.accentSoft,
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 3),
                                 ...record.visibleSideEffects.map(
                                   (effect) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 3),
+                                    padding: const EdgeInsets.only(bottom: 2),
                                     child: _CalendarBadge(
                                       label: effect,
                                       color: const Color(0xFF0B8F63),
@@ -388,7 +390,7 @@ class _SymptomDayCell extends StatelessWidget {
               ),
               if (isToday)
                 const Positioned(
-                  top: 33,
+                  top: 31,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: AppColors.danger,
@@ -419,14 +421,14 @@ class _CalendarBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 54),
+      constraints: const BoxConstraints(maxWidth: 56),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
           child: Text(
             label,
             maxLines: 1,
@@ -434,8 +436,8 @@ class _CalendarBadge extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
