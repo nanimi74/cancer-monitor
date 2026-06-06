@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../services/notifications/notification_permission_service.dart';
 import 'analysis/analysis_screen.dart';
 import 'medication/medication_screen.dart';
 import 'profile/profile_screen.dart';
@@ -15,6 +16,7 @@ class HomeShell extends StatefulWidget {
     this.onExitPreview,
     this.onSignOut,
     this.onDeleteAccount,
+    this.notificationPermissionService,
   });
 
   final bool isPreview;
@@ -22,6 +24,7 @@ class HomeShell extends StatefulWidget {
   final VoidCallback? onExitPreview;
   final Future<void> Function()? onSignOut;
   final Future<void> Function()? onDeleteAccount;
+  final NotificationPermissionService? notificationPermissionService;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -45,7 +48,10 @@ class _HomeShellState extends State<HomeShell> {
               child: SizedBox(
                 width: width,
                 height: constraints.maxHeight,
-                child: _screens[_index],
+                child: IndexedStack(
+                  index: _index,
+                  children: _screens,
+                ),
               ),
             );
           },
@@ -150,6 +156,7 @@ class _HomeShellState extends State<HomeShell> {
           onExitPreview: widget.onExitPreview,
           onSignOut: widget.onSignOut,
           onDeleteAccount: widget.onDeleteAccount,
+          notificationPermissionService: widget.notificationPermissionService,
           notificationEnabled: _notificationEnabled,
           onNotificationPermissionChanged: (value) =>
               setState(() => _notificationEnabled = value),
@@ -160,6 +167,7 @@ class _HomeShellState extends State<HomeShell> {
           hasRequiredInfo: _hasRequiredInfo,
           isPreview: widget.isPreview,
           notificationEnabled: _notificationEnabled,
+          notificationPermissionService: widget.notificationPermissionService,
           onNotificationPermissionChanged: (value) =>
               setState(() => _notificationEnabled = value),
         ),

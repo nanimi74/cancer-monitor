@@ -37,6 +37,13 @@ class _MedicationScreenState extends State<MedicationScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.notificationEnabled != widget.notificationEnabled) {
       _notificationEnabled = widget.notificationEnabled;
+      if (!widget.notificationEnabled) {
+        for (var index = 0; index < _medications.length; index += 1) {
+          _medications[index] = _medications[index].copyWith(
+            reminderEnabled: false,
+          );
+        }
+      }
     }
   }
 
@@ -1125,6 +1132,21 @@ class _Medication {
     parts.add(dose);
     if (memo.isNotEmpty) parts.add(memo);
     return parts.join(' · ');
+  }
+
+  _Medication copyWith({
+    bool? reminderEnabled,
+  }) {
+    return _Medication(
+      id: id,
+      name: name,
+      dose: dose,
+      frequency: frequency,
+      weekdays: weekdays,
+      reminderEnabled: reminderEnabled ?? this.reminderEnabled,
+      reminders: reminders,
+      memo: memo,
+    );
   }
 }
 

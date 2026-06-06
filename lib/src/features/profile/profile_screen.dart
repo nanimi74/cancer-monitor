@@ -273,6 +273,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           title: '알림 권한',
           subtitle: '앱의 알림 권한을 허용하거나 해제합니다.',
           value: _notificationEnabled,
+          switchKey: const ValueKey('notification-permission-switch'),
           onChanged: _setNotificationPermission,
         ),
         _ToggleCard(
@@ -499,12 +500,14 @@ class _ToggleCard extends StatelessWidget {
     required this.subtitle,
     required this.value,
     required this.onChanged,
+    this.switchKey,
   });
 
   final String title;
   final String subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final Key? switchKey;
 
   @override
   Widget build(BuildContext context) {
@@ -530,6 +533,7 @@ class _ToggleCard extends StatelessWidget {
               ),
             ),
             _ProfileSwitch(
+              key: switchKey,
               value: value,
               onChanged: onChanged,
             ),
@@ -549,6 +553,7 @@ const TextStyle _profileTileTitleStyle = TextStyle(
 
 class _ProfileSwitch extends StatelessWidget {
   const _ProfileSwitch({
+    super.key,
     required this.value,
     required this.onChanged,
   });
