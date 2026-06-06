@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cancer_monitor/src/app/cancer_monitor_app.dart';
 import 'package:cancer_monitor/src/features/home_shell.dart';
 import 'package:cancer_monitor/src/features/medication/medication_screen.dart';
+import 'package:cancer_monitor/src/features/weight/weight_screen.dart';
 import 'package:cancer_monitor/src/services/notifications/notification_permission_service.dart';
 
 void main() {
@@ -152,6 +153,99 @@ void main() {
     expect(find.text('약물 등록'), findsOneWidget);
   });
 
+  testWidgets('weight input is blocked until required profile exists',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: WeightScreen(hasRequiredInfo: false),
+        ),
+      ),
+    );
+
+    expect(find.text('체중 관리'), findsOneWidget);
+    expect(find.textContaining('사용자정보를 입력해 주세요'), findsOneWidget);
+    expect(find.textContaining('현재 BMI'), findsNothing);
+
+    await tester.tap(find.byKey(ValueKey('weight-day-${_testFormatDate()}')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('마이페이지의 사용자정보를 입력하세요.'), findsOneWidget);
+    expect(find.text('체중(kg)'), findsNothing);
+  });
+
+  testWidgets('weight record shows bmi and chart after input',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: WeightScreen(heightCm: 162),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('현재 BMI'), findsNothing);
+
+    final today = DateTime.now();
+    final tomorrow = today.add(const Duration(days: 1));
+
+    await tester
+        .tap(find.byKey(ValueKey('weight-day-${_testFormatDate(today)}')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '51.0');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('현재 BMI'), findsOneWidget);
+    expect(find.textContaining('최근 체중 51.0kg'), findsOneWidget);
+    expect(find.text('51.0kg'), findsWidgets);
+
+    await tester.tap(
+      find.byKey(ValueKey('weight-day-${_testFormatDate(tomorrow)}')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '50.5');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('최근 체중 50.5kg'), findsOneWidget);
+    expect(find.text('50.5kg'), findsWidgets);
+    expect(find.textContaining('그래프를 그릴 체중 기록이 부족합니다'), findsNothing);
+  });
+
+  testWidgets('rapid weight gain shows consultation advice',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: WeightScreen(heightCm: 162),
+        ),
+      ),
+    );
+
+    final today = DateTime.now();
+    final tomorrow = today.add(const Duration(days: 1));
+
+    await tester
+        .tap(find.byKey(ValueKey('weight-day-${_testFormatDate(today)}')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '50.0');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(ValueKey('weight-day-${_testFormatDate(tomorrow)}')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '52.0');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('🚨 체중 변화 상담 권고'), findsOneWidget);
+    expect(find.textContaining('증가가 확인됩니다'), findsOneWidget);
+    expect(find.textContaining('부종, 복부팽만, 숨참'), findsOneWidget);
+  });
+
   testWidgets('medication can be added with multiple default reminders',
       (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -288,4 +382,11 @@ class _FakeNotificationPermissionService
     required String title,
     required DateTime scheduledAt,
   }) async {}
+}
+
+String _testFormatDate([DateTime? value]) {
+  final date = value ?? DateTime.now();
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '${date.year}-$month-$day';
 }
