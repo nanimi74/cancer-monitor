@@ -303,15 +303,17 @@ class _MedicationEditorSheet extends StatefulWidget {
 
 class _MedicationEditorSheetState extends State<_MedicationEditorSheet> {
   final _formKey = GlobalKey<FormState>();
+  late final _initialDose = _parseDose(widget.initialMedication?.dose ?? '');
   late final _name = TextEditingController(
     text: widget.initialMedication?.name ?? '',
   );
-  late final _dose = TextEditingController(
-    text: widget.initialMedication?.dose ?? '',
+  late final _doseAmount = TextEditingController(
+    text: _initialDose.amount,
   );
   late final _memo = TextEditingController(
     text: widget.initialMedication?.memo ?? '',
   );
+  late var _doseUnit = _initialDose.unit;
   late var _frequency = widget.initialMedication?.frequency ?? '매일';
   late var _weekdays = widget.initialMedication?.weekdays.toSet() ?? <String>{};
   late var _reminderEnabled = widget.initialMedication?.reminderEnabled ?? true;
@@ -332,9 +334,19 @@ class _MedicationEditorSheetState extends State<_MedicationEditorSheet> {
   @override
   void dispose() {
     _name.dispose();
-    _dose.dispose();
+    _doseAmount.dispose();
     _memo.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDoseUnit() async {
+    final selected = await _showOptionSheet(
+      title: '복용 단위',
+      options: _doseUnits,
+      currentValue: _doseUnit,
+    );
+    if (selected == null) return;
+    setState(() => _doseUnit = selected);
   }
 
   Future<void> _pickFrequency() async {
@@ -467,7 +479,7 @@ class _MedicationEditorSheetState extends State<_MedicationEditorSheet> {
     final medication = _Medication(
       id: source?.id ?? DateTime.now().microsecondsSinceEpoch,
       name: _name.text.trim(),
-      dose: _dose.text.trim(),
+      dose: '${_doseAmount.text.trim()}$_doseUnit',
       frequency: _frequency,
       weekdays: _orderedWeekdays(_weekdays),
       reminderEnabled: shouldEnableReminder,
@@ -609,13 +621,34 @@ class _MedicationEditorSheetState extends State<_MedicationEditorSheet> {
                           maxLength: 40,
                           validator: _requiredValidator,
                         ),
-                        _TextField(
-                          controller: _dose,
-                          label: '복용량',
-                          hint: '예: 1정',
-                          maxLength: 30,
-                          validator: _requiredValidator,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _TextField(
+                                controller: _doseAmount,
+                                label: '복용량',
+                                hint: '예: 1',
+                                maxLength: 6,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                                validator: _doseAmountValidator,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            SizedBox(
+                              width: 104,
+                              child: _PickerField(
+                                label: '복용 단위',
+                                value: _doseUnit,
+                                onTap: _pickDoseUnit,
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 2),
                         _PickerField(
                           label: '복용 주기',
                           value: _frequency,
@@ -760,6 +793,7 @@ class _TextField extends StatelessWidget {
     required this.hint,
     required this.maxLength,
     this.maxLines = 1,
+    this.keyboardType,
     this.validator,
   });
 
@@ -768,6 +802,7 @@ class _TextField extends StatelessWidget {
   final String hint;
   final int maxLength;
   final int maxLines;
+  final TextInputType? keyboardType;
   final String? Function(String?)? validator;
 
   @override
@@ -786,8 +821,8 @@ class _TextField extends StatelessWidget {
             maxLines: maxLines,
             textInputAction:
                 maxLines == 1 ? TextInputAction.next : TextInputAction.newline,
-            keyboardType:
-                maxLines == 1 ? TextInputType.text : TextInputType.multiline,
+            keyboardType: keyboardType ??
+                (maxLines == 1 ? TextInputType.text : TextInputType.multiline),
             decoration: InputDecoration(
               hintText: hint,
               counterText: '',
@@ -1205,6 +1240,45 @@ String? _requiredValidator(String? value) {
   }
   return null;
 }
+
+String? _doseAmountValidator(String? value) {
+  final trimmed = value?.trim() ?? '';
+  if (trimmed.isEmpty) return '필수 입력 항목입니다.';
+  final number = double.tryParse(trimmed);
+  if (number == null || number <= 0) {
+    return '숫자로 입력해 주세요.';
+  }
+  return null;
+}
+
+class _ParsedDose {
+  const _ParsedDose({
+    required this.amount,
+    required this.unit,
+  });
+
+  final String amount;
+  final String unit;
+}
+
+_ParsedDose _parseDose(String dose) {
+  final trimmed = dose.trim();
+  if (trimmed.isEmpty) {
+    return const _ParsedDose(amount: '', unit: '정');
+  }
+
+  final match = RegExp(r'^([0-9]+(?:\.[0-9]+)?)(.*)$').firstMatch(trimmed);
+  if (match == null) {
+    return _ParsedDose(amount: trimmed, unit: '정');
+  }
+
+  final amount = match.group(1) ?? '';
+  final rawUnit = (match.group(2) ?? '').trim();
+  final unit = _doseUnits.contains(rawUnit) ? rawUnit : '정';
+  return _ParsedDose(amount: amount, unit: unit);
+}
+
+const _doseUnits = ['정', '알', '포', 'ml', 'mg'];
 
 List<_MedicationReminder> _defaultReminders() {
   return const [
