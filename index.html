@@ -3199,16 +3199,26 @@
           <div class="grid two">
             <div class="field">
               <label class="required" for="medDose">복용량</label>
-              <input id="medDose" type="text" maxlength="30" placeholder="예: 1정">
+              <input id="medDose" type="text" inputmode="decimal" maxlength="6" placeholder="예: 1">
             </div>
             <div class="field">
-              <label class="required" for="medFrequency">복용 주기</label>
-              <select id="medFrequency">
-                <option value="매일">매일</option>
-                <option value="필요시">필요시</option>
-                <option value="직접입력">직접입력</option>
+              <label class="required" for="medDoseUnit">복용 단위</label>
+              <select id="medDoseUnit">
+                <option value="정">정</option>
+                <option value="알">알</option>
+                <option value="포">포</option>
+                <option value="ml">ml</option>
+                <option value="mg">mg</option>
               </select>
             </div>
+          </div>
+          <div class="field">
+            <label class="required" for="medFrequency">복용 주기</label>
+            <select id="medFrequency">
+              <option value="매일">매일</option>
+              <option value="필요시">필요시</option>
+              <option value="직접입력">직접입력</option>
+            </select>
           </div>
           <div class="field weekday-field" id="medWeekdayField">
             <label class="required">복용 요일</label>
@@ -4269,13 +4279,24 @@
       renderMedReminderRows(reminders);
     }
 
+    function parseMedDose(dose = "") {
+      const trimmed = String(dose).trim();
+      if (!trimmed) return { amount: "", unit: "정" };
+      const match = trimmed.match(/^([0-9]+(?:\.[0-9]+)?)(.*)$/);
+      if (!match) return { amount: trimmed, unit: "정" };
+      const unit = ["정", "알", "포", "ml", "mg"].includes(match[2].trim()) ? match[2].trim() : "정";
+      return { amount: match[1], unit };
+    }
+
     function resetMedForm() {
       document.getElementById("medName").value = "";
       document.getElementById("medDose").value = "";
+      document.getElementById("medDoseUnit").value = "정";
       document.getElementById("medFrequency").value = "매일";
       setMedWeekdays([]);
       document.getElementById("medReminder").checked = true;
       document.getElementById("medMemo").value = "";
+      updateSheetButton(document.getElementById("medDoseUnit"));
       updateSheetButton(document.getElementById("medFrequency"));
       updateMedWeekdayVisibility();
       renderMedReminderRows(defaultMedReminders);
@@ -4291,12 +4312,15 @@
 
       resetMedForm();
       if (med) {
+        const parsedDose = parseMedDose(med.dose);
         document.getElementById("medName").value = med.name;
-        document.getElementById("medDose").value = med.dose;
+        document.getElementById("medDose").value = parsedDose.amount;
+        document.getElementById("medDoseUnit").value = parsedDose.unit;
         document.getElementById("medFrequency").value = med.frequency;
         setMedWeekdays(med.weekdays || []);
         document.getElementById("medReminder").checked = med.reminder;
         document.getElementById("medMemo").value = med.memo;
+        updateSheetButton(document.getElementById("medDoseUnit"));
         updateSheetButton(document.getElementById("medFrequency"));
         updateMedWeekdayVisibility();
         renderMedReminderRows(med.reminders || [{ label: "알림", time: med.time || "09:00" }]);
@@ -4313,15 +4337,21 @@
         return;
       }
       const name = document.getElementById("medName").value.trim();
-      const dose = document.getElementById("medDose").value.trim();
+      const doseAmount = document.getElementById("medDose").value.trim();
+      const doseUnit = document.getElementById("medDoseUnit").value;
+      const dose = `${doseAmount}${doseUnit}`;
       const frequency = document.getElementById("medFrequency").value;
       const weekdays = selectedMedWeekdays();
       const reminder = document.getElementById("medReminder").checked;
       const reminders = currentMedReminders();
       const memo = document.getElementById("medMemo").value.trim();
 
-      if (!name || !dose || !frequency || reminders.some(item => !item.label || !item.time)) {
+      if (!name || !doseAmount || !frequency || reminders.some(item => !item.label || !item.time)) {
         showToast("약물명, 복용량, 복용 주기, 알림 시간을 입력해 주세요.");
+        return;
+      }
+      if (Number.isNaN(Number(doseAmount)) || Number(doseAmount) <= 0) {
+        showToast("복용량은 숫자로 입력해 주세요.");
         return;
       }
       if (frequency === "직접입력" && !weekdays.length) {
