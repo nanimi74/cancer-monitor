@@ -471,30 +471,34 @@ class _CalendarDayCell extends StatelessWidget {
           children: [
             Positioned(
               top: 7,
-              child: Text(
-                '${date.day}',
-                style: TextStyle(
-                  color: !inMonth
-                      ? AppColors.muted.withValues(alpha: .65)
-                      : sunday
-                          ? AppColors.danger
-                          : AppColors.text,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${date.day}',
+                    style: TextStyle(
+                      color: !inMonth
+                          ? AppColors.muted.withValues(alpha: .65)
+                          : sunday
+                              ? AppColors.danger
+                              : AppColors.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (today) ...[
+                    const SizedBox(width: 4),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.danger,
+                        shape: BoxShape.circle,
+                      ),
+                      child: SizedBox(width: 5, height: 5),
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (today)
-              const Positioned(
-                top: 31,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: AppColors.danger,
-                    shape: BoxShape.circle,
-                  ),
-                  child: SizedBox(width: 5, height: 5),
-                ),
-              ),
             Positioned(
               bottom: 7,
               child: weight != null
