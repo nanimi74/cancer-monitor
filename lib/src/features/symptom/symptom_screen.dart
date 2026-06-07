@@ -342,15 +342,30 @@ class _SymptomDayCell extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(3, 7, 3, 3),
                 child: Column(
                   children: [
-                    Text(
-                      '${date.day}일',
-                      style: TextStyle(
-                        color: isCurrentMonth
-                            ? (isSunday ? AppColors.danger : AppColors.text)
-                            : AppColors.muted.withValues(alpha: .6),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${date.day}일',
+                          style: TextStyle(
+                            color: isCurrentMonth
+                                ? (isSunday ? AppColors.danger : AppColors.text)
+                                : AppColors.muted.withValues(alpha: .6),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (isToday) ...[
+                          const SizedBox(width: 4),
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: AppColors.danger,
+                              shape: BoxShape.circle,
+                            ),
+                            child: SizedBox(width: 6, height: 6),
+                          ),
+                        ],
+                      ],
                     ),
                     if (record != null) ...[
                       const SizedBox(height: 5),
@@ -388,17 +403,6 @@ class _SymptomDayCell extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isToday)
-                const Positioned(
-                  top: 31,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.danger,
-                      shape: BoxShape.circle,
-                    ),
-                    child: SizedBox(width: 7, height: 7),
-                  ),
-                ),
             ],
           ),
         ),
