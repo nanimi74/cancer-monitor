@@ -236,6 +236,10 @@ class _SymptomCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = _calendarDays(visibleMonth);
+    final weeks = [
+      for (var start = 0; start < days.length; start += 7)
+        days.sublist(start, start + 7),
+    ];
     const dayLabels = ['월', '화', '수', '목', '금', '토', '일'];
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -273,26 +277,33 @@ class _SymptomCalendar extends StatelessWidget {
                   )
                   .toList(),
             ),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                childAspectRatio: .68,
-              ),
-              itemCount: days.length,
-              itemBuilder: (context, index) {
-                final date = days[index];
-                final key = _dateOnly(date);
-                final record = records[key];
-                return _SymptomDayCell(
-                  key: ValueKey('symptom-day-${_formatDateKey(key)}'),
-                  date: date,
-                  isCurrentMonth: date.month == visibleMonth.month,
-                  selected: selectedDate != null &&
-                      _isSameDay(key, _dateOnly(selectedDate!)),
-                  record: record,
-                  onTap: () => onSelectDate(key),
+            ...weeks.map(
+              (week) {
+                final rowHeight = _symptomWeekHeight(week, records);
+                return SizedBox(
+                  height: rowHeight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: week.map(
+                      (date) {
+                        final key = _dateOnly(date);
+                        final record = records[key];
+                        return Expanded(
+                          child: _SymptomDayCell(
+                            key: ValueKey(
+                              'symptom-day-${_formatDateKey(key)}',
+                            ),
+                            date: date,
+                            isCurrentMonth: date.month == visibleMonth.month,
+                            selected: selectedDate != null &&
+                                _isSameDay(key, _dateOnly(selectedDate!)),
+                            record: record,
+                            onTap: () => onSelectDate(key),
+                          ),
+                        );
+                      },
+                    ).toList(),
+                  ),
                 );
               },
             ),
@@ -301,6 +312,28 @@ class _SymptomCalendar extends StatelessWidget {
       ),
     );
   }
+}
+
+double _symptomWeekHeight(
+  List<DateTime> week,
+  Map<DateTime, _SymptomRecord> records,
+) {
+  var maxBadgeUnits = 0;
+  for (final date in week) {
+    final record = records[_dateOnly(date)];
+    if (record == null) continue;
+    final sideEffectUnits = record.visibleSideEffects
+        .map(_sideEffectLineUnits)
+        .fold<int>(0, (sum, units) => sum + units);
+    final badgeUnits = 1 + sideEffectUnits;
+    if (badgeUnits > maxBadgeUnits) maxBadgeUnits = badgeUnits;
+  }
+  if (maxBadgeUnits == 0) return 82;
+  return (58 + maxBadgeUnits * 18).clamp(98, 196).toDouble();
+}
+
+int _sideEffectLineUnits(String label) {
+  return 1;
 }
 
 class _SymptomDayCell extends StatelessWidget {
@@ -324,6 +357,7 @@ class _SymptomDayCell extends StatelessWidget {
     final isToday = _isSameDay(date, _dateOnly(DateTime.now()));
     final isSunday = date.weekday == DateTime.sunday;
     final record = this.record;
+    final cycleTone = record == null ? null : _cycleBadgeTone(record.cycleNo);
     return Material(
       color: selected ? AppColors.accentSoft : Colors.white,
       child: InkWell(
@@ -339,7 +373,7 @@ class _SymptomDayCell extends StatelessWidget {
             alignment: Alignment.topCenter,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(3, 7, 3, 3),
+                padding: const EdgeInsets.fromLTRB(2, 5, 2, 2),
                 child: Column(
                   children: [
                     Row(
@@ -351,7 +385,7 @@ class _SymptomDayCell extends StatelessWidget {
                             color: isCurrentMonth
                                 ? (isSunday ? AppColors.danger : AppColors.text)
                                 : AppColors.muted.withValues(alpha: .6),
-                            fontSize: 15,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -368,33 +402,47 @@ class _SymptomDayCell extends StatelessWidget {
                       ],
                     ),
                     if (record != null) ...[
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 4),
                       Expanded(
                         child: ClipRect(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.topCenter,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _CalendarBadge(
-                                  label: '${record.cycleNo}-${record.cycleDay}',
-                                  color: AppColors.accent,
-                                  backgroundColor: AppColors.accentSoft,
-                                ),
-                                const SizedBox(height: 3),
-                                ...record.visibleSideEffects.map(
-                                  (effect) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 2),
-                                    child: _CalendarBadge(
-                                      label: effect,
-                                      color: const Color(0xFF0B8F63),
-                                      backgroundColor: const Color(0xFFE8F8EF),
-                                    ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _CalendarBadge(
+                                label: '${record.cycleNo}-${record.cycleDay}',
+                                color: cycleTone!.foreground,
+                                backgroundColor: cycleTone.background,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                minWidth: 34,
+                                maxWidth: 56,
+                                horizontalPadding: 5,
+                                verticalPadding: 1.5,
+                                maxLines: 1,
+                                overflow: null,
+                                fitText: true,
+                              ),
+                              const SizedBox(height: 3),
+                              ...record.visibleSideEffects.map(
+                                (effect) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: _CalendarBadge(
+                                    label: effect,
+                                    color: const Color(0xFF0B8F63),
+                                    backgroundColor: const Color(0xFFE8F8EF),
+                                    fontSize: effect.length >= 4 ? 8.5 : 10,
+                                    fontWeight: FontWeight.w600,
+                                    minWidth: 30,
+                                    maxWidth: 56,
+                                    horizontalPadding: 5,
+                                    verticalPadding: 1.5,
+                                    maxLines: 1,
+                                    overflow: null,
+                                    fitText: true,
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -411,39 +459,112 @@ class _SymptomDayCell extends StatelessWidget {
   }
 }
 
+class _CycleBadgeTone {
+  const _CycleBadgeTone({
+    required this.foreground,
+    required this.background,
+  });
+
+  final Color foreground;
+  final Color background;
+}
+
+_CycleBadgeTone _cycleBadgeTone(int cycleNo) {
+  switch (cycleNo) {
+    case 1:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFFDB2777),
+        background: Color(0xFFFCE7F3),
+      );
+    case 2:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF059669),
+        background: Color(0xFFE7F8EF),
+      );
+    case 3:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF2563EB),
+        background: Color(0xFFEFF6FF),
+      );
+  }
+  final hue = ((cycleNo <= 0 ? 1 : cycleNo) * 67 + 211) % 360;
+  return _CycleBadgeTone(
+    foreground: HSVColor.fromAHSV(1, hue.toDouble(), .72, .52).toColor(),
+    background: HSVColor.fromAHSV(1, hue.toDouble(), .14, .98).toColor(),
+  );
+}
+
 class _CalendarBadge extends StatelessWidget {
   const _CalendarBadge({
     required this.label,
     required this.color,
     required this.backgroundColor,
+    required this.fontSize,
+    required this.fontWeight,
+    required this.minWidth,
+    required this.maxWidth,
+    required this.horizontalPadding,
+    required this.verticalPadding,
+    required this.maxLines,
+    required this.overflow,
+    required this.fitText,
   });
 
   final String label;
   final Color color;
   final Color backgroundColor;
+  final double fontSize;
+  final FontWeight fontWeight;
+  final double minWidth;
+  final double maxWidth;
+  final double horizontalPadding;
+  final double verticalPadding;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final bool fitText;
 
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 56),
+      constraints: BoxConstraints(minWidth: minWidth, maxWidth: maxWidth),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: color,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w600,
-            ),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
           ),
+          child: fitText
+              ? FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: maxLines,
+                    overflow: overflow,
+                    textAlign: TextAlign.center,
+                    softWrap: false,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: fontSize,
+                      fontWeight: fontWeight,
+                    ),
+                  ),
+                )
+              : Text(
+                  label,
+                  maxLines: maxLines,
+                  overflow: overflow,
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: fontSize,
+                    fontWeight: fontWeight,
+                  ),
+                ),
         ),
       ),
     );
@@ -537,6 +658,7 @@ class _SymptomRecordSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SummaryRow(
           label: '▣ 항암 치료 정보',
@@ -624,15 +746,18 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
-        color: Colors.white,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: child,
+    return SizedBox(
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.line),
+          borderRadius: BorderRadius.circular(14),
+          color: Colors.white,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: child,
+        ),
       ),
     );
   }
@@ -785,6 +910,15 @@ class _SymptomEditorSheet extends StatefulWidget {
 
 class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+  final _cycleNoKey = GlobalKey();
+  final _cycleDayKey = GlobalKey();
+  final _mealAmountKey = GlobalKey();
+  final _waterAmountKey = GlobalKey();
+  final _stepsKey = GlobalKey();
+  final _bowelKey = GlobalKey();
+  final _stoolStatusKey = GlobalKey();
+  final _sideEffectsKey = GlobalKey();
   late final _cycleNo = TextEditingController(
     text: widget.initialRecord?.cycleNo.toString() ?? '',
   );
@@ -818,9 +952,11 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   late var _stepsSource = widget.initialRecord?.stepsSource ??
       (widget.stepSyncEnabled ? '연동' : '수동');
   var _stepSyncInProgress = false;
+  String? _validationMessage;
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _cycleNo.dispose();
     _cycleDay.dispose();
     _breakfast.dispose();
@@ -1026,12 +1162,14 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     }
     final missingMessage = _firstMissingRequiredMessage();
     if (missingMessage != null) {
-      _showMessage(missingMessage);
+      _showValidationToast(missingMessage);
       return;
     }
 
     if (!_formKey.currentState!.validate()) {
-      _showMessage('입력값을 다시 확인해 주세요.');
+      _showValidationToast(
+        const _ValidationMessage('입력값을 다시 확인해 주세요.', null),
+      );
       return;
     }
 
@@ -1057,18 +1195,49 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     );
   }
 
-  String? _firstMissingRequiredMessage() {
-    if (_cycleNo.text.trim().isEmpty) return '항암 회차를 입력해주세요.';
-    if (_cycleDay.text.trim().isEmpty) return '진행일차를 입력해주세요.';
-    if (_mealAmount == null) return '식사량을 입력해주세요.';
-    if (_waterAmount == null) return '음수량을 입력해주세요.';
-    if (_steps.text.trim().isEmpty) return '운동량을 입력해주세요.';
-    if (_bowel == null) return '배변 유무를 입력해주세요.';
-    if (_bowel == '있음' && _stoolStatus == null) {
-      return '배변 상태를 입력해주세요.';
+  _ValidationMessage? _firstMissingRequiredMessage() {
+    if (_cycleNo.text.trim().isEmpty) {
+      return _ValidationMessage('항암 회차를 입력해주세요.', _cycleNoKey);
     }
-    if (_sideEffects.isEmpty) return '주요부작용을 입력해주세요.';
+    if (_cycleDay.text.trim().isEmpty) {
+      return _ValidationMessage('진행일차를 입력해주세요.', _cycleDayKey);
+    }
+    if (_mealAmount == null) {
+      return _ValidationMessage('식사량을 입력해주세요.', _mealAmountKey);
+    }
+    if (_waterAmount == null) {
+      return _ValidationMessage('음수량을 입력해주세요.', _waterAmountKey);
+    }
+    if (_steps.text.trim().isEmpty) {
+      return _ValidationMessage('운동량을 입력해주세요.', _stepsKey);
+    }
+    if (_bowel == null) {
+      return _ValidationMessage('배변 유무를 입력해주세요.', _bowelKey);
+    }
+    if (_bowel == '있음' && _stoolStatus == null) {
+      return _ValidationMessage('배변 상태를 입력해주세요.', _stoolStatusKey);
+    }
+    if (_sideEffects.isEmpty) {
+      return _ValidationMessage('주요부작용을 입력해주세요.', _sideEffectsKey);
+    }
     return null;
+  }
+
+  void _showValidationToast(_ValidationMessage message) {
+    setState(() => _validationMessage = message.text);
+    final key = message.anchorKey;
+    if (key != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final context = key.currentContext;
+        if (context == null) return;
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          alignment: .08,
+        );
+      });
+    }
   }
 
   void _showMessage(String message) {
@@ -1111,31 +1280,49 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                 ),
               ),
               const Divider(height: 1),
+              if (_validationMessage != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: _SheetToast(
+                    message: _validationMessage!,
+                    onClose: () => setState(() => _validationMessage = null),
+                  ),
+                ),
               Expanded(
                 child: Form(
                   key: _formKey,
                   child: ListView(
                     key: const ValueKey('symptom-editor-scroll'),
+                    controller: _scrollController,
                     scrollCacheExtent: const ScrollCacheExtent.pixels(2400),
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                     children: [
-                      _NumberField(
-                        label: '항암 회차',
-                        controller: _cycleNo,
-                        placeholder: '진행회차를 숫자로 입력하세요.',
+                      KeyedSubtree(
+                        key: _cycleNoKey,
+                        child: _NumberField(
+                          label: '항암 회차',
+                          controller: _cycleNo,
+                          placeholder: '진행회차를 숫자로 입력하세요.',
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      _NumberField(
-                        label: '진행일차',
-                        controller: _cycleDay,
-                        placeholder: '진행일차를 숫자로 입력하세요.',
+                      KeyedSubtree(
+                        key: _cycleDayKey,
+                        child: _NumberField(
+                          label: '진행일차',
+                          controller: _cycleDay,
+                          placeholder: '진행일차를 숫자로 입력하세요.',
+                        ),
                       ),
                       const SizedBox(height: 18),
-                      _SheetField(
-                        label: '식사량',
-                        value: _mealAmount ?? '선택',
-                        empty: _mealAmount == null,
-                        onTap: _pickMealAmount,
+                      KeyedSubtree(
+                        key: _mealAmountKey,
+                        child: _SheetField(
+                          label: '식사량',
+                          value: _mealAmount ?? '선택',
+                          empty: _mealAmount == null,
+                          onTap: _pickMealAmount,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _MemoField(
@@ -1163,17 +1350,23 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                         placeholder:
                             '아침, 점심, 저녁 외의 섭취한 식사를 기록하세요. AI분석에 활용됩니다.',
                       ),
-                      _SheetField(
-                        label: '음수량',
-                        value: _waterAmount ?? '선택',
-                        empty: _waterAmount == null,
-                        onTap: _pickWaterAmount,
+                      KeyedSubtree(
+                        key: _waterAmountKey,
+                        child: _SheetField(
+                          label: '음수량',
+                          value: _waterAmount ?? '선택',
+                          empty: _waterAmount == null,
+                          onTap: _pickWaterAmount,
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      _StepsField(
-                        controller: _steps,
-                        source: _stepsSource,
-                        readOnly: _stepSyncEnabled,
+                      KeyedSubtree(
+                        key: _stepsKey,
+                        child: _StepsField(
+                          controller: _steps,
+                          source: _stepsSource,
+                          readOnly: _stepSyncEnabled,
+                        ),
                       ),
                       if (!_stepSyncEnabled) ...[
                         const SizedBox(height: 10),
@@ -1183,9 +1376,12 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                         ),
                       ],
                       const SizedBox(height: 18),
-                      const _FieldLabel.required(
-                        '배변 유무',
-                        key: ValueKey('symptom-label-bowel'),
+                      KeyedSubtree(
+                        key: _bowelKey,
+                        child: const _FieldLabel.required(
+                          '배변 유무',
+                          key: ValueKey('symptom-label-bowel'),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -1209,9 +1405,12 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                       ),
                       if (_bowel == '있음') ...[
                         const SizedBox(height: 18),
-                        const _FieldLabel.required(
-                          '배변 상태',
-                          key: ValueKey('symptom-label-stool'),
+                        KeyedSubtree(
+                          key: _stoolStatusKey,
+                          child: const _FieldLabel.required(
+                            '배변 상태',
+                            key: ValueKey('symptom-label-stool'),
+                          ),
                         ),
                         const SizedBox(height: 8),
                         _ChoiceWrap(
@@ -1222,9 +1421,12 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                         ),
                       ],
                       const SizedBox(height: 18),
-                      const _FieldLabel.required(
-                        '주요부작용',
-                        key: ValueKey('symptom-label-side-effects'),
+                      KeyedSubtree(
+                        key: _sideEffectsKey,
+                        child: const _FieldLabel.required(
+                          '주요부작용',
+                          key: ValueKey('symptom-label-side-effects'),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       _ChoiceWrap(
@@ -1261,6 +1463,61 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ValidationMessage {
+  const _ValidationMessage(this.text, this.anchorKey);
+
+  final String text;
+  final GlobalKey? anchorKey;
+}
+
+class _SheetToast extends StatelessWidget {
+  const _SheetToast({required this.message, required this.onClose});
+
+  final String message;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.accentSoft,
+        border: Border.all(color: AppColors.accent.withValues(alpha: .28)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.info_outline_rounded,
+              size: 18,
+              color: AppColors.accent,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: AppColors.muted,
+              tooltip: '닫기',
+            ),
+          ],
         ),
       ),
     );

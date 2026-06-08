@@ -884,12 +884,40 @@
       box-shadow: none;
     }
 
+    .mini-badge.cycle-1 {
+      background: #fce7f3;
+      color: #db2777;
+    }
+
+    .mini-badge.cycle-2 {
+      background: #e7f8ef;
+      color: #059669;
+    }
+
+    .mini-badge.cycle-3 {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .mini-badge.cycle-4 {
+      background: #f3e8ff;
+      color: #7c3aed;
+    }
+
+    .mini-badge.cycle-5 {
+      background: #fff1e7;
+      color: #ea580c;
+    }
+
     .mini-badge.side {
       background: #eef8f3;
       color: #159060;
       padding: 2px 5px;
       font-size: 10px;
       font-weight: 500;
+      line-height: 1.18;
+      text-align: center;
+      white-space: nowrap;
       border-radius: 999px;
     }
 
@@ -3941,6 +3969,25 @@
       text.innerHTML = info ? info.html : "";
     }
 
+    function getCycleBadgeStyle(cycleNo) {
+      const cycle = Number(cycleNo || 1);
+      const fixedTones = {
+        1: ["#fce7f3", "#db2777"],
+        2: ["#e7f8ef", "#059669"],
+        3: ["#eff6ff", "#2563eb"],
+      };
+      const fixedTone = fixedTones[cycle];
+      if (fixedTone) {
+        return `background:${fixedTone[0]};color:${fixedTone[1]};`;
+      }
+      const hue = ((cycle <= 0 ? 1 : cycle) * 67 + 211) % 360;
+      return `background:hsl(${hue} 70% 95%);color:hsl(${hue} 72% 38%);`;
+    }
+
+    function sideEffectBadgeStyle(effect) {
+      return String(effect || "").length >= 4 ? 'style="font-size:9px;"' : "";
+    }
+
     function buildCalendar(containerId, type) {
       const container = document.getElementById(containerId);
       const cal = calendarState(type);
@@ -3983,10 +4030,10 @@
         } else {
           const record = visibleSymptoms()[key];
           if (record) {
-            button.innerHTML += `<span class="mini-badge">${record.cycleNo}-${record.cycleDay}</span>`;
+            button.innerHTML += `<span class="mini-badge" style="${getCycleBadgeStyle(record.cycleNo)}">${record.cycleNo}-${record.cycleDay}</span>`;
             const visibleEffects = record.sideEffects.filter(effect => effect !== "없음").slice(0, 3);
             if (visibleEffects.length) {
-              button.innerHTML += `<span class="calendar-side-badges">${visibleEffects.map(effect => `<span class="mini-badge side">${effect}</span>`).join("")}</span>`;
+              button.innerHTML += `<span class="calendar-side-badges">${visibleEffects.map(effect => `<span class="mini-badge side" ${sideEffectBadgeStyle(effect)}>${effect}</span>`).join("")}</span>`;
             }
           }
           button.addEventListener("click", () => selectSymptomDate(key));
