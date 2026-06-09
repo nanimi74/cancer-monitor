@@ -12,13 +12,17 @@ class AiAnalysisResult {
     required this.comment,
     required this.encouragement,
     required this.detailNotes,
+    required this.source,
   });
 
   final List<AiAnalysisItem> items;
   final String comment;
   final String encouragement;
   final List<SymptomRecord> detailNotes;
+  final AiAnalysisSource source;
 }
+
+enum AiAnalysisSource { claude, localFallback }
 
 class AiAnalysisItem {
   const AiAnalysisItem({
@@ -172,6 +176,7 @@ class AiAnalysisService {
       encouragement: '오늘도 기록을 이어가고 계신 것만으로도 충분히 잘하고 있어요. 💜',
       detailNotes:
           records.where((record) => record.note.trim().isNotEmpty).toList(),
+      source: AiAnalysisSource.localFallback,
     );
   }
 
@@ -270,6 +275,7 @@ class AiAnalysisService {
           : '${data['encouragement']}',
       detailNotes:
           records.where((record) => record.note.trim().isNotEmpty).toList(),
+      source: AiAnalysisSource.claude,
     );
   }
 

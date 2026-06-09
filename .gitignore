@@ -11,6 +11,11 @@
 **/.packages
 **/build/
 
+# Node/Firebase generated files
+**/node_modules/
+firebase-debug.log
+firebase-debug.*.log
+
 # Platform generated build output
 **/android/.gradle/
 **/ios/Pods/

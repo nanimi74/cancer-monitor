@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -471,7 +472,7 @@ class _AnalysisResultView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _ResultTitle(),
+              _ResultTitle(source: result.source),
               const SizedBox(height: 16),
               _SelectedPeriodBox(
                 cycleNo: cycleNo,
@@ -508,19 +509,54 @@ class _AnalysisResultView extends StatelessWidget {
 }
 
 class _ResultTitle extends StatelessWidget {
-  const _ResultTitle();
+  const _ResultTitle({required this.source});
+
+  final AiAnalysisSource source;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
-        _SoftIcon(label: 'AI'),
-        SizedBox(width: 8),
-        Text(
+        const _SoftIcon(label: 'AI'),
+        const SizedBox(width: 8),
+        const Text(
           'AI 분석 결과',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
+        if (!kReleaseMode) ...[
+          const SizedBox(width: 8),
+          _AnalysisSourceBadge(source: source),
+        ],
       ],
+    );
+  }
+}
+
+class _AnalysisSourceBadge extends StatelessWidget {
+  const _AnalysisSourceBadge({required this.source});
+
+  final AiAnalysisSource source;
+
+  @override
+  Widget build(BuildContext context) {
+    final isClaude = source == AiAnalysisSource.claude;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isClaude ? AppColors.accentSoft : const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isClaude ? AppColors.accentLine : const Color(0xFFFED7AA),
+        ),
+      ),
+      child: Text(
+        isClaude ? 'Claude 분석' : '임시 분석',
+        style: TextStyle(
+          color: isClaude ? AppColors.accent : const Color(0xFFC2410C),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

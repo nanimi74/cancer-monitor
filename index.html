@@ -900,13 +900,18 @@
     }
 
     .mini-badge.cycle-4 {
-      background: #f3e8ff;
-      color: #7c3aed;
+      background: #e0f7f4;
+      color: #0f766e;
     }
 
     .mini-badge.cycle-5 {
-      background: #fff1e7;
-      color: #ea580c;
+      background: #e0f7fa;
+      color: #0891b2;
+    }
+
+    .mini-badge.cycle-6 {
+      background: #f3e8ff;
+      color: #7c3aed;
     }
 
     .mini-badge.side {
@@ -1650,6 +1655,19 @@
       border: 1px solid var(--accent-line);
       font-size: 11px;
       font-weight: 700;
+    }
+
+    .analysis-source-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 8px;
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #c2410c;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
     }
 
     .analysis-loading {
@@ -3017,20 +3035,20 @@
               </div>
               <div class="policy-content">
                 <div class="policy-intro">
-                  항암기록관리 서비스는 사용자의 항암 치료 기록을 정리하고 외래 진료 전 확인할 수 있도록 돕기 위해 필요한 최소한의 개인정보와 건강 관련 기록을 처리합니다. 본 문서는 앱 출시 전 검토를 위한 초안입니다.
+                  항암기록관리 서비스는 항암치료 중 일상 기록을 관리하고 외래 진료 전 상담 준비를 돕기 위해 필요한 최소한의 정보를 처리합니다.
                 </div>
                 <div class="policy-section">
-                  <h4>1. 수집하는 정보</h4>
+                  <h4>1. 처리하는 정보</h4>
                   <ul>
-                    <li>회원 정보: Firebase 로그인을 위한 이메일, 사용자 식별자, 로그인 제공자 정보</li>
-                    <li>사용자 정보: 성별, 생년월일, 키, 암종, 병기, 진단일, 치료 정보, 기타 참고 정보</li>
-                    <li>건강 기록: 체중, 복약 정보, 항암 회차/일차, 식사량, 음수량, 배변, 주요 부작용, 주요증상 텍스트</li>
-                    <li>권한 및 설정: 알림 허용 여부, 걸음수 연동 허용 여부, 복약 알림 시간</li>
+                    <li>회원 및 인증 정보: 이메일, 로그인 제공자, Firebase UID</li>
+                    <li>사용자 정보: 성별, 생년월일, 암종, 병기, 진단일, 전이 여부, 항암치료 종류, 치료 시작일, 키, 기타정보</li>
+                    <li>기록 정보: 복용 약물, 복약 알림 시간, 체중, BMI 계산값, 항암 회차/진행일차, 식사량과 식사 메모, 음수량, 걸음수, 배변 여부와 상태, 주요 부작용, 주요 증상 텍스트</li>
+                    <li>권한 정보: 알림 권한 상태, 걸음수 연동 권한 상태</li>
                   </ul>
                 </div>
                 <div class="policy-section">
                   <h4>2. 이용 목적</h4>
-                  <p>수집한 정보는 회원 인증, 항암 치료 기록 저장, 복약 알림, 체중 변화 확인, 증상 기록 관리, 회차별 AI 분석 요약, 외래 상담 준비용 기록 확인에 사용됩니다. 서비스는 사용자의 기록을 바탕으로 참고 정보를 제공하며 의학적 진단이나 치료 결정을 대체하지 않습니다.</p>
+                  <p>수집한 정보는 회원 인증, 기록 저장과 조회, 복약 알림, 체중 변화 확인, 증상 기록 관리, 회차별 AI 분석, 외래 상담 준비, 문의 응대와 서비스 안정성 개선을 위해 사용합니다. 광고, 마케팅, 사용자 추적, 정보 판매 목적으로 사용하지 않습니다.</p>
                 </div>
                 <div class="policy-section">
                   <h4>3. 알림 권한</h4>
@@ -3038,23 +3056,36 @@
                 </div>
                 <div class="policy-section">
                   <h4>4. 걸음수 연동</h4>
-                  <p>걸음수 연동은 사용자가 명시적으로 허용한 경우에만 휴대폰의 걸음수를 증상 기록에 불러오기 위해 사용됩니다. 실제 앱에서는 iOS HealthKit 또는 Android Health Connect를 통해 걸음수를 불러오며, 권한 요청은 사용자가 걸음수 연동을 켤 때만 진행됩니다. 연동하지 않는 경우 사용자는 걸음수를 직접 입력할 수 있습니다. 앱은 걸음수 데이터를 광고, 추적, 제3자 판매 목적으로 사용하지 않습니다.</p>
+                  <p>걸음수 연동은 사용자가 마이페이지에서 직접 켤 때만 권한을 요청합니다. iOS에서는 HealthKit, Android에서는 Health Connect를 통해 휴대폰의 걸음수를 불러와 증상관리의 운동량 입력에 사용합니다. 걸음수 데이터는 광고, 마케팅, 사용자 추적 목적으로 사용하지 않으며, 사용자는 언제든 설정에서 연동을 끌 수 있습니다.</p>
                 </div>
                 <div class="policy-section">
                   <h4>5. AI 분석 활용</h4>
-                  <p>AI 분석은 사용자 정보, 체중 기록, 증상 기록을 바탕으로 식사량, 음수량, 운동량, 배변, 부작용을 요약합니다. 분석 결과는 참고용이며, 진단명 단정, 처방 변경, 치료 중단 권고를 제공하지 않습니다.</p>
+                  <p>AI 분석은 사용자가 AI분석 화면에서 분석을 요청할 때만 실행됩니다. 앱은 Claude API(Anthropic)를 직접 호출하지 않고 Firebase Cloud Functions 등 서버를 경유해 호출합니다. 분석 요청에는 연령, 성별, 암종/병기, 키, 체중, 증상, 식사, 수분, 걸음수, 배변, 부작용, 주요 증상 텍스트 등 분석에 필요한 최소 건강정보만 포함합니다. 이름, 이메일, Firebase UID, 로그인 제공자 정보는 Claude API 요청에 포함하지 않습니다.</p>
+                  <p>AI 분석 결과는 참고용 정보이며 의학적 진단, 처방, 치료 변경, 응급 판단을 대체하지 않습니다. 모든 증상과 건강 관련 결정은 담당 의료진과 상의해야 합니다.</p>
                 </div>
                 <div class="policy-section">
-                  <h4>6. 보관 및 삭제</h4>
-                  <p>사용자의 기록은 서비스 제공 기간 동안 보관되며, 회원탈퇴 또는 데이터 삭제 요청 시 관련 법령상 보관이 필요한 항목을 제외하고 삭제됩니다. 사용자는 앱 내 기능 또는 문의하기를 통해 개인정보 열람, 수정, 삭제를 요청할 수 있습니다.</p>
+                  <h4>6. 제3자 제공 및 처리 위탁</h4>
+                  <p>본 앱은 서비스 제공을 위해 Firebase Authentication, Firebase Cloud Functions, Firebase 데이터 저장소, Anthropic Claude API 등 외부 서비스를 사용할 수 있습니다. 외부 서비스에는 기능 제공에 필요한 최소 정보만 전달하며, 법령에 따른 경우를 제외하고 사용자의 동의 없이 건강정보를 판매하거나 광고 목적으로 제공하지 않습니다.</p>
                 </div>
                 <div class="policy-section">
-                  <h4>7. 제3자 제공 및 위탁</h4>
-                  <p>서비스 운영을 위해 Firebase Authentication 등 인증 및 저장 인프라를 사용할 수 있습니다. 개인정보를 제3자에게 판매하지 않으며, 외부 서비스 이용 시에는 개인정보 보호와 보안에 필요한 조치를 적용합니다.</p>
+                  <h4>7. 국외 처리 가능성</h4>
+                  <p>Firebase와 Anthropic 등 외부 서비스 제공자의 서버 위치에 따라 정보가 국외에서 처리될 수 있습니다. 국외 처리 항목은 서비스 제공, 인증, 데이터 저장, AI 분석에 필요한 정보로 제한되며, 실제 출시 전 운영 리전과 보관 기간을 기준으로 앱 내 고지를 최신 상태로 유지합니다.</p>
                 </div>
                 <div class="policy-section">
-                  <h4>8. 문의</h4>
-                  <p>개인정보 처리와 관련한 문의는 앱의 문의하기 메뉴를 통해 접수할 수 있습니다. 시행일과 사업자 정보, 개인정보 보호책임자 정보는 정식 배포 전 확정하여 고지합니다.</p>
+                  <h4>8. 보관 및 삭제</h4>
+                  <p>회원 정보와 기록은 회원이 서비스를 이용하는 기간 동안 보관합니다. 사용자가 기록을 삭제하거나 회원탈퇴를 요청하면 관련 계정과 앱 내 기록 삭제를 처리합니다. 단, 관계 법령 준수, 보안 사고 대응, 분쟁 해결을 위해 필요한 최소 정보는 정해진 기간 동안 보관될 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>9. 이용자 권리</h4>
+                  <p>사용자는 앱에서 본인의 정보를 확인, 수정, 삭제할 수 있으며 알림 권한, 걸음수 연동 권한, AI 분석 이용을 언제든 중단할 수 있습니다. 개인정보 관련 문의와 삭제 요청은 앱 내 문의하기 또는 개인정보 보호 문의처로 요청할 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>10. 아동 이용</h4>
+                  <p>본 앱은 항암치료 기록 관리가 필요한 사용자와 보호자가 이용할 수 있습니다. 만 14세 미만 아동의 개인정보를 처리하는 경우 법정대리인의 동의가 필요하며, 법정대리인은 아동의 개인정보 열람, 수정, 삭제, 처리 정지를 요청할 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>11. 문의</h4>
+                  <p>개인정보 처리와 관련한 문의는 앱의 문의하기 메뉴 또는 lab4nim@gmail.com으로 접수할 수 있습니다.</p>
                 </div>
               </div>
             </div>
@@ -3416,7 +3447,7 @@
           <button class="date-nav" id="dateNextMonth" type="button">›</button>
         </div>
         <div class="date-jump">
-          <input id="dateYearInput" type="number" min="1900" max="2100" aria-label="연도">
+          <input id="dateYearInput" type="number" min="1906" max="2026" aria-label="연도">
           <input id="dateMonthInput" type="number" min="1" max="12" aria-label="월">
         </div>
         <div class="date-grid" id="dateGrid"></div>
@@ -3614,6 +3645,22 @@
       month: 0
     };
 
+    function dateBoundsForInput(input) {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      if (input?.id === "birthDate") {
+        return { minYear: currentYear - 120, maxYear: currentYear };
+      }
+      return { minYear: 1990, maxYear: currentYear };
+    }
+
+    function clampDateState() {
+      const bounds = dateBoundsForInput(dateState.activeInput);
+      dateState.year = Math.min(Math.max(dateState.year, bounds.minYear), bounds.maxYear);
+      dateState.month = Math.min(Math.max(dateState.month, 0), 11);
+      return bounds;
+    }
+
     function formatDateValue(value) {
       if (!value) return "날짜 선택";
       const [year, month, day] = value.split("-");
@@ -3638,11 +3685,16 @@
       const title = document.getElementById("dateCurrentMonth");
       const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
       const selectedValue = dateState.activeInput?.value;
+      const bounds = clampDateState();
       const firstDay = (new Date(dateState.year, dateState.month, 1).getDay() + 6) % 7;
       const daysInMonth = new Date(dateState.year, dateState.month + 1, 0).getDate();
+      const yearInput = document.getElementById("dateYearInput");
 
       title.textContent = `${dateState.year}년 ${dateState.month + 1}월`;
-      document.getElementById("dateYearInput").value = dateState.year;
+      yearInput.min = bounds.minYear;
+      yearInput.max = bounds.maxYear;
+      yearInput.placeholder = `${bounds.minYear}~${bounds.maxYear}`;
+      yearInput.value = dateState.year;
       document.getElementById("dateMonthInput").value = dateState.month + 1;
       grid.innerHTML = "";
       weekdays.forEach(day => {
@@ -3975,6 +4027,9 @@
         1: ["#fce7f3", "#db2777"],
         2: ["#e7f8ef", "#059669"],
         3: ["#eff6ff", "#2563eb"],
+        4: ["#e0f7f4", "#0f766e"],
+        5: ["#e0f7fa", "#0891b2"],
+        6: ["#f3e8ff", "#7c3aed"],
       };
       const fixedTone = fixedTones[cycle];
       if (fixedTone) {
@@ -4677,7 +4732,7 @@
         console.error(error);
         result.innerHTML = `
           <div class="analysis-card">
-            <div class="analysis-title">AI 분석 결과</div>
+            <div class="analysis-title">AI 분석 결과 <span class="analysis-source-badge">임시 분석</span></div>
             <p class="small">분석 결과를 생성하는 중 오류가 발생했습니다. 기록 데이터를 다시 확인해 주세요.</p>
           </div>
         `;
@@ -4691,7 +4746,7 @@
       result.innerHTML = `
         <div class="analysis-card">
           <div class="analysis-block">
-            <div class="analysis-title">AI 분석 결과</div>
+            <div class="analysis-title">AI 분석 결과 <span class="analysis-source-badge">임시 분석</span></div>
             <div class="analysis-transient-loading" aria-hidden="true">
               <div class="spinner"></div>
               <p>AI가 증상 데이터를 분석하고 있습니다...</p>
@@ -5185,10 +5240,11 @@
     });
     document.getElementById("dateYearInput").addEventListener("change", event => {
       const year = Number(event.target.value);
-      if (year >= 1900 && year <= 2100) {
+      const bounds = dateBoundsForInput(dateState.activeInput);
+      if (year >= bounds.minYear && year <= bounds.maxYear) {
         dateState.year = year;
-        renderDateCalendar();
       }
+      renderDateCalendar();
     });
     document.getElementById("dateMonthInput").addEventListener("change", event => {
       const month = Number(event.target.value);

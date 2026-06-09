@@ -504,6 +504,21 @@ _CycleBadgeTone _cycleBadgeTone(int cycleNo) {
         foreground: Color(0xFF2563EB),
         background: Color(0xFFEFF6FF),
       );
+    case 4:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF0F766E),
+        background: Color(0xFFE0F7F4),
+      );
+    case 5:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF0891B2),
+        background: Color(0xFFE0F7FA),
+      );
+    case 6:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF7C3AED),
+        background: Color(0xFFF3E8FF),
+      );
   }
   final hue = ((cycleNo <= 0 ? 1 : cycleNo) * 67 + 211) % 360;
   return _CycleBadgeTone(
