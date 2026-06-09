@@ -8,6 +8,11 @@ class SymptomRecord {
     required this.steps,
     required this.bowel,
     required this.sideEffects,
+    this.breakfastMemo = '',
+    this.lunchMemo = '',
+    this.dinnerMemo = '',
+    this.extraMealMemo = '',
+    this.stepsSource = '수동',
     this.stoolStatus = '',
     this.note = '',
   });
@@ -16,8 +21,13 @@ class SymptomRecord {
   final int cycleNo;
   final int cycleDay;
   final String mealAmount;
+  final String breakfastMemo;
+  final String lunchMemo;
+  final String dinnerMemo;
+  final String extraMealMemo;
   final String waterAmount;
   final int steps;
+  final String stepsSource;
   final String bowel;
   final List<String> sideEffects;
   final String stoolStatus;

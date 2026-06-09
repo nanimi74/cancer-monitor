@@ -16,8 +16,27 @@ class CancerMonitorApp extends StatelessWidget {
       title: '항암기록관리',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      scrollBehavior: const _CancerMonitorScrollBehavior(),
       home: const AppStartFlow(),
     );
+  }
+}
+
+class _CancerMonitorScrollBehavior extends MaterialScrollBehavior {
+  const _CancerMonitorScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
+  }
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const ClampingScrollPhysics();
   }
 }
 

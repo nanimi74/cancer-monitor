@@ -1152,129 +1152,144 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.all(18),
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 430),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      '날짜 선택',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('닫기'),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, color: AppColors.line),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              child: Column(
-                children: [
-                  Row(
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.fromLTRB(18, 18, 18, 18 + bottomInset),
+      child: Dialog(
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 430,
+            maxHeight: MediaQuery.sizeOf(context).height -
+                bottomInset -
+                MediaQuery.paddingOf(context).vertical -
+                36,
+          ),
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                  child: Row(
                     children: [
-                      _DateNavButton(
-                        icon: Icons.chevron_left,
-                        onTap: () => _moveMonth(-1),
+                      const Expanded(
+                        child: Text(
+                          '날짜 선택',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            '${_visibleMonth.year}년 ${_visibleMonth.month}월',
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
+                      OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('닫기'),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: AppColors.line),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          _DateNavButton(
+                            icon: Icons.chevron_left,
+                            onTap: () => _moveMonth(-1),
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: Text(
+                                '${_visibleMonth.year}년 ${_visibleMonth.month}월',
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          _DateNavButton(
+                            icon: Icons.chevron_right,
+                            onTap: () => _moveMonth(1),
+                          ),
+                        ],
                       ),
-                      _DateNavButton(
-                        icon: Icons.chevron_right,
-                        onTap: () => _moveMonth(1),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _yearController,
-                          keyboardType: TextInputType.number,
-                          textInputAction: TextInputAction.next,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          onTap: () => SystemChannels.textInput
-                              .invokeMethod<void>('TextInput.show'),
-                          textAlign: TextAlign.center,
-                          decoration: _fieldDecoration(),
-                          onChanged: (_) => _jumpMonth(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _monthController,
-                          keyboardType: TextInputType.number,
-                          textInputAction: TextInputAction.done,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          onTap: () => SystemChannels.textInput
-                              .invokeMethod<void>('TextInput.show'),
-                          textAlign: TextAlign.center,
-                          decoration: _fieldDecoration(),
-                          onChanged: (_) => _jumpMonth(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 7,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 6,
-                    mainAxisSpacing: 6,
-                    children: [
-                      for (final weekday in const [
-                        '월',
-                        '화',
-                        '수',
-                        '목',
-                        '금',
-                        '토',
-                        '일',
-                      ])
-                        Center(
-                          child: Text(
-                            weekday,
-                            style: const TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 12,
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _yearController,
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.next,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              onTap: () => SystemChannels.textInput
+                                  .invokeMethod<void>('TextInput.show'),
+                              textAlign: TextAlign.center,
+                              decoration: _fieldDecoration(),
+                              onChanged: (_) => _jumpMonth(),
                             ),
                           ),
-                        ),
-                      ..._dateCells(),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _monthController,
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.done,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              onTap: () => SystemChannels.textInput
+                                  .invokeMethod<void>('TextInput.show'),
+                              textAlign: TextAlign.center,
+                              decoration: _fieldDecoration(),
+                              onChanged: (_) => _jumpMonth(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      GridView.count(
+                        crossAxisCount: 7,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisSpacing: 6,
+                        mainAxisSpacing: 6,
+                        children: [
+                          for (final weekday in const [
+                            '월',
+                            '화',
+                            '수',
+                            '목',
+                            '금',
+                            '토',
+                            '일',
+                          ])
+                            Center(
+                              child: Text(
+                                weekday,
+                                style: const TextStyle(
+                                  color: AppColors.muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ..._dateCells(),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1300,6 +1315,7 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
             final picked =
                 DateTime(_visibleMonth.year, _visibleMonth.month, day);
             if (_isDisabled(picked)) return;
+            FocusScope.of(context).unfocus();
             setState(() => _selected = picked);
             Navigator.of(context).pop(picked);
           },
@@ -1476,6 +1492,7 @@ class _TextInputState extends State<_TextInput> {
 
   @override
   Widget build(BuildContext context) {
+    final isNumberInput = widget.keyboardType == TextInputType.number;
     return _FieldShell(
       label: widget.label,
       required: widget.required,
@@ -1483,15 +1500,15 @@ class _TextInputState extends State<_TextInput> {
         controller: widget.controller,
         focusNode: _focusNode,
         keyboardType: widget.keyboardType ?? TextInputType.text,
+        textCapitalization: TextCapitalization.none,
         textInputAction: widget.maxLines > 1
             ? TextInputAction.newline
             : TextInputAction.done,
-        autocorrect: false,
-        enableSuggestions: false,
-        enableIMEPersonalizedLearning: false,
-        inputFormatters: widget.keyboardType == TextInputType.number
-            ? [FilteringTextInputFormatter.digitsOnly]
-            : null,
+        autocorrect: !isNumberInput,
+        enableSuggestions: !isNumberInput,
+        enableIMEPersonalizedLearning: !isNumberInput,
+        inputFormatters:
+            isNumberInput ? [FilteringTextInputFormatter.digitsOnly] : null,
         maxLength: widget.maxLength,
         maxLines: widget.maxLines,
         decoration: _fieldDecoration(hintText: widget.hintText),

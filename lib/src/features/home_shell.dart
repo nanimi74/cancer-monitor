@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../data/models/symptom_record.dart';
 import '../services/health/step_sync_service.dart';
 import '../services/notifications/notification_permission_service.dart';
 import 'analysis/analysis_screen.dart';
@@ -39,6 +40,7 @@ class _HomeShellState extends State<HomeShell> {
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
   double? _heightCm;
+  var _symptomRecords = <SymptomRecord>[];
 
   @override
   Widget build(BuildContext context) {
@@ -190,11 +192,18 @@ class _HomeShellState extends State<HomeShell> {
           hasRequiredInfo: _hasRequiredInfo,
           isPreview: widget.isPreview,
           stepSyncEnabled: _stepSyncEnabled,
+          initialRecords: _symptomRecords,
           stepSyncService: widget.stepSyncService,
           onStepSyncChanged: (value) =>
               setState(() => _stepSyncEnabled = value),
+          onRecordsChanged: (records) =>
+              setState(() => _symptomRecords = records),
         ),
-        const AnalysisScreen(),
+        AnalysisScreen(
+          hasRequiredInfo: _hasRequiredInfo,
+          isPreview: widget.isPreview,
+          records: _symptomRecords,
+        ),
       ];
 }
 
