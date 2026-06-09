@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
+import '../../data/models/symptom_record.dart';
 import '../../services/health/step_sync_service.dart';
 
 class SymptomScreen extends StatefulWidget {
@@ -12,22 +13,29 @@ class SymptomScreen extends StatefulWidget {
     this.hasRequiredInfo = true,
     this.isPreview = false,
     this.stepSyncEnabled = false,
+    this.initialRecords = const [],
     this.stepSyncService,
     this.onStepSyncChanged,
+    this.onRecordsChanged,
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
   final bool stepSyncEnabled;
+  final List<SymptomRecord> initialRecords;
   final StepSyncService? stepSyncService;
   final ValueChanged<bool>? onStepSyncChanged;
+  final ValueChanged<List<SymptomRecord>>? onRecordsChanged;
 
   @override
   State<SymptomScreen> createState() => _SymptomScreenState();
 }
 
 class _SymptomScreenState extends State<SymptomScreen> {
-  final _records = <DateTime, _SymptomRecord>{};
+  late final _records = {
+    for (final record in widget.initialRecords)
+      _dateOnly(record.date): _SymptomRecord.fromModel(record),
+  };
   late final StepSyncService _stepSyncService =
       widget.stepSyncService ?? PlatformStepSyncService();
   late var _stepSyncEnabled = widget.stepSyncEnabled;
@@ -75,6 +83,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
       _records[_dateOnly(date)] = result.record!;
       _selectedDate = _dateOnly(date);
     });
+    _notifyRecordsChanged();
     _showMessage('증상 기록을 저장했습니다.');
   }
 
@@ -99,7 +108,16 @@ class _SymptomScreenState extends State<SymptomScreen> {
     );
     if (!mounted || confirmed != true) return;
     setState(() => _records.remove(_dateOnly(date)));
+    _notifyRecordsChanged();
     _showMessage('증상 기록을 삭제했습니다.');
+  }
+
+  void _notifyRecordsChanged() {
+    final records = _records.entries
+        .map((entry) => entry.value.toModel(entry.key))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    widget.onRecordsChanged?.call(records);
   }
 
   void _selectDate(DateTime date) {
@@ -1959,6 +1977,25 @@ class _SymptomRecord {
     required this.note,
   });
 
+  factory _SymptomRecord.fromModel(SymptomRecord record) {
+    return _SymptomRecord(
+      cycleNo: record.cycleNo,
+      cycleDay: record.cycleDay,
+      mealAmount: record.mealAmount,
+      breakfastMemo: record.breakfastMemo,
+      lunchMemo: record.lunchMemo,
+      dinnerMemo: record.dinnerMemo,
+      extraMealMemo: record.extraMealMemo,
+      waterAmount: record.waterAmount,
+      steps: record.steps,
+      stepsSource: record.stepsSource,
+      bowel: record.bowel,
+      stoolStatus: record.stoolStatus.isEmpty ? null : record.stoolStatus,
+      sideEffects: record.sideEffects,
+      note: record.note,
+    );
+  }
+
   final int cycleNo;
   final int cycleDay;
   final String mealAmount;
@@ -1976,6 +2013,26 @@ class _SymptomRecord {
 
   List<String> get visibleSideEffects =>
       sideEffects.where((effect) => effect != '없음').take(3).toList();
+
+  SymptomRecord toModel(DateTime date) {
+    return SymptomRecord(
+      date: date,
+      cycleNo: cycleNo,
+      cycleDay: cycleDay,
+      mealAmount: mealAmount,
+      breakfastMemo: breakfastMemo,
+      lunchMemo: lunchMemo,
+      dinnerMemo: dinnerMemo,
+      extraMealMemo: extraMealMemo,
+      waterAmount: waterAmount,
+      steps: steps,
+      stepsSource: stepsSource,
+      bowel: bowel,
+      stoolStatus: stoolStatus ?? '',
+      sideEffects: sideEffects,
+      note: note,
+    );
+  }
 }
 
 class _SymptomEditorResult {
