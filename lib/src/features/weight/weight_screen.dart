@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
+import '../../data/models/weight_record.dart';
 
 class WeightScreen extends StatefulWidget {
   const WeightScreen({
@@ -12,11 +13,13 @@ class WeightScreen extends StatefulWidget {
     this.hasRequiredInfo = true,
     this.isPreview = false,
     this.heightCm,
+    this.onRecordsChanged,
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
   final double? heightCm;
+  final ValueChanged<List<WeightRecord>>? onRecordsChanged;
 
   @override
   State<WeightScreen> createState() => _WeightScreenState();
@@ -81,6 +84,7 @@ class _WeightScreenState extends State<WeightScreen> {
         _records[day] = result.weightKg!;
       }
     });
+    widget.onRecordsChanged?.call(_weightRecords);
     _showMessage(result.deleted ? '체중 기록이 삭제되었습니다.' : '체중 기록이 저장되었습니다.');
   }
 
@@ -152,6 +156,12 @@ class _WeightScreenState extends State<WeightScreen> {
     };
     return _sortedRecords
         .where((item) => !item.key.isBefore(start) && !item.key.isAfter(latest))
+        .toList();
+  }
+
+  List<WeightRecord> get _weightRecords {
+    return _sortedRecords
+        .map((entry) => WeightRecord(date: entry.key, weightKg: entry.value))
         .toList();
   }
 

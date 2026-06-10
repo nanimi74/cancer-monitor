@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 import '../data/models/symptom_record.dart';
+import '../data/models/user_profile.dart';
+import '../data/models/weight_record.dart';
 import '../services/health/step_sync_service.dart';
 import '../services/notifications/notification_permission_service.dart';
 import 'analysis/analysis_screen.dart';
@@ -40,6 +42,8 @@ class _HomeShellState extends State<HomeShell> {
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
   double? _heightCm;
+  UserProfile? _userProfile;
+  var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
 
   @override
@@ -174,6 +178,10 @@ class _HomeShellState extends State<HomeShell> {
           onRequiredInfoChanged: (value) =>
               setState(() => _hasRequiredInfo = value),
           onHeightChanged: (value) => setState(() => _heightCm = value),
+          onProfileChanged: (value) => setState(() {
+            _userProfile = value;
+            _heightCm = value?.heightCm;
+          }),
         ),
         MedicationScreen(
           hasRequiredInfo: _hasRequiredInfo,
@@ -187,6 +195,8 @@ class _HomeShellState extends State<HomeShell> {
           hasRequiredInfo: _hasRequiredInfo,
           isPreview: widget.isPreview,
           heightCm: _heightCm,
+          onRecordsChanged: (records) =>
+              setState(() => _weightRecords = records),
         ),
         SymptomScreen(
           hasRequiredInfo: _hasRequiredInfo,
@@ -202,7 +212,9 @@ class _HomeShellState extends State<HomeShell> {
         AnalysisScreen(
           hasRequiredInfo: _hasRequiredInfo,
           isPreview: widget.isPreview,
+          profile: _userProfile,
           records: _symptomRecords,
+          weights: _weightRecords,
         ),
       ];
 }

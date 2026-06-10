@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
 import '../../data/models/symptom_record.dart';
+import '../../data/models/user_profile.dart';
+import '../../data/models/weight_record.dart';
 import '../../services/ai/ai_analysis_service.dart';
 
 enum _AnalysisStatus { idle, loading, complete }
@@ -13,12 +15,16 @@ class AnalysisScreen extends StatefulWidget {
     super.key,
     this.hasRequiredInfo = true,
     this.isPreview = false,
+    this.profile,
     this.records = const [],
+    this.weights = const [],
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
+  final UserProfile? profile;
   final List<SymptomRecord> records;
+  final List<WeightRecord> weights;
 
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
@@ -45,6 +51,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   void didUpdateWidget(covariant AnalysisScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.records != widget.records ||
+        oldWidget.profile != widget.profile ||
+        oldWidget.weights != widget.weights ||
         oldWidget.hasRequiredInfo != widget.hasRequiredInfo) {
       final cycles = _recordsByCycle.keys.toSet();
       if (_selectedCycleNo != null && !cycles.contains(_selectedCycleNo)) {
@@ -74,10 +82,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         : grouped[selectedCycleNo - 1] ?? const <SymptomRecord>[];
     final result = await const AiAnalysisService().analyze(
       cycleNo: selectedCycleNo,
-      profile: null,
+      profile: widget.profile,
       records: records,
       previousRecords: previousRecords,
-      weights: const [],
+      weights: widget.weights,
     );
 
     if (!mounted) return;

@@ -106,7 +106,7 @@ class AiAnalysisService {
     final hasPrevious = previousRecords.isNotEmpty;
     final profileText = profile == null
         ? '이번 회차 기록'
-        : '만 ${profile.age(DateTime.now())}세, ${profile.cancerType} ${profile.stage}, 최근 체중 ${latestWeight?.toStringAsFixed(1) ?? '기록 없음'}kg';
+        : '만 ${profile.age(DateTime.now())}세, ${profile.cancerType} ${profile.stage}, ${profile.treatmentType}, 최근 체중 ${latestWeight?.toStringAsFixed(1) ?? '기록 없음'}kg';
 
     return AiAnalysisResult(
       items: [
@@ -209,7 +209,12 @@ class AiAnalysisService {
               'age': profile.age(DateTime.now()),
               'cancerType': profile.cancerType,
               'stage': profile.stage,
+              'diagnosisDate': _dateString(profile.diagnosisDate),
+              'metastasis': profile.metastasis,
+              'treatmentType': profile.treatmentType,
+              'treatmentStartDate': _dateString(profile.treatmentStartDate),
               'heightCm': profile.heightCm,
+              'extra': profile.extra,
             },
       'weights': weights
           .map(

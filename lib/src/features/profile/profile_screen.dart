@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
+import '../../data/models/user_profile.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/health/step_sync_service.dart';
 import '../../services/notifications/notification_permission_service.dart';
@@ -25,6 +26,7 @@ class ProfileScreen extends StatefulWidget {
     this.onStepSyncChanged,
     this.onRequiredInfoChanged,
     this.onHeightChanged,
+    this.onProfileChanged,
   });
 
   final bool hasRequiredInfo;
@@ -40,6 +42,7 @@ class ProfileScreen extends StatefulWidget {
   final ValueChanged<bool>? onStepSyncChanged;
   final ValueChanged<bool>? onRequiredInfoChanged;
   final ValueChanged<double?>? onHeightChanged;
+  final ValueChanged<UserProfile?>? onProfileChanged;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -85,6 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _profileInfo = result);
       widget.onRequiredInfoChanged?.call(true);
       widget.onHeightChanged?.call(result.heightCm);
+      widget.onProfileChanged?.call(result.toUserProfile());
     }
   }
 
@@ -1916,12 +1920,27 @@ class _ProfileInfo {
   final String extra;
 
   int get age {
-    final today = DateTime(2026, 6, 5);
+    final today = DateTime.now();
     var value = today.year - birthDate.year;
     final birthdayPassed = today.month > birthDate.month ||
         (today.month == birthDate.month && today.day >= birthDate.day);
     if (!birthdayPassed) value -= 1;
     return value;
+  }
+
+  UserProfile toUserProfile() {
+    return UserProfile(
+      sex: sex,
+      birthDate: birthDate,
+      cancerType: cancerType,
+      stage: stage,
+      diagnosisDate: diagnosisDate,
+      metastasis: metastasis,
+      treatmentType: treatmentType,
+      treatmentStartDate: treatmentStartDate,
+      heightCm: heightCm,
+      extra: extra,
+    );
   }
 }
 

@@ -1002,21 +1002,52 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   }
 
   Future<void> _pickMealAmount() async {
+    final scrollOffset = _currentScrollOffset();
+    FocusManager.instance.primaryFocus?.unfocus();
     final selected = await _showOptionSheet(
       title: '식사량',
       options: _mealOptions,
       currentValue: _mealAmount,
     );
-    if (selected != null) setState(() => _mealAmount = selected);
+    if (selected != null) {
+      setState(() => _mealAmount = selected);
+      _restoreScrollOffset(scrollOffset, repeat: true);
+    }
   }
 
   Future<void> _pickWaterAmount() async {
+    final scrollOffset = _currentScrollOffset();
+    FocusManager.instance.primaryFocus?.unfocus();
     final selected = await _showOptionSheet(
       title: '음수량',
       options: _waterOptions,
       currentValue: _waterAmount,
     );
-    if (selected != null) setState(() => _waterAmount = selected);
+    if (selected != null) {
+      setState(() => _waterAmount = selected);
+      _restoreScrollOffset(scrollOffset, repeat: true);
+    }
+  }
+
+  double _currentScrollOffset() {
+    return _scrollController.hasClients ? _scrollController.offset : 0;
+  }
+
+  void _restoreScrollOffset(double offset, {bool repeat = false}) {
+    void jump() {
+      if (!_scrollController.hasClients) return;
+      final position = _scrollController.position;
+      final safeOffset =
+          offset.clamp(position.minScrollExtent, position.maxScrollExtent);
+      _scrollController.jumpTo(safeOffset);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      jump();
+      if (!repeat) return;
+      Future<void>.delayed(const Duration(milliseconds: 60), jump);
+      Future<void>.delayed(const Duration(milliseconds: 160), jump);
+    });
   }
 
   Future<String?> _showOptionSheet({
@@ -1325,7 +1356,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                 child: Form(
                   key: _formKey,
                   child: ListView(
-                    key: const ValueKey('symptom-editor-scroll'),
+                    key: const PageStorageKey('symptom-editor-scroll'),
                     controller: _scrollController,
                     scrollCacheExtent: const ScrollCacheExtent.pixels(2400),
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),

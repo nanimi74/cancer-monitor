@@ -17,6 +17,7 @@ const ANALYSIS_TITLES = [
 exports.analyzeCycle = onCall(
   {
     region: "asia-northeast3",
+    invoker: "public",
     secrets: [anthropicApiKey],
     timeoutSeconds: 60,
     memory: "256MiB",
@@ -88,7 +89,12 @@ function sanitizeProfile(profile) {
     age: toNumber(profile.age),
     cancerType: toShortText(profile.cancerType, 80),
     stage: toShortText(profile.stage, 80),
+    diagnosisDate: toShortText(profile.diagnosisDate, 20),
+    metastasis: toShortText(profile.metastasis, 40),
+    treatmentType: toShortText(profile.treatmentType, 80),
+    treatmentStartDate: toShortText(profile.treatmentStartDate, 20),
     heightCm: toNumber(profile.heightCm),
+    extra: toShortText(profile.extra, 500),
   };
 }
 
@@ -133,7 +139,8 @@ function buildSystemPrompt() {
     `items는 ${ANALYSIS_TITLES.join(", ")} 5개 항목을 이 순서로 제공한다.`,
     "각 current와 previous는 150자 이하로 쓴다.",
     "previousRecords가 비어 있으면 previous 필드는 빈 문자열로 둔다.",
-    "comment는 사용자 연령, 병기, 체중, 식사량, 수분, 활동량, 배변, 부작용을 종합해 300자 이하로 쓴다.",
+    "comment는 사용자 연령, 암종, 병기, 진단일, 전이 여부, 치료방법, 치료 시작일, 체중 추이, 식사량, 수분, 활동량, 배변, 부작용, 기타정보를 종합해 300자 이하로 쓴다.",
+    "profile과 weights가 제공되면 반드시 분석 맥락에 반영하되, 기록되지 않은 값은 추정하지 않는다.",
     "comment 마지막에는 응원 문장을 넣지 않는다.",
     "encouragement는 짧은 응원 문장 1개이며 이모지 1개를 포함한다.",
     "의료진 상담이 필요한 신호가 있으면 단정하지 말고 담당 의료진에게 공유하라고 표현한다.",
