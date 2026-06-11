@@ -80,13 +80,24 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final previousRecords = selectedCycleNo <= 1
         ? const <SymptomRecord>[]
         : grouped[selectedCycleNo - 1] ?? const <SymptomRecord>[];
-    final result = await const AiAnalysisService().analyze(
-      cycleNo: selectedCycleNo,
-      profile: widget.profile,
-      records: records,
-      previousRecords: previousRecords,
-      weights: widget.weights,
-    );
+    AiAnalysisResult result;
+    try {
+      result = await const AiAnalysisService().analyze(
+        cycleNo: selectedCycleNo,
+        profile: widget.profile,
+        records: records,
+        previousRecords: previousRecords,
+        weights: widget.weights,
+      );
+    } on AiAnalysisException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _status = _AnalysisStatus.idle;
+        _result = null;
+      });
+      await _showAnalysisErrorDialog(error);
+      return;
+    }
 
     if (!mounted) return;
 
@@ -94,6 +105,68 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       _result = result;
       _status = _AnalysisStatus.complete;
     });
+  }
+
+  Future<void> _showAnalysisErrorDialog(AiAnalysisException error) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          error.title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              error.message,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 14,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.accentSoft,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.accentLine),
+              ),
+              child: Text(
+                '오류 코드: ${error.code}',
+                style: const TextStyle(
+                  color: AppColors.accent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              '확인',
+              style: TextStyle(
+                color: AppColors.accent,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickCycle(
@@ -547,20 +620,20 @@ class _AnalysisSourceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isClaude = source == AiAnalysisSource.claude;
+    final label = switch (source) {
+      AiAnalysisSource.claude => 'Claude 분석',
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isClaude ? AppColors.accentSoft : const Color(0xFFFFF7ED),
+        color: AppColors.accentSoft,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: isClaude ? AppColors.accentLine : const Color(0xFFFED7AA),
-        ),
+        border: Border.all(color: AppColors.accentLine),
       ),
       child: Text(
-        isClaude ? 'Claude 분석' : '임시 분석',
-        style: TextStyle(
-          color: isClaude ? AppColors.accent : const Color(0xFFC2410C),
+        label,
+        style: const TextStyle(
+          color: AppColors.accent,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),

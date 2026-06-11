@@ -2106,6 +2106,59 @@
       opacity: 1;
     }
 
+    .alert-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 230;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(17, 24, 39, .28);
+      padding: 20px;
+    }
+
+    .alert-backdrop.show {
+      display: flex;
+    }
+
+    .alert-dialog {
+      width: min(420px, 100%);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(31, 41, 55, .2);
+      padding: 22px;
+    }
+
+    .alert-dialog h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    .alert-dialog p {
+      margin: 0;
+      color: var(--sub);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .alert-code {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--accent-line);
+      border-radius: 12px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .alert-dialog .btn {
+      margin-top: 18px;
+      width: 100%;
+    }
+
     .bottom-sheet-backdrop {
       position: fixed;
       inset: 0;
@@ -3061,6 +3114,7 @@
                 <div class="policy-section">
                   <h4>5. AI 분석 활용</h4>
                   <p>AI 분석은 사용자가 AI분석 화면에서 분석을 요청할 때만 실행됩니다. 앱은 Claude API(Anthropic)를 직접 호출하지 않고 Firebase Cloud Functions 등 서버를 경유해 호출합니다. 분석 요청에는 연령, 성별, 암종/병기, 키, 체중, 증상, 식사, 수분, 걸음수, 배변, 부작용, 주요 증상 텍스트 등 분석에 필요한 최소 건강정보만 포함합니다. 이름, 이메일, Firebase UID, 로그인 제공자 정보는 Claude API 요청에 포함하지 않습니다.</p>
+                  <p>Claude API 모델이 중단되거나 일시적으로 사용할 수 없는 경우 앱은 임시 분석 결과를 생성하지 않으며, AI 분석을 완료하지 못했다는 안내와 오류 코드를 표시합니다. 운영자는 실제 제공 중인 Claude 모델과 개인정보 처리 조건을 확인한 뒤 서버 설정을 변경해 대응합니다.</p>
                   <p>AI 분석 결과는 참고용 정보이며 의학적 진단, 처방, 치료 변경, 응급 판단을 대체하지 않습니다. 모든 증상과 건강 관련 결정은 담당 의료진과 상의해야 합니다.</p>
                 </div>
                 <div class="policy-section">
@@ -3424,6 +3478,15 @@
 
   <div class="toast" id="toast"></div>
 
+  <div class="alert-backdrop" id="errorDialog" aria-hidden="true">
+    <div class="alert-dialog" role="alertdialog" aria-modal="true" aria-labelledby="errorDialogTitle">
+      <h3 id="errorDialogTitle">AI 분석을 완료하지 못했어요</h3>
+      <p id="errorDialogMessage">일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</p>
+      <div class="alert-code" id="errorDialogCode">오류 코드: unknown</div>
+      <button class="btn" id="errorDialogClose" type="button">확인</button>
+    </div>
+  </div>
+
   <div class="bottom-sheet-backdrop" id="selectSheet" aria-hidden="true">
     <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="selectSheetTitle">
       <div class="bottom-sheet-head">
@@ -3552,6 +3615,21 @@
       toast.textContent = message;
       toast.classList.add("show");
       setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    function showErrorDialog({ title, message, code }) {
+      const dialog = document.getElementById("errorDialog");
+      document.getElementById("errorDialogTitle").textContent = title || "오류가 발생했어요";
+      document.getElementById("errorDialogMessage").textContent = message || "잠시 후 다시 시도해 주세요.";
+      document.getElementById("errorDialogCode").textContent = `오류 코드: ${code || "unknown"}`;
+      dialog.classList.add("show");
+      dialog.setAttribute("aria-hidden", "false");
+    }
+
+    function closeErrorDialog() {
+      const dialog = document.getElementById("errorDialog");
+      dialog.classList.remove("show");
+      dialog.setAttribute("aria-hidden", "true");
     }
 
     function escapeHtml(value) {
@@ -4730,13 +4808,11 @@
         renderAnalysisComplete(cycleNo);
       } catch (error) {
         console.error(error);
-        result.innerHTML = `
-          <div class="analysis-card">
-            <div class="analysis-title">AI 분석 결과 <span class="analysis-source-badge">임시 분석</span></div>
-            <p class="small">분석 결과를 생성하는 중 오류가 발생했습니다. 기록 데이터를 다시 확인해 주세요.</p>
-          </div>
-        `;
-        result.classList.remove("hidden");
+        showErrorDialog({
+          title: "AI 분석을 완료하지 못했어요",
+          message: "분석 결과를 생성하는 중 오류가 발생했습니다. 기록 데이터를 확인한 뒤 다시 시도해 주세요.",
+          code: "prototype/analysis-render"
+        });
       }
     }
 
@@ -4746,7 +4822,7 @@
       result.innerHTML = `
         <div class="analysis-card">
           <div class="analysis-block">
-            <div class="analysis-title">AI 분석 결과 <span class="analysis-source-badge">임시 분석</span></div>
+            <div class="analysis-title">AI 분석 결과</div>
             <div class="analysis-transient-loading" aria-hidden="true">
               <div class="spinner"></div>
               <p>AI가 증상 데이터를 분석하고 있습니다...</p>
@@ -5012,6 +5088,10 @@
     document.getElementById("emailLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
     document.getElementById("appleLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
     document.getElementById("googleLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
+    document.getElementById("errorDialogClose")?.addEventListener("click", closeErrorDialog);
+    document.getElementById("errorDialog")?.addEventListener("click", event => {
+      if (event.target.id === "errorDialog") closeErrorDialog();
+    });
     document.getElementById("loginBtn").addEventListener("click", showEntryScreen);
     document.getElementById("logoutBtn").addEventListener("click", showEntryScreen);
     document.getElementById("previewExitBtn")?.addEventListener("click", showEntryScreen);

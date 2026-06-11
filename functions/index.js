@@ -4,7 +4,7 @@ const logger = require("firebase-functions/logger");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 
-const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
+const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-20241022";
 const ANTHROPIC_VERSION = "2023-06-01";
 const ANALYSIS_TITLES = [
   "식사량",
