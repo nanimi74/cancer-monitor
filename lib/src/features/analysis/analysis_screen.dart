@@ -857,7 +857,7 @@ class _AiCommentPanel extends StatelessWidget {
             const SizedBox(height: 10),
             _SentenceText(comment),
             const SizedBox(height: 12),
-            Text(
+            _RichAnalysisText(
               encouragement,
               style: const TextStyle(
                 color: AppColors.text,
@@ -998,7 +998,7 @@ class _SentenceText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
+    return _RichAnalysisText(
       _sentenceLines(text).join('\n'),
       style: const TextStyle(
         color: AppColors.text,
@@ -1008,6 +1008,54 @@ class _SentenceText extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RichAnalysisText extends StatelessWidget {
+  const _RichAnalysisText(this.text, {required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        children: _markdownBoldSpans(
+          text,
+          style,
+          style.copyWith(fontWeight: FontWeight.w800),
+        ),
+      ),
+      style: style,
+    );
+  }
+}
+
+List<TextSpan> _markdownBoldSpans(
+  String text,
+  TextStyle baseStyle,
+  TextStyle boldStyle,
+) {
+  final spans = <TextSpan>[];
+  final pattern = RegExp(r'\*\*(.+?)\*\*');
+  var cursor = 0;
+
+  for (final match in pattern.allMatches(text)) {
+    if (match.start > cursor) {
+      spans.add(TextSpan(text: text.substring(cursor, match.start)));
+    }
+    final boldText = match.group(1);
+    if (boldText != null && boldText.isNotEmpty) {
+      spans.add(TextSpan(text: boldText, style: boldStyle));
+    }
+    cursor = match.end;
+  }
+
+  if (cursor < text.length) {
+    spans.add(TextSpan(text: text.substring(cursor)));
+  }
+
+  return spans.isEmpty ? [TextSpan(text: text, style: baseStyle)] : spans;
 }
 
 class _SoftIcon extends StatelessWidget {

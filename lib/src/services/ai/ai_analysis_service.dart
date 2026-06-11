@@ -163,10 +163,10 @@ class AiAnalysisService {
         .map(
           (item) => AiAnalysisItem(
             title: '${item['title'] ?? ''}',
-            current: _limit('${item['current'] ?? ''}', 150),
+            current: _limit('${item['current'] ?? ''}', 250),
             previous: item['previous'] == null || '${item['previous']}'.isEmpty
                 ? null
-                : _limit('${item['previous']}', 150),
+                : _limit('${item['previous']}', 250),
           ),
         )
         .where((item) => item.title.isNotEmpty && item.current.isNotEmpty)
@@ -178,10 +178,10 @@ class AiAnalysisService {
 
     return AiAnalysisResult(
       items: items,
-      comment: _limit('${data['comment'] ?? ''}', 300),
+      comment: _limit('${data['comment'] ?? ''}', 500),
       encouragement: '${data['encouragement'] ?? ''}'.trim().isEmpty
           ? '오늘도 기록을 이어가고 계신 것만으로도 충분히 잘하고 있어요. 💜'
-          : '${data['encouragement']}',
+          : _limit('${data['encouragement']}', 120),
       detailNotes:
           records.where((record) => record.note.trim().isNotEmpty).toList(),
       source: AiAnalysisSource.claude,
