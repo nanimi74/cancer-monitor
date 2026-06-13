@@ -751,14 +751,14 @@ class _AnalysisItemPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            _SentenceText(item.current),
+            _InlineAnalysisText(item.current),
             if (item.previous != null) ...[
               const SizedBox(height: 12),
               const Divider(height: 1, color: Color(0xFFE5E7EB)),
               const SizedBox(height: 10),
               const _ComparisonLabel(),
               const SizedBox(height: 8),
-              _SentenceText(item.previous!),
+              _InlineAnalysisText(item.previous!),
             ],
           ],
         ),
@@ -855,7 +855,15 @@ class _AiCommentPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            _SentenceText(comment),
+            _RichAnalysisText(
+              _inlineAnalysisText(comment),
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 13,
+                height: 1.58,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 12),
             _RichAnalysisText(
               encouragement,
@@ -949,6 +957,7 @@ class _DetailNotes extends StatelessWidget {
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final record in notes) ...[
           DecoratedBox(
@@ -991,15 +1000,15 @@ class _DetailNotes extends StatelessWidget {
   }
 }
 
-class _SentenceText extends StatelessWidget {
-  const _SentenceText(this.text);
+class _InlineAnalysisText extends StatelessWidget {
+  const _InlineAnalysisText(this.text);
 
   final String text;
 
   @override
   Widget build(BuildContext context) {
     return _RichAnalysisText(
-      _sentenceLines(text).join('\n'),
+      _inlineAnalysisText(text),
       style: const TextStyle(
         color: AppColors.text,
         fontSize: 13,
@@ -1008,6 +1017,32 @@ class _SentenceText extends StatelessWidget {
       ),
     );
   }
+}
+
+String _inlineAnalysisText(String text) {
+  final compacted = text
+      .replaceAllMapped(
+        RegExp(r'(\d)\.\s+(?=\d)'),
+        (match) => '${match.group(1)}.',
+      )
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  return compacted
+      .replaceAllMapped(
+        RegExp(
+          r'(\d+(?:\.\d+)?)(\s*)([~～-])(\s*)(\d+(?:\.\d+)?)(\s*)(ml|mL|ML|L|l|kg|%|보|걸음)',
+        ),
+        (match) =>
+            '${match.group(1)}\u2060${match.group(3)}\u2060${match.group(5)}\u2060${match.group(7)}',
+      )
+      .replaceAllMapped(
+        RegExp(r'(\d+(?:\.\d+)?)(\s*)(ml|mL|ML|L|l|kg|%|보|걸음)'),
+        (match) => '${match.group(1)}\u2060${match.group(3)}',
+      )
+      .replaceAllMapped(
+        RegExp(r'(\d)\.(?=\d)'),
+        (match) => '${match.group(1)}.\u2060',
+      );
 }
 
 class _RichAnalysisText extends StatelessWidget {
@@ -1031,31 +1066,68 @@ class _RichAnalysisText extends StatelessWidget {
   }
 }
 
-List<TextSpan> _markdownBoldSpans(
+List<InlineSpan> _markdownBoldSpans(
   String text,
   TextStyle baseStyle,
   TextStyle boldStyle,
 ) {
-  final spans = <TextSpan>[];
+  final spans = <InlineSpan>[];
   final pattern = RegExp(r'\*\*(.+?)\*\*');
   var cursor = 0;
 
   for (final match in pattern.allMatches(text)) {
     if (match.start > cursor) {
-      spans.add(TextSpan(text: text.substring(cursor, match.start)));
+      spans.addAll(_protectedAnalysisSpans(
+          text.substring(cursor, match.start), baseStyle));
     }
     final boldText = match.group(1);
     if (boldText != null && boldText.isNotEmpty) {
-      spans.add(TextSpan(text: boldText, style: boldStyle));
+      spans.addAll(_protectedAnalysisSpans(boldText, boldStyle));
     }
     cursor = match.end;
   }
 
   if (cursor < text.length) {
-    spans.add(TextSpan(text: text.substring(cursor)));
+    spans.addAll(_protectedAnalysisSpans(text.substring(cursor), baseStyle));
   }
 
   return spans.isEmpty ? [TextSpan(text: text, style: baseStyle)] : spans;
+}
+
+List<InlineSpan> _protectedAnalysisSpans(String text, TextStyle style) {
+  final spans = <InlineSpan>[];
+  final pattern = RegExp(
+    '\\d+(?:\\.\\u2060?\\d+)?[\\u2060\\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)?[\\u2060\\s]*[~～-][\\u2060\\s]*\\d+(?:\\.\\u2060?\\d+)?[\\u2060\\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)|\\d+(?:\\.\\u2060?\\d+)?[\\u2060\\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)',
+  );
+  var cursor = 0;
+
+  for (final match in pattern.allMatches(text)) {
+    if (match.start > cursor) {
+      spans.add(
+          TextSpan(text: text.substring(cursor, match.start), style: style));
+    }
+    final token = match.group(0);
+    if (token != null && token.isNotEmpty) {
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Text(
+            token.replaceAll('\u2060', ''),
+            softWrap: false,
+            style: style,
+          ),
+        ),
+      );
+    }
+    cursor = match.end;
+  }
+
+  if (cursor < text.length) {
+    spans.add(TextSpan(text: text.substring(cursor), style: style));
+  }
+
+  return spans;
 }
 
 class _SoftIcon extends StatelessWidget {
@@ -1083,22 +1155,6 @@ class _SoftIcon extends StatelessWidget {
       ),
     );
   }
-}
-
-List<String> _sentenceLines(String text) {
-  final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-  if (normalized.isEmpty) return const [''];
-  final pieces = normalized
-      .splitMapJoin(
-        RegExp(r'(?<=[.!?。]|요\.|다\.)\s*'),
-        onMatch: (match) => '\n',
-        onNonMatch: (part) => part,
-      )
-      .split('\n')
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty)
-      .toList();
-  return pieces.isEmpty ? [normalized] : pieces;
 }
 
 String _formatDate(DateTime date) {

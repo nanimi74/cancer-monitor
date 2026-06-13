@@ -1831,7 +1831,11 @@
     .analysis-text p {
       margin: 0;
       word-break: keep-all;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
+    }
+
+    .analysis-nowrap {
+      white-space: nowrap;
     }
 
     .analysis-text strong {
@@ -1897,6 +1901,7 @@
     .analysis-detail-list {
       display: none;
       gap: 10px;
+      width: 100%;
     }
 
     .analysis-detail-list.show {
@@ -1904,6 +1909,8 @@
     }
 
     .analysis-note-card {
+      box-sizing: border-box;
+      width: 100%;
       border: 1px solid #f4dfae;
       border-left: 3px solid #f59e0b;
       border-radius: 13px;
@@ -4673,22 +4680,22 @@
 
       const messages = {
         meal: prevLowMeals
-          ? `이전 회차에도 식사 저하가 있어 **섭취 저하 패턴 반복** 여부 확인 필요. 이번 회차에서 더 빠르게 낮아졌다면 외래 때 구토·오심 동반 여부와 함께 공유하면 좋음.`
-          : `이전 회차보다 식사 저하 신호가 두드러진다면 **새로 생긴 섭취 변화**로 볼 수 있음. 메뉴 기록과 동반 증상을 함께 보면 상담 포인트가 더 분명해짐.`,
+          ? `이전 회차에도 **섭취 저하 패턴**이 있었음. 이번 회차에서 더 빠르게 낮아지면 구토·오심 동반 여부 공유 필요.`
+          : `이전 회차보다 식사 저하가 두드러지면 **새로운 섭취 변화**로 볼 수 있음. 동반 증상 확인 필요.`,
         water: prevLowWater
-          ? `이전 회차에도 낮은 수분섭취가 있어 **저수분 패턴의 반복성** 확인 필요. 이번 회차에서 같은 수준이 이어지면 구토·설사 동반 여부를 함께 공유하면 좋음.`
-          : `이전 회차보다 수분섭취가 낮아졌다면 **새로운 저수분 흐름**으로 볼 수 있음. 부족 기록이 반복되는지 확인 필요.`,
+          ? `이전 회차에도 낮은 수분섭취가 있어 **저수분 패턴 반복** 확인 필요. 구토·설사 동반 여부 공유 권장.`
+          : `이전보다 수분섭취가 낮아졌다면 **새로운 저수분 흐름**. 부족 기록 반복 여부 확인 필요.`,
         activity: prevAvgSteps && currentAvgSteps
-          ? `이전 평균 ${prevAvgSteps.toLocaleString()}보와 비교해 이번 활동량의 회복/저하 방향 확인. 저활동이 더 빨리 나타나면 **컨디션 저하 신호**로 공유할 만함.`
-          : "이전 회차와 비교할 걸음수 기록이 제한적이나, 이번 회차의 저활동이 반복되는지 확인 필요.",
+          ? `이전 평균 ${prevAvgSteps.toLocaleString()}보 대비 활동량 변화 확인. 저활동이 빨라지면 **컨디션 저하 신호**로 공유 필요.`
+          : "걸음수 비교 기록은 제한적. 이번 회차의 저활동 반복 여부 확인 필요.",
         bowel: prevBowelIssues
-          ? `이전 회차에도 배변 이상이 있어 **배변 리듬 변동성 반복** 여부 확인 필요. 이번 회차에서 설사 후 배변 없음처럼 방향이 바뀌면 상담 포인트가 됨.`
-          : `이전 회차보다 배변 리듬 변화가 두드러진다면 **새로운 변 상태 변화**로 볼 수 있음. 식사량과 수분섭취 저하가 함께 있는지 확인 필요.`,
+          ? `이전 회차에도 배변 이상이 있어 **배변 리듬 변동성 반복** 확인 필요. 변 상태 방향 변화가 상담 포인트.`
+          : `이전보다 배변 리듬 변화가 두드러지면 **새로운 변 상태 변화**. 식사·수분 저하 동반 여부 확인 필요.`,
         effects: prevEffects.length
-          ? `이전 회차의 부작용 흐름과 비교해 이번 증상이 **반복되는지 또는 다른 방향으로 진행되는지** 확인 필요. 식사·수분·활동 변화와 함께 나타나면 의료진에게 공유하면 좋음.`
-          : `이전 회차보다 부작용 기록이 늘었다면 **새로 관찰된 증상 흐름**으로 볼 수 있음. 반복성, 강도 변화, 일상 영향 여부를 함께 확인 필요.`
+          ? `이전 회차와 비교해 이번 증상이 **반복 또는 다른 방향으로 진행되는지** 확인 필요. 식사·수분·활동 변화와 함께 공유 권장.`
+          : `이전보다 부작용 기록이 늘면 **새로운 증상 흐름**. 반복성, 강도 변화, 일상 영향 확인 필요.`
       };
-      return limitText(messages[label], 250);
+      return limitText(messages[label], 190);
     }
 
     function summarizeAnalysis(cycleNo) {
@@ -4707,21 +4714,21 @@
       const profileMeta = `만 ${profileAge}세, ${profileValue("cancerType")} ${profileValue("stage")}, 최근 체중 ${latestWeightText()}`;
 
       const mealSummary = limitText(lowMeals.length
-        ? `식사량이 평소 수준에서 낮아지는 **섭취 저하 흐름** 관찰됨. ${mealMemos.length ? "기록된 식사 메모를 함께 보면 메뉴 다양성과 식사 유지 가능성을 외래 때 더 구체적으로 설명할 수 있음." : "구토·오심과 함께 나타난 변화인지 확인하면 상담 포인트가 더 분명해짐."}`
-        : `${mealMemos.length ? "**식사량은 비교적 유지 중**이며 메뉴 기록을 통해 섭취 다양성도 함께 확인 가능. " : "**평소 수준의 식사량이 비교적 유지 중**. "}식욕 저하가 새로 생기는지 계속 관찰하면 좋음.`, 250);
+        ? `평소 수준에서 낮아지는 **섭취 저하 흐름**. ${mealMemos.length ? "메뉴 다양성과 식사 유지 가능성을 함께 보면 상담 포인트가 분명해짐." : "구토·오심과 겹치는지 확인 필요."}`
+        : `${mealMemos.length ? "**식사량은 비교적 유지 중**이며 섭취 다양성도 확인 가능. " : "**평소 수준의 식사량 유지**. "}식욕 저하 새 발생 여부 관찰 필요.`, 190);
       const waterSummary = limitText(lowWater.length
-        ? `500ml 이하 수분섭취가 반복되어 **저수분 패턴** 관찰됨. 구토나 설사가 함께 있는 날에도 같은 수준이면 실제 수분 유지가 더 어려울 수 있어 확인 필요.`
-        : `수분섭취는 기록 범위 안에서 **큰 부족 신호가 두드러지지 않음**. 오심·구토나 설사가 있는 날에도 유지되는지 확인 필요.`, 250);
+        ? `500ml 이하 수분섭취가 반복되는 **저수분 패턴**. 구토·설사가 함께 있으면 실제 수분 유지 확인 필요.`
+        : `수분섭취는 기록 범위 안에서 **큰 부족 신호가 두드러지지 않음**. 오심·구토 동반 시 유지 여부 확인 필요.`, 190);
       const activitySummary = limitText(avgSteps
-        ? `평균 활동량은 약 **${avgSteps.toLocaleString()}보**. 초반과 후반의 걸음수 차이를 보면 활동 회복 또는 제한 흐름을 확인할 수 있고, 피로·어지러움·통증 동반 여부가 상담 포인트.`
-        : `걸음수 기록이 부족해 **활동량 변화 판단은 제한적**. 기록이 쌓이면 저활동이 일시적인지, 회차 후반 회복 추세가 있는지 확인 가능.`, 250);
+        ? `평균 활동량은 약 **${avgSteps.toLocaleString()}보**. 걸음수 흐름으로 활동 회복 또는 제한 신호 확인 가능.`
+        : `걸음수 기록이 부족해 **활동량 변화 판단은 제한적**. 저활동 반복 여부를 이어서 확인 필요.`, 190);
       const bowelSummary = limitText(bowelIssues.length
-        ? `정상 범위를 벗어난 변 상태가 있어 **배변 리듬 변동성** 관찰됨. 식사량 저하나 수분섭취 감소와 함께 나타나는지 확인하면 변비·설사 방향 변화를 설명하기 좋음.`
-        : `배변 기록에서는 **뚜렷한 이상 신호가 두드러지지 않음**. 없음/정상 기록 유지 여부와 설사·변비의 새 발생 확인 필요.`, 250);
+        ? `평소와 다른 변 상태로 **배변 리듬 변동성** 관찰. 식사·수분 변화와 함께 확인 필요.`
+        : `배변 기록에서는 **뚜렷한 이상 신호가 두드러지지 않음**. 설사·변비 새 발생 여부 확인 필요.`, 190);
       const sideEffectSummary = limitText(sideEffects.length
-        ? `주요 부작용은 개별 증상명보다 **반복성과 진행 방향**이 중요함. 식사량·수분·활동 변화와 함께 나타나는 증상은 외래 때 조절 필요성을 공유하면 좋음.`
-        : `주요 부작용은 없음으로 기록되었거나 특이 기록이 적음. 주요증상 메모의 **컨디션 변화와 식사·수분 흐름**도 함께 확인 필요.`, 250);
-      const aiComment = limitText(`${profileMeta} 기준으로 이번 ${cycleNo}회차는 식사, 수분, 활동량, 배변, 부작용이 같은 시점에 함께 변하는지를 보는 것이 중요합니다. ${sideEffects.length ? `특히 **${sideEffects[0]} 등 반복 증상**이 식사량이나 활동량 저하와 맞물린다면 외래 상담 때 증상 조절 필요성을 더 분명하게 전달할 수 있습니다.` : "**큰 부작용 신호가 적은 편**이라도 체중, 식사량, 수분섭취가 함께 안정적으로 유지되는지 확인하는 흐름이 필요합니다."}\n\n기록이 쌓일수록 회차별 회복 속도와 반복되는 불편감을 더 명확히 비교할 수 있으니, 변화가 컸던 날짜와 동반 증상을 함께 정리해 두면 상담에 도움이 됩니다.`, 500);
+        ? `주요 부작용은 증상명보다 **반복성과 진행 방향**이 중요함. 식사·수분·활동 변화와 함께 나타나면 공유 필요.`
+        : `주요 부작용은 없음이거나 특이 기록이 적음. **컨디션 변화와 식사·수분 흐름**을 함께 확인 필요.`, 190);
+      const aiComment = limitText(`${profileMeta} 기준으로 이번 ${cycleNo}회차는 식사, 수분, 활동량, 배변, 부작용이 함께 변하는 흐름을 보는 것이 중요합니다. ${sideEffects.length ? `특히 **${sideEffects[0]} 등 반복 증상**이 섭취나 활동 저하와 맞물리면 외래 상담 때 조절 필요성을 전달하면 좋습니다.` : "**큰 부작용 신호가 적은 편**이라도 체중, 식사량, 수분섭취가 함께 유지되는지 확인하면 좋습니다."}\n\n다음 상담 전에는 반복되는 불편감과 함께 낮아진 항목을 중심으로 정리해 두면 도움이 됩니다.`, 400);
       const encouragement = "오늘도 기록을 이어가고 계신 것만으로도 충분히 잘하고 있어요. 💜";
 
       return {
@@ -4754,35 +4761,34 @@
       `;
     }
 
-    function analysisParagraphHtml(value, options = {}) {
-      const text = String(value || "").trim();
-      if (!text) return "<p>기록 없음</p>";
-      const sentences = text
-        .replace(/\s+/g, " ")
-        .replace(/(습니다\.|주세요\.|입니다\.|[.!?。！？])\s+/g, "$1\n")
-        .split("\n")
-        .map(sentence => sentence.trim())
-        .filter(Boolean);
-      if (options.eachSentence) {
-        return sentences.map(sentence => `<p>${analysisInlineHtml(sentence)}</p>`).join("");
-      }
-      const chunks = [];
-      let current = "";
-      sentences.forEach(sentence => {
-        const next = current ? `${current} ${sentence}` : sentence;
-        if (current && next.length > (options.maxLineLength || 64)) {
-          chunks.push(current);
-          current = sentence;
-        } else {
-          current = next;
-        }
-      });
-      if (current) chunks.push(current);
-      return chunks.map(chunk => `<p>${analysisInlineHtml(chunk)}</p>`).join("");
+    function analysisInlineHtml(value) {
+      const unitPattern = /(\d+(?:\.\u2060?\d+)?[\u2060\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)?[\u2060\s]*[~～-][\u2060\s]*\d+(?:\.\u2060?\d+)?[\u2060\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)|\d+(?:\.\u2060?\d+)?[\u2060\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음))/g;
+      return escapeHtml(value)
+        .replace(unitPattern, '<span class="analysis-nowrap">$1</span>')
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     }
 
-    function analysisInlineHtml(value) {
-      return escapeHtml(value).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    function normalizeAnalysisText(value) {
+      const compacted = String(value || "")
+        .replace(/(\d)\.\s+(?=\d)/g, "$1.")
+        .replace(/\s+/g, " ")
+        .trim();
+      return compacted
+        .replace(
+          /(\d+(?:\.\d+)?)(\s*)([~～-])(\s*)(\d+(?:\.\d+)?)(\s*)(ml|mL|ML|L|l|kg|%|보|걸음)/g,
+          (_match, start, _space1, separator, _space2, end, _space3, unit) =>
+            `${start}\u2060${separator}\u2060${end}\u2060${unit}`
+        )
+        .replace(
+          /(\d+(?:\.\d+)?)(\s*)(ml|mL|ML|L|l|kg|%|보|걸음)/g,
+          (_match, value, _space, unit) => `${value}\u2060${unit}`
+        )
+        .replace(/(\d)\.(?=\d)/g, "$1.\u2060");
+    }
+
+    function analysisInlineParagraphHtml(value, fallback = "기록 없음") {
+      const text = normalizeAnalysisText(value);
+      return `<p>${analysisInlineHtml(text || fallback)}</p>`;
     }
 
     function analysisItemHtml(item, hasPrevious) {
@@ -4790,11 +4796,11 @@
         <div class="analysis-item">
           <h4><span class="analysis-item-icon">${item.icon}</span>${escapeHtml(item.title)}</h4>
           <div class="analysis-panel ${item.tone}">
-            <div class="analysis-text">${analysisParagraphHtml(item.current, { eachSentence: true })}</div>
+            <div class="analysis-text">${analysisInlineParagraphHtml(item.current)}</div>
             ${hasPrevious && item.previous ? `
               <div class="previous-box">
                 <span class="previous-label">📊 이전 비교</span>
-                <div class="analysis-text">${analysisParagraphHtml(item.previous, { eachSentence: true })}</div>
+                <div class="analysis-text">${analysisInlineParagraphHtml(item.previous)}</div>
               </div>
             ` : ""}
           </div>
@@ -4860,7 +4866,7 @@
               <div class="analysis-item">
                 <h4><span class="analysis-item-icon">AI</span>AI 코멘트 (참고용)</h4>
                 <div class="ai-comment-card">
-                  <div class="analysis-text">${analysisParagraphHtml(summary.aiComment, { maxLineLength: 72 })}</div>
+                  <div class="analysis-text">${analysisInlineParagraphHtml(summary.aiComment, "")}</div>
                   <p class="ai-encouragement">${escapeHtml(summary.encouragement)}</p>
                 </div>
               </div>
