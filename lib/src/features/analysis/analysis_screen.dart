@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
 import '../../data/models/symptom_record.dart';
+import '../../data/models/user_profile.dart';
+import '../../data/models/weight_record.dart';
 import '../../services/ai/ai_analysis_service.dart';
 
 enum _AnalysisStatus { idle, loading, complete }
@@ -12,12 +15,16 @@ class AnalysisScreen extends StatefulWidget {
     super.key,
     this.hasRequiredInfo = true,
     this.isPreview = false,
+    this.profile,
     this.records = const [],
+    this.weights = const [],
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
+  final UserProfile? profile;
   final List<SymptomRecord> records;
+  final List<WeightRecord> weights;
 
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
@@ -44,6 +51,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   void didUpdateWidget(covariant AnalysisScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.records != widget.records ||
+        oldWidget.profile != widget.profile ||
+        oldWidget.weights != widget.weights ||
         oldWidget.hasRequiredInfo != widget.hasRequiredInfo) {
       final cycles = _recordsByCycle.keys.toSet();
       if (_selectedCycleNo != null && !cycles.contains(_selectedCycleNo)) {
@@ -71,13 +80,24 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final previousRecords = selectedCycleNo <= 1
         ? const <SymptomRecord>[]
         : grouped[selectedCycleNo - 1] ?? const <SymptomRecord>[];
-    final result = await const AiAnalysisService().analyze(
-      cycleNo: selectedCycleNo,
-      profile: null,
-      records: records,
-      previousRecords: previousRecords,
-      weights: const [],
-    );
+    AiAnalysisResult result;
+    try {
+      result = await const AiAnalysisService().analyze(
+        cycleNo: selectedCycleNo,
+        profile: widget.profile,
+        records: records,
+        previousRecords: previousRecords,
+        weights: widget.weights,
+      );
+    } on AiAnalysisException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _status = _AnalysisStatus.idle;
+        _result = null;
+      });
+      await _showAnalysisErrorDialog(error);
+      return;
+    }
 
     if (!mounted) return;
 
@@ -85,6 +105,68 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       _result = result;
       _status = _AnalysisStatus.complete;
     });
+  }
+
+  Future<void> _showAnalysisErrorDialog(AiAnalysisException error) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          error.title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              error.message,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 14,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.accentSoft,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.accentLine),
+              ),
+              child: Text(
+                '오류 코드: ${error.code}',
+                style: const TextStyle(
+                  color: AppColors.accent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              '확인',
+              style: TextStyle(
+                color: AppColors.accent,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickCycle(
@@ -471,7 +553,7 @@ class _AnalysisResultView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _ResultTitle(),
+              _ResultTitle(source: result.source),
               const SizedBox(height: 16),
               _SelectedPeriodBox(
                 cycleNo: cycleNo,
@@ -508,19 +590,54 @@ class _AnalysisResultView extends StatelessWidget {
 }
 
 class _ResultTitle extends StatelessWidget {
-  const _ResultTitle();
+  const _ResultTitle({required this.source});
+
+  final AiAnalysisSource source;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
-        _SoftIcon(label: 'AI'),
-        SizedBox(width: 8),
-        Text(
+        const _SoftIcon(label: 'AI'),
+        const SizedBox(width: 8),
+        const Text(
           'AI 분석 결과',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
+        if (!kReleaseMode) ...[
+          const SizedBox(width: 8),
+          _AnalysisSourceBadge(source: source),
+        ],
       ],
+    );
+  }
+}
+
+class _AnalysisSourceBadge extends StatelessWidget {
+  const _AnalysisSourceBadge({required this.source});
+
+  final AiAnalysisSource source;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (source) {
+      AiAnalysisSource.claude => 'Claude 분석',
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.accentSoft,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.accentLine),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.accent,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -634,14 +751,14 @@ class _AnalysisItemPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            _SentenceText(item.current),
+            _InlineAnalysisText(item.current),
             if (item.previous != null) ...[
               const SizedBox(height: 12),
               const Divider(height: 1, color: Color(0xFFE5E7EB)),
               const SizedBox(height: 10),
               const _ComparisonLabel(),
               const SizedBox(height: 8),
-              _SentenceText(item.previous!),
+              _InlineAnalysisText(item.previous!),
             ],
           ],
         ),
@@ -738,9 +855,17 @@ class _AiCommentPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            _SentenceText(comment),
+            _RichAnalysisText(
+              _inlineAnalysisText(comment),
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 13,
+                height: 1.58,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 12),
-            Text(
+            _RichAnalysisText(
               encouragement,
               style: const TextStyle(
                 color: AppColors.text,
@@ -832,6 +957,7 @@ class _DetailNotes extends StatelessWidget {
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final record in notes) ...[
           DecoratedBox(
@@ -874,15 +1000,15 @@ class _DetailNotes extends StatelessWidget {
   }
 }
 
-class _SentenceText extends StatelessWidget {
-  const _SentenceText(this.text);
+class _InlineAnalysisText extends StatelessWidget {
+  const _InlineAnalysisText(this.text);
 
   final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      _sentenceLines(text).join('\n'),
+    return _RichAnalysisText(
+      _inlineAnalysisText(text),
       style: const TextStyle(
         color: AppColors.text,
         fontSize: 13,
@@ -891,6 +1017,117 @@ class _SentenceText extends StatelessWidget {
       ),
     );
   }
+}
+
+String _inlineAnalysisText(String text) {
+  final compacted = text
+      .replaceAllMapped(
+        RegExp(r'(\d)\.\s+(?=\d)'),
+        (match) => '${match.group(1)}.',
+      )
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  return compacted
+      .replaceAllMapped(
+        RegExp(
+          r'(\d+(?:\.\d+)?)(\s*)([~～-])(\s*)(\d+(?:\.\d+)?)(\s*)(ml|mL|ML|L|l|kg|%|보|걸음)',
+        ),
+        (match) =>
+            '${match.group(1)}\u2060${match.group(3)}\u2060${match.group(5)}\u2060${match.group(7)}',
+      )
+      .replaceAllMapped(
+        RegExp(r'(\d+(?:\.\d+)?)(\s*)(ml|mL|ML|L|l|kg|%|보|걸음)'),
+        (match) => '${match.group(1)}\u2060${match.group(3)}',
+      )
+      .replaceAllMapped(
+        RegExp(r'(\d)\.(?=\d)'),
+        (match) => '${match.group(1)}.\u2060',
+      );
+}
+
+class _RichAnalysisText extends StatelessWidget {
+  const _RichAnalysisText(this.text, {required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        children: _markdownBoldSpans(
+          text,
+          style,
+          style.copyWith(fontWeight: FontWeight.w800),
+        ),
+      ),
+      style: style,
+    );
+  }
+}
+
+List<InlineSpan> _markdownBoldSpans(
+  String text,
+  TextStyle baseStyle,
+  TextStyle boldStyle,
+) {
+  final spans = <InlineSpan>[];
+  final pattern = RegExp(r'\*\*(.+?)\*\*');
+  var cursor = 0;
+
+  for (final match in pattern.allMatches(text)) {
+    if (match.start > cursor) {
+      spans.addAll(_protectedAnalysisSpans(
+          text.substring(cursor, match.start), baseStyle));
+    }
+    final boldText = match.group(1);
+    if (boldText != null && boldText.isNotEmpty) {
+      spans.addAll(_protectedAnalysisSpans(boldText, boldStyle));
+    }
+    cursor = match.end;
+  }
+
+  if (cursor < text.length) {
+    spans.addAll(_protectedAnalysisSpans(text.substring(cursor), baseStyle));
+  }
+
+  return spans.isEmpty ? [TextSpan(text: text, style: baseStyle)] : spans;
+}
+
+List<InlineSpan> _protectedAnalysisSpans(String text, TextStyle style) {
+  final spans = <InlineSpan>[];
+  final pattern = RegExp(
+    '\\d+(?:\\.\\u2060?\\d+)?[\\u2060\\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)?[\\u2060\\s]*[~～-][\\u2060\\s]*\\d+(?:\\.\\u2060?\\d+)?[\\u2060\\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)|\\d+(?:\\.\\u2060?\\d+)?[\\u2060\\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)',
+  );
+  var cursor = 0;
+
+  for (final match in pattern.allMatches(text)) {
+    if (match.start > cursor) {
+      spans.add(
+          TextSpan(text: text.substring(cursor, match.start), style: style));
+    }
+    final token = match.group(0);
+    if (token != null && token.isNotEmpty) {
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Text(
+            token.replaceAll('\u2060', ''),
+            softWrap: false,
+            style: style,
+          ),
+        ),
+      );
+    }
+    cursor = match.end;
+  }
+
+  if (cursor < text.length) {
+    spans.add(TextSpan(text: text.substring(cursor), style: style));
+  }
+
+  return spans;
 }
 
 class _SoftIcon extends StatelessWidget {
@@ -918,22 +1155,6 @@ class _SoftIcon extends StatelessWidget {
       ),
     );
   }
-}
-
-List<String> _sentenceLines(String text) {
-  final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-  if (normalized.isEmpty) return const [''];
-  final pieces = normalized
-      .splitMapJoin(
-        RegExp(r'(?<=[.!?。]|요\.|다\.)\s*'),
-        onMatch: (match) => '\n',
-        onNonMatch: (part) => part,
-      )
-      .split('\n')
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty)
-      .toList();
-  return pieces.isEmpty ? [normalized] : pieces;
 }
 
 String _formatDate(DateTime date) {

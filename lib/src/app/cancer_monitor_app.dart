@@ -36,7 +36,46 @@ class _CancerMonitorScrollBehavior extends MaterialScrollBehavior {
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
-    return const ClampingScrollPhysics();
+    return const _SmoothClampingScrollPhysics();
+  }
+}
+
+class _SmoothClampingScrollPhysics extends ClampingScrollPhysics {
+  const _SmoothClampingScrollPhysics({super.parent});
+
+  @override
+  _SmoothClampingScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _SmoothClampingScrollPhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
+    if (position.outOfRange) {
+      return super.createBallisticSimulation(position, velocity);
+    }
+
+    final tolerance = toleranceFor(position);
+    final adjustedVelocity = velocity * 0.82;
+
+    if (adjustedVelocity.abs() < tolerance.velocity) {
+      return null;
+    }
+    if (adjustedVelocity > 0.0 && position.pixels >= position.maxScrollExtent) {
+      return null;
+    }
+    if (adjustedVelocity < 0.0 && position.pixels <= position.minScrollExtent) {
+      return null;
+    }
+
+    return ClampingScrollSimulation(
+      position: position.pixels,
+      velocity: adjustedVelocity,
+      friction: 0.02,
+      tolerance: tolerance,
+    );
   }
 }
 

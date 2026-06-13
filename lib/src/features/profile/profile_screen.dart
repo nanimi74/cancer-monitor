@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
+import '../../data/models/user_profile.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/health/step_sync_service.dart';
 import '../../services/notifications/notification_permission_service.dart';
@@ -25,6 +26,7 @@ class ProfileScreen extends StatefulWidget {
     this.onStepSyncChanged,
     this.onRequiredInfoChanged,
     this.onHeightChanged,
+    this.onProfileChanged,
   });
 
   final bool hasRequiredInfo;
@@ -40,6 +42,7 @@ class ProfileScreen extends StatefulWidget {
   final ValueChanged<bool>? onStepSyncChanged;
   final ValueChanged<bool>? onRequiredInfoChanged;
   final ValueChanged<double?>? onHeightChanged;
+  final ValueChanged<UserProfile?>? onProfileChanged;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -85,6 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _profileInfo = result);
       widget.onRequiredInfoChanged?.call(true);
       widget.onHeightChanged?.call(result.heightCm);
+      widget.onProfileChanged?.call(result.toUserProfile());
     }
   }
 
@@ -723,12 +727,20 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
     DateTime? firstDate,
     DateTime? lastDate,
   }) async {
+    final today = _dateOnly(DateTime.now());
+    final resolvedFirstDate = firstDate ?? DateTime(1990);
+    final resolvedLastDate = lastDate ?? today;
+    final fallback = _clampDate(
+      value ?? today,
+      resolvedFirstDate,
+      resolvedLastDate,
+    );
     final picked = await showDialog<DateTime>(
       context: context,
       builder: (context) => _DatePickerDialog(
-        initialDate: value ?? DateTime(2026, 6, 5),
-        firstDate: firstDate ?? DateTime(1900),
-        lastDate: lastDate ?? DateTime(2100),
+        initialDate: fallback,
+        firstDate: resolvedFirstDate,
+        lastDate: resolvedLastDate,
       ),
     );
     if (picked != null) onPicked(picked);
@@ -863,7 +875,12 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                       value: _formatDate(_birthDate),
                       onTap: () => _pickDate(
                         value: _birthDate,
-                        lastDate: DateTime(2026, 6, 5),
+                        firstDate: DateTime(
+                          DateTime.now().year - 120,
+                          DateTime.now().month,
+                          DateTime.now().day,
+                        ),
+                        lastDate: _dateOnly(DateTime.now()),
                         onPicked: (value) => setState(() => _birthDate = value),
                       ),
                     ),
@@ -1124,24 +1141,81 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
 
   void _moveMonth(int delta) {
     setState(() {
-      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+      _visibleMonth = _clampMonth(
+          DateTime(_visibleMonth.year, _visibleMonth.month + delta));
       _syncInputs();
     });
   }
 
-  void _jumpMonth() {
-    final year = int.tryParse(_yearController.text);
-    final month = int.tryParse(_monthController.text);
-    if (year == null || month == null || month < 1 || month > 12) return;
-    setState(() {
-      _visibleMonth = DateTime(year, month);
-      _syncInputs();
-    });
+  DateTime _clampMonth(DateTime value) {
+    final month = DateTime(value.year, value.month);
+    final minMonth = DateTime(widget.firstDate.year, widget.firstDate.month);
+    final maxMonth = DateTime(widget.lastDate.year, widget.lastDate.month);
+    if (month.isBefore(minMonth)) return minMonth;
+    if (month.isAfter(maxMonth)) return maxMonth;
+    return month;
   }
 
   void _syncInputs() {
     _yearController.text = _visibleMonth.year.toString();
     _monthController.text = _visibleMonth.month.toString();
+  }
+
+  Future<void> _pickYear() async {
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _DateYearInputSheet(
+        minYear: widget.firstDate.year,
+        maxYear: widget.lastDate.year,
+        selectedYear: _visibleMonth.year,
+      ),
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _visibleMonth = _clampMonth(DateTime(selected, _visibleMonth.month));
+      _syncInputs();
+    });
+  }
+
+  Future<void> _pickMonth() async {
+    final minMonth = _visibleMonth.year == widget.firstDate.year
+        ? widget.firstDate.month
+        : 1;
+    final maxMonth =
+        _visibleMonth.year == widget.lastDate.year ? widget.lastDate.month : 12;
+    final selected = await _pickNumber(
+      title: '월 선택',
+      values: [for (var month = minMonth; month <= maxMonth; month++) month],
+      selectedValue: _visibleMonth.month,
+      suffix: '월',
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _visibleMonth = _clampMonth(DateTime(_visibleMonth.year, selected));
+      _syncInputs();
+    });
+  }
+
+  Future<int?> _pickNumber({
+    required String title,
+    required List<int> values,
+    required int selectedValue,
+    required String suffix,
+  }) {
+    return showModalBottomSheet<int>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _DateNumberPickerSheet(
+        title: title,
+        values: values,
+        selectedValue: selectedValue,
+        suffix: suffix,
+      ),
+    );
   }
 
   bool _isDisabled(DateTime date) {
@@ -1225,32 +1299,24 @@ class _DatePickerDialogState extends State<_DatePickerDialog> {
                           Expanded(
                             child: TextField(
                               controller: _yearController,
-                              keyboardType: TextInputType.number,
-                              textInputAction: TextInputAction.next,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              onTap: () => SystemChannels.textInput
-                                  .invokeMethod<void>('TextInput.show'),
+                              readOnly: true,
+                              showCursor: false,
+                              enableInteractiveSelection: false,
+                              onTap: _pickYear,
                               textAlign: TextAlign.center,
                               decoration: _fieldDecoration(),
-                              onChanged: (_) => _jumpMonth(),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
                               controller: _monthController,
-                              keyboardType: TextInputType.number,
-                              textInputAction: TextInputAction.done,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              onTap: () => SystemChannels.textInput
-                                  .invokeMethod<void>('TextInput.show'),
+                              readOnly: true,
+                              showCursor: false,
+                              enableInteractiveSelection: false,
+                              onTap: _pickMonth,
                               textAlign: TextAlign.center,
                               decoration: _fieldDecoration(),
-                              onChanged: (_) => _jumpMonth(),
                             ),
                           ),
                         ],
@@ -1345,6 +1411,231 @@ class _DateNavButton extends StatelessWidget {
           foregroundColor: AppColors.text,
         ),
         child: Icon(icon, size: 19),
+      ),
+    );
+  }
+}
+
+class _DateYearInputSheet extends StatefulWidget {
+  const _DateYearInputSheet({
+    required this.minYear,
+    required this.maxYear,
+    required this.selectedYear,
+  });
+
+  final int minYear;
+  final int maxYear;
+  final int selectedYear;
+
+  @override
+  State<_DateYearInputSheet> createState() => _DateYearInputSheetState();
+}
+
+class _DateYearInputSheetState extends State<_DateYearInputSheet> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.selectedYear.toString());
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final year = int.tryParse(_controller.text.trim());
+    if (year == null || year < widget.minYear || year > widget.maxYear) {
+      setState(() {
+        _errorText = '${widget.minYear}~${widget.maxYear}년 사이로 입력해주세요.';
+      });
+      return;
+    }
+    Navigator.of(context).pop(year);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(14, 14, 14, 14 + bottomInset),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 430),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: AppColors.line),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.text.withValues(alpha: .14),
+                blurRadius: 30,
+                offset: const Offset(0, -8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '연도 입력',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('닫기'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(4),
+                  ],
+                  decoration: _fieldDecoration().copyWith(
+                    hintText: '${widget.minYear}~${widget.maxYear}년 사이로 입력',
+                    errorText: _errorText,
+                  ),
+                  onSubmitted: (_) => _submit(),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: _submit,
+                  child: const Text('적용'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateNumberPickerSheet extends StatelessWidget {
+  const _DateNumberPickerSheet({
+    required this.title,
+    required this.values,
+    required this.selectedValue,
+    required this.suffix,
+  });
+
+  final String title;
+  final List<int> values;
+  final int selectedValue;
+  final String suffix;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 430, maxHeight: 360),
+        margin: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.line),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.text.withValues(alpha: .14),
+              blurRadius: 30,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 12, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('닫기'),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.line),
+            Flexible(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                itemCount: values.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 6),
+                itemBuilder: (context, index) {
+                  final value = values[index];
+                  final selected = value == selectedValue;
+                  return Material(
+                    color: selected
+                        ? AppColors.accentSoft
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(value),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '$value$suffix',
+                                style: TextStyle(
+                                  color: selected
+                                      ? AppColors.accent
+                                      : AppColors.text,
+                                  fontSize: 15,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (selected)
+                              const Icon(
+                                Icons.check_rounded,
+                                color: AppColors.accent,
+                                size: 18,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1629,12 +1920,27 @@ class _ProfileInfo {
   final String extra;
 
   int get age {
-    final today = DateTime(2026, 6, 5);
+    final today = DateTime.now();
     var value = today.year - birthDate.year;
     final birthdayPassed = today.month > birthDate.month ||
         (today.month == birthDate.month && today.day >= birthDate.day);
     if (!birthdayPassed) value -= 1;
     return value;
+  }
+
+  UserProfile toUserProfile() {
+    return UserProfile(
+      sex: sex,
+      birthDate: birthDate,
+      cancerType: cancerType,
+      stage: stage,
+      diagnosisDate: diagnosisDate,
+      metastasis: metastasis,
+      treatmentType: treatmentType,
+      treatmentStartDate: treatmentStartDate,
+      heightCm: heightCm,
+      extra: extra,
+    );
   }
 }
 
@@ -1647,4 +1953,13 @@ String _formatDate(DateTime? date) {
 
 DateTime _dateOnly(DateTime date) {
   return DateTime(date.year, date.month, date.day);
+}
+
+DateTime _clampDate(DateTime value, DateTime firstDate, DateTime lastDate) {
+  final date = _dateOnly(value);
+  final minDate = _dateOnly(firstDate);
+  final maxDate = _dateOnly(lastDate);
+  if (date.isBefore(minDate)) return minDate;
+  if (date.isAfter(maxDate)) return maxDate;
+  return date;
 }
