@@ -145,6 +145,31 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
+  List<Medication> _disableMedicationReminders(
+    List<Medication> medications,
+  ) {
+    return [
+      for (final medication in medications)
+        Medication(
+          id: medication.id,
+          name: medication.name,
+          dose: medication.dose,
+          frequency: medication.frequency,
+          weekdays: medication.weekdays,
+          reminderEnabled: false,
+          reminders: [
+            for (final reminder in medication.reminders)
+              MedicationReminder(
+                label: reminder.label,
+                time: reminder.time,
+                enabled: false,
+              ),
+          ],
+          memo: medication.memo,
+        ),
+    ];
+  }
+
   Future<void> _queueWrite(Future<void> Function() operation) {
     final write = _pendingWrite
         .catchError((_) {})
@@ -324,6 +349,10 @@ class _HomeShellState extends State<HomeShell> {
           stepSyncEnabled: _stepSyncEnabled,
           onNotificationPermissionChanged: (value) => setState(() {
             _notificationEnabled = value;
+            if (!value && _medications.any((item) => item.reminderEnabled)) {
+              _medications = _disableMedicationReminders(_medications);
+              _saveMedications(_medications);
+            }
             _saveSettings();
           }),
           onStepSyncChanged: (value) => setState(() {

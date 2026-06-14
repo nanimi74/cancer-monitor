@@ -431,7 +431,7 @@ void main() {
     expect(find.text('항구토제'), findsOneWidget);
   });
 
-  testWidgets('profile notification toggle keeps medication records',
+  testWidgets('profile notification toggle disables medication reminders',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -472,8 +472,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
-    expect(find.text('켜짐'), findsOneWidget);
-    expect(find.text('꺼짐'), findsNothing);
+    expect(find.text('꺼짐'), findsOneWidget);
+    expect(find.text('켜짐'), findsNothing);
 
     await tester.tap(find.text('마이페이지'));
     await tester.pumpAndSettle();
@@ -488,8 +488,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
-    expect(find.text('켜짐'), findsOneWidget);
-    expect(find.text('꺼짐'), findsNothing);
+    expect(find.text('꺼짐'), findsOneWidget);
+    expect(find.text('켜짐'), findsNothing);
   });
 
   testWidgets('medication defaults to notification setting without enabling it',
