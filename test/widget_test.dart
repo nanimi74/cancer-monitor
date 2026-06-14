@@ -490,6 +490,41 @@ void main() {
     expect(find.text('꺼짐'), findsNothing);
   });
 
+  testWidgets('home shell shows navigation while user data is loading',
+      (WidgetTester tester) async {
+    final repository = _DelayedLoadUserDataRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('마이페이지'), findsWidgets);
+    expect(find.text('복약관리'), findsOneWidget);
+    expect(find.text('체중관리'), findsOneWidget);
+    expect(find.text('증상관리'), findsOneWidget);
+    expect(find.text('AI분석'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+
+    repository.completeLoad();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    await tester.tap(find.text('마이페이지').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('사용자 정보 요약'), findsOneWidget);
+    expect(find.text('유방암 · 2기'), findsOneWidget);
+  });
+
   testWidgets('sign out waits for pending user data save',
       (WidgetTester tester) async {
     final repository = _DelayedUserDataRepository();
@@ -633,6 +668,32 @@ class _DelayedUserDataRepository extends UserDataRepository {
 
   void completeSave() {
     _saveCompleter?.complete();
+  }
+}
+
+class _DelayedLoadUserDataRepository extends UserDataRepository {
+  final _loadCompleter = Completer<UserDataSnapshot>();
+
+  @override
+  Future<UserDataSnapshot> load(String userId) => _loadCompleter.future;
+
+  void completeLoad() {
+    _loadCompleter.complete(
+      UserDataSnapshot(
+        settings: const UserSettings(),
+        profile: UserProfile(
+          sex: '여성',
+          birthDate: DateTime(1974, 3, 12),
+          cancerType: '유방암',
+          stage: '2기',
+          diagnosisDate: DateTime(2026, 1, 15),
+          metastasis: '없음',
+          treatmentType: '항암치료',
+          treatmentStartDate: DateTime(2026, 4, 1),
+          heightCm: 162,
+        ),
+      ),
+    );
   }
 }
 

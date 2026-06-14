@@ -192,12 +192,21 @@ class _HomeShellState extends State<HomeShell> {
               child: SizedBox(
                 width: width,
                 height: constraints.maxHeight,
-                child: _loadingUserData
-                    ? const Center(child: CircularProgressIndicator())
-                    : IndexedStack(
-                        index: _index,
-                        children: _screens,
+                child: Stack(
+                  children: [
+                    IndexedStack(
+                      index: _index,
+                      children: _screens,
+                    ),
+                    if (_loadingUserData)
+                      const Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: LinearProgressIndicator(minHeight: 2),
                       ),
+                  ],
+                ),
               ),
             );
           },
