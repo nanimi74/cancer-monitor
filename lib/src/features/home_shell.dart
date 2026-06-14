@@ -83,7 +83,10 @@ class _HomeShellState extends State<HomeShell> {
     final userId = widget.userId!;
     setState(() => _loadingUserData = true);
     try {
-      final snapshot = await _userDataRepository.load(userId);
+      final remoteSnapshot = await _userDataRepository.load(userId);
+      final cachedSnapshot =
+          await _userDataRepository.loadCachedSnapshot(userId);
+      final snapshot = cachedSnapshot ?? remoteSnapshot;
       if (!mounted || widget.userId != userId) return;
       setState(() {
         _notificationEnabled = snapshot.settings.notificationEnabled;
@@ -96,8 +99,27 @@ class _HomeShellState extends State<HomeShell> {
         _symptomRecords = snapshot.symptoms;
         if (_hasRequiredInfo && _index == 0) _index = 3;
       });
+      if (cachedSnapshot == null) {
+        unawaited(_userDataRepository.saveCachedSnapshot(userId, snapshot));
+      }
     } catch (_) {
-      if (!mounted) return;
+      final cachedSnapshot =
+          await _userDataRepository.loadCachedSnapshot(userId);
+      if (!mounted || widget.userId != userId) return;
+      if (cachedSnapshot != null) {
+        setState(() {
+          _notificationEnabled = cachedSnapshot.settings.notificationEnabled;
+          _stepSyncEnabled = cachedSnapshot.settings.stepSyncEnabled;
+          _userProfile = cachedSnapshot.profile;
+          _heightCm = cachedSnapshot.profile?.heightCm;
+          _hasRequiredInfo = cachedSnapshot.profile != null;
+          _medications = cachedSnapshot.medications;
+          _weightRecords = cachedSnapshot.weights;
+          _symptomRecords = cachedSnapshot.symptoms;
+          if (_hasRequiredInfo && _index == 0) _index = 3;
+        });
+        return;
+      }
       _showMessage('저장된 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       if (mounted && widget.userId == userId) {
@@ -108,6 +130,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveSettings() {
     if (!_canPersist) return;
+    _cacheCurrentSnapshot();
     _queueWrite(
       () => _userDataRepository.saveSettings(
         widget.userId!,
@@ -121,11 +144,13 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveProfile(UserProfile? profile) {
     if (!_canPersist || profile == null) return;
+    _cacheCurrentSnapshot();
     _queueWrite(() => _userDataRepository.saveProfile(widget.userId!, profile));
   }
 
   void _saveMedications(List<Medication> medications) {
     if (!_canPersist) return;
+    _cacheCurrentSnapshot();
     _queueWrite(
       () => _userDataRepository.saveMedications(widget.userId!, medications),
     );
@@ -133,13 +158,34 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveWeights(List<WeightRecord> records) {
     if (!_canPersist) return;
+    _cacheCurrentSnapshot();
     _queueWrite(() => _userDataRepository.saveWeights(widget.userId!, records));
   }
 
   void _saveSymptoms(List<SymptomRecord> records) {
     if (!_canPersist) return;
+    _cacheCurrentSnapshot();
     _queueWrite(
       () => _userDataRepository.saveSymptoms(widget.userId!, records),
+    );
+  }
+
+  void _cacheCurrentSnapshot() {
+    if (!_canPersist) return;
+    unawaited(
+      _userDataRepository.saveCachedSnapshot(
+        widget.userId!,
+        UserDataSnapshot(
+          settings: UserSettings(
+            notificationEnabled: _notificationEnabled,
+            stepSyncEnabled: _stepSyncEnabled,
+          ),
+          profile: _userProfile,
+          medications: _medications,
+          weights: _weightRecords,
+          symptoms: _symptomRecords,
+        ),
+      ),
     );
   }
 

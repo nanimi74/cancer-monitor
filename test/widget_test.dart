@@ -13,8 +13,13 @@ import 'package:cancer_monitor/src/data/models/user_profile.dart';
 import 'package:cancer_monitor/src/data/repositories/user_data_repository.dart';
 import 'package:cancer_monitor/src/services/health/step_sync_service.dart';
 import 'package:cancer_monitor/src/services/notifications/notification_permission_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('starts from entry screen and opens preview shell',
       (WidgetTester tester) async {
     await tester.pumpWidget(const CancerMonitorApp());
@@ -552,6 +557,29 @@ void main() {
     expect(find.text('유방암 · 2기'), findsOneWidget);
   });
 
+  testWidgets('home shell restores cached medication records after sign in',
+      (WidgetTester tester) async {
+    final repository = _CachedMedicationUserDataRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('항구토제'), findsOneWidget);
+    expect(find.text('등록된 약물이 없습니다.'), findsNothing);
+  });
+
   testWidgets('sign out waits for pending user data save',
       (WidgetTester tester) async {
     final repository = _DelayedUserDataRepository();
@@ -775,6 +803,42 @@ class _DelayedMedicationSaveRepository extends UserDataRepository {
 
   void completeMedicationSave() {
     _saveCompleter.complete();
+  }
+}
+
+class _CachedMedicationUserDataRepository extends UserDataRepository {
+  @override
+  Future<UserDataSnapshot> load(String userId) async {
+    return const UserDataSnapshot(settings: UserSettings());
+  }
+
+  @override
+  Future<UserDataSnapshot?> loadCachedSnapshot(String userId) async {
+    return UserDataSnapshot(
+      settings: const UserSettings(),
+      profile: UserProfile(
+        sex: '여성',
+        birthDate: DateTime(1974, 3, 12),
+        cancerType: '유방암',
+        stage: '2기',
+        diagnosisDate: DateTime(2026, 1, 15),
+        metastasis: '없음',
+        treatmentType: '항암치료',
+        treatmentStartDate: DateTime(2026, 4, 1),
+        heightCm: 162,
+      ),
+      medications: const [
+        Medication(
+          id: 1,
+          name: '항구토제',
+          dose: '1정',
+          frequency: '',
+          weekdays: [],
+          reminderEnabled: false,
+          reminders: [],
+        ),
+      ],
+    );
   }
 }
 

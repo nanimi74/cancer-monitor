@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/medication.dart';
 import '../models/symptom_record.dart';
@@ -39,6 +42,8 @@ class UserDataRepository {
 
   FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;
 
+  String _cacheKey(String userId) => 'user_data_snapshot_v1_$userId';
+
   Future<UserDataSnapshot> load(String userId) async {
     final paths = UserDataPaths(userId);
     final userDoc = await _db.doc(paths.userDocument).get();
@@ -73,6 +78,33 @@ class UserDataRepository {
       'stepSyncEnabled': settings.stepSyncEnabled,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  Future<UserDataSnapshot?> loadCachedSnapshot(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_cacheKey(userId));
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return _snapshotFromCacheMap(_objectMap(jsonDecode(raw)));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveCachedSnapshot(
+    String userId,
+    UserDataSnapshot snapshot,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _cacheKey(userId),
+      jsonEncode(_snapshotToCacheMap(snapshot)),
+    );
+  }
+
+  Future<void> clearCachedSnapshot(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_cacheKey(userId));
   }
 
   Future<void> saveProfile(String userId, UserProfile profile) async {
@@ -160,6 +192,7 @@ class UserDataRepository {
   }
 
   Future<void> deleteUserData(String userId) async {
+    await clearCachedSnapshot(userId);
     final paths = UserDataPaths(userId);
     await _deleteCollection(paths.medicationsCollection);
     await _deleteCollection(paths.weightsCollection);
@@ -174,12 +207,18 @@ class UserDataRepository {
     required Map<String, Map<String, Object?>> values,
   }) async {
     final collection = _db.collection(collectionPath);
-    if (values.isEmpty) return;
+    final snapshot = await collection.get();
+    final staleDocs =
+        snapshot.docs.where((doc) => !values.containsKey(doc.id)).toList();
+    if (values.isEmpty && staleDocs.isEmpty) return;
 
     final batch = _db.batch();
 
     for (final entry in values.entries) {
       batch.set(collection.doc(entry.key), entry.value);
+    }
+    for (final doc in staleDocs) {
+      batch.delete(doc.reference);
     }
 
     await batch.commit();
@@ -203,6 +242,108 @@ class UserDataRepository {
       notificationEnabled: data['notificationEnabled'] == true,
       stepSyncEnabled: data['stepSyncEnabled'] == true,
     );
+  }
+
+  static Map<String, Object?> _snapshotToCacheMap(UserDataSnapshot snapshot) {
+    return {
+      'settings': {
+        'notificationEnabled': snapshot.settings.notificationEnabled,
+        'stepSyncEnabled': snapshot.settings.stepSyncEnabled,
+      },
+      'profile': snapshot.profile == null
+          ? null
+          : _profileToCacheMap(snapshot.profile!),
+      'medications': [
+        for (final medication in snapshot.medications)
+          _medicationToCacheMap(medication),
+      ],
+      'weights': [
+        for (final weight in snapshot.weights) _weightToCacheMap(weight),
+      ],
+      'symptoms': [
+        for (final symptom in snapshot.symptoms) _symptomToCacheMap(symptom),
+      ],
+    };
+  }
+
+  static UserDataSnapshot _snapshotFromCacheMap(Map<String, Object?> data) {
+    return UserDataSnapshot(
+      settings: _settingsFromMap(_objectMap(data['settings'])),
+      profile: data['profile'] == null
+          ? null
+          : _profileFromMap(_objectMap(data['profile'])),
+      medications: _objectMapList(data['medications'])
+          .map(_medicationFromMap)
+          .toList(growable: false),
+      weights: _objectMapList(data['weights'])
+          .map((item) => _weightFromMap(item, _string(item['date'])))
+          .toList(growable: false),
+      symptoms: _objectMapList(data['symptoms'])
+          .map((item) => _symptomFromMap(item, _string(item['date'])))
+          .toList(growable: false),
+    );
+  }
+
+  static Map<String, Object?> _profileToCacheMap(UserProfile profile) {
+    return {
+      'sex': profile.sex,
+      'birthDate': _dateKey(profile.birthDate),
+      'cancerType': profile.cancerType,
+      'stage': profile.stage,
+      'diagnosisDate': _dateKey(profile.diagnosisDate),
+      'metastasis': profile.metastasis,
+      'treatmentType': profile.treatmentType,
+      'treatmentStartDate': _dateKey(profile.treatmentStartDate),
+      'heightCm': profile.heightCm,
+      'extra': profile.extra,
+    };
+  }
+
+  static Map<String, Object?> _medicationToCacheMap(Medication medication) {
+    return {
+      'id': medication.id,
+      'name': medication.name,
+      'dose': medication.dose,
+      'frequency': medication.frequency,
+      'weekdays': medication.weekdays,
+      'reminderEnabled': medication.reminderEnabled,
+      'reminders': [
+        for (final reminder in medication.reminders)
+          {
+            'label': reminder.label,
+            'time': reminder.time,
+            'enabled': reminder.enabled,
+          },
+      ],
+      'memo': medication.memo,
+    };
+  }
+
+  static Map<String, Object?> _weightToCacheMap(WeightRecord weight) {
+    return {
+      'date': _dateKey(weight.date),
+      'weightKg': weight.weightKg,
+    };
+  }
+
+  static Map<String, Object?> _symptomToCacheMap(SymptomRecord symptom) {
+    return {
+      'date': _dateKey(symptom.date),
+      'cycleNo': symptom.cycleNo,
+      'cycleDay': symptom.cycleDay,
+      'mealAmount': symptom.mealAmount,
+      'breakfastMemo': symptom.breakfastMemo,
+      'lunchMemo': symptom.lunchMemo,
+      'dinnerMemo': symptom.dinnerMemo,
+      'extraMealMemo': symptom.extraMealMemo,
+      'waterAmount': symptom.waterAmount,
+      'steps': symptom.steps,
+      'stepsSource': symptom.stepsSource,
+      'bowel': symptom.bowel,
+      'stoolStatus': symptom.stoolStatus,
+      'sideEffects': symptom.sideEffects,
+      'note': symptom.note,
+    };
   }
 
   static UserProfile _profileFromMap(Map<String, Object?> data) {
@@ -322,6 +463,21 @@ class UserDataRepository {
   static List<String> _stringList(Object? value) {
     return (value as List<dynamic>? ?? const [])
         .whereType<String>()
+        .toList(growable: false);
+  }
+
+  static Map<String, Object?> _objectMap(Object? value) {
+    if (value is Map<String, Object?>) return value;
+    if (value is Map) {
+      return value.map((key, value) => MapEntry(key.toString(), value));
+    }
+    return const {};
+  }
+
+  static List<Map<String, Object?>> _objectMapList(Object? value) {
+    return (value as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map(_objectMap)
         .toList(growable: false);
   }
 

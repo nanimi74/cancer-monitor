@@ -145,6 +145,15 @@ class _WeightScreenState extends State<WeightScreen> {
               onSelectDate: _openWeightEditor,
             ),
           ),
+          const SizedBox(height: 14),
+          AppCard(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+            child: _WeightChartSection(
+              range: _range,
+              records: _chartRecords(),
+              onRangeChanged: (value) => setState(() => _range = value),
+            ),
+          ),
           if (latest != null && widget.heightCm != null) ...[
             const SizedBox(height: 14),
             _BmiCard(
@@ -156,15 +165,6 @@ class _WeightScreenState extends State<WeightScreen> {
             const SizedBox(height: 14),
             _WeightAdviceCard(advice: advice),
           ],
-          const SizedBox(height: 14),
-          AppCard(
-            padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
-            child: _WeightChartSection(
-              range: _range,
-              records: _chartRecords(),
-              onRangeChanged: (value) => setState(() => _range = value),
-            ),
-          ),
           const SizedBox(height: 22),
           const Text(
             'BMI와 체중 변화 안내는 참고용 정보이며,\n의학적 진단이나 치료 결정을 대체하지 않습니다.',
