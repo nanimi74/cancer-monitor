@@ -532,6 +532,49 @@ void main() {
     expect(repository.savedSettings, isTrue);
     expect(signedOut, isTrue);
   });
+
+  testWidgets('sign out proceeds when pending user data save stalls',
+      (WidgetTester tester) async {
+    final repository = _DelayedUserDataRepository();
+    var signedOut = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: true,
+          userId: 'user-1',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+          onSignOut: () async {
+            signedOut = true;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('마이페이지'));
+    await tester.pumpAndSettle();
+
+    await tester
+        .tap(find.byKey(const ValueKey('notification-permission-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('허용'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -800));
+    await tester.pumpAndSettle();
+    final signOutButton = find.widgetWithText(OutlinedButton, '로그아웃').last;
+    await tester.tap(signOutButton);
+    await tester.pump();
+
+    expect(signedOut, isFalse);
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+
+    expect(repository.savedSettings, isTrue);
+    expect(signedOut, isTrue);
+  });
 }
 
 class _FakeNotificationPermissionService

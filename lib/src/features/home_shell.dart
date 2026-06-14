@@ -45,6 +45,8 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
+  static const _writeTimeout = Duration(seconds: 6);
+
   late final UserDataRepository _userDataRepository =
       widget.userDataRepository ?? UserDataRepository();
   late var _hasRequiredInfo = widget.hasRequiredInfo;
@@ -144,12 +146,16 @@ class _HomeShellState extends State<HomeShell> {
   void _queueWrite(Future<void> Function() operation) {
     _pendingWrite = _pendingWrite
         .catchError((_) {})
-        .then((_) => operation())
+        .then((_) => operation().timeout(_writeTimeout))
         .catchError((_) => _showSaveError());
   }
 
   Future<void> _flushPendingWrites() async {
-    await _pendingWrite;
+    try {
+      await _pendingWrite.timeout(_writeTimeout);
+    } catch (_) {
+      _showSaveError();
+    }
   }
 
   Future<void> _handleSignOut() async {
