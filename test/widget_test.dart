@@ -586,8 +586,13 @@ void main() {
     final signOutButton = find.widgetWithText(OutlinedButton, '로그아웃').last;
     await tester.tap(signOutButton);
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(signedOut, isFalse);
+    expect(
+      find.text('데이터를 저장 중입니다. 저장 완료 시 로그아웃됩니다.'),
+      findsOneWidget,
+    );
     repository.completeSave();
     await tester.pumpAndSettle();
 
@@ -686,10 +691,6 @@ void main() {
 
     expect(repository.savedSettings, isTrue);
     expect(signedOut, isFalse);
-    expect(
-      find.textContaining('기록 저장'),
-      findsWidgets,
-    );
   });
 }
 

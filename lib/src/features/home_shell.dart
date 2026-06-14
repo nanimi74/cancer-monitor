@@ -194,6 +194,9 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _handleSignOut() async {
+    if (_canPersist) {
+      _showMessage('데이터를 저장 중입니다. 저장 완료 시 로그아웃됩니다.');
+    }
     final saved = await _flushPendingWrites();
     if (!saved) {
       throw const AuthFailure('기록 저장이 끝나지 않아 로그아웃하지 않았습니다.');
@@ -202,6 +205,9 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _handleDeleteAccount() async {
+    if (_canPersist) {
+      _showMessage('데이터를 저장 중입니다. 저장 완료 후 회원탈퇴가 진행됩니다.');
+    }
     final saved = await _flushPendingWrites();
     if (!saved) {
       throw const AuthFailure('기록 저장이 끝나지 않아 회원탈퇴를 진행하지 않았습니다.');
@@ -216,7 +222,8 @@ class _HomeShellState extends State<HomeShell> {
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
