@@ -135,6 +135,17 @@ class _WeightScreenState extends State<WeightScreen> {
             const RequiredInfoBanner(),
             const SizedBox(height: 14),
           ],
+          if (latest != null && widget.heightCm != null) ...[
+            _BmiCard(
+              latest: latest,
+              heightCm: widget.heightCm!,
+            ),
+            const SizedBox(height: 14),
+          ],
+          if (_weightAdvice(latest) case final advice?) ...[
+            _WeightAdviceCard(advice: advice),
+            const SizedBox(height: 14),
+          ],
           AppCard(
             padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
             child: _WeightCalendar(
@@ -154,17 +165,6 @@ class _WeightScreenState extends State<WeightScreen> {
               onRangeChanged: (value) => setState(() => _range = value),
             ),
           ),
-          if (latest != null && widget.heightCm != null) ...[
-            const SizedBox(height: 14),
-            _BmiCard(
-              latest: latest,
-              heightCm: widget.heightCm!,
-            ),
-          ],
-          if (_weightAdvice(latest) case final advice?) ...[
-            const SizedBox(height: 14),
-            _WeightAdviceCard(advice: advice),
-          ],
           const SizedBox(height: 22),
           const Text(
             'BMI와 체중 변화 안내는 참고용 정보이며,\n의학적 진단이나 치료 결정을 대체하지 않습니다.',
@@ -253,7 +253,7 @@ class _BmiCard extends StatelessWidget {
                 TextSpan(
                   text: bmi.toStringAsFixed(1),
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -263,11 +263,12 @@ class _BmiCard extends StatelessWidget {
             ),
             style: const TextStyle(
               color: AppColors.text,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(
             status.description,
             maxLines: 2,
@@ -275,10 +276,16 @@ class _BmiCard extends StatelessWidget {
             style: const TextStyle(
                 color: AppColors.muted, fontSize: 13, height: 1.4),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(
             '최근 체중 ${latest.value.toStringAsFixed(1)}kg · 마지막 입력일 ${_formatDate(latest.key)}',
-            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 13,
+              height: 1.45,
+            ),
           ),
         ],
       ),

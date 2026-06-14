@@ -201,9 +201,17 @@ void main() {
 
     final today = DateTime.now();
     final tomorrow = today.add(const Duration(days: 1));
+    final todayCell =
+        find.byKey(ValueKey('weight-day-${_testFormatDate(today)}'));
+    final tomorrowCell =
+        find.byKey(ValueKey('weight-day-${_testFormatDate(tomorrow)}'));
 
-    await tester
-        .tap(find.byKey(ValueKey('weight-day-${_testFormatDate(today)}')));
+    await tester.scrollUntilVisible(
+      todayCell,
+      350,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(todayCell);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '51.0');
     await tester.tap(find.text('저장'));
@@ -213,9 +221,12 @@ void main() {
     expect(find.textContaining('최근 체중 51.0kg'), findsOneWidget);
     expect(find.text('51.0kg'), findsWidgets);
 
-    await tester.tap(
-      find.byKey(ValueKey('weight-day-${_testFormatDate(tomorrow)}')),
+    await tester.scrollUntilVisible(
+      tomorrowCell,
+      350,
+      scrollable: find.byType(Scrollable).first,
     );
+    await tester.tap(tomorrowCell);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '50.5');
     await tester.tap(find.text('저장'));
@@ -238,17 +249,28 @@ void main() {
 
     final today = DateTime.now();
     final tomorrow = today.add(const Duration(days: 1));
+    final todayCell =
+        find.byKey(ValueKey('weight-day-${_testFormatDate(today)}'));
+    final tomorrowCell =
+        find.byKey(ValueKey('weight-day-${_testFormatDate(tomorrow)}'));
 
-    await tester
-        .tap(find.byKey(ValueKey('weight-day-${_testFormatDate(today)}')));
+    await tester.scrollUntilVisible(
+      todayCell,
+      350,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(todayCell);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '50.0');
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(ValueKey('weight-day-${_testFormatDate(tomorrow)}')),
+    await tester.scrollUntilVisible(
+      tomorrowCell,
+      350,
+      scrollable: find.byType(Scrollable).first,
     );
+    await tester.tap(tomorrowCell);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '52.0');
     await tester.tap(find.text('저장'));
