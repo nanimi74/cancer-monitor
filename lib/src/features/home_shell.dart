@@ -405,16 +405,6 @@ class _UserDataLoadingView extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            SizedBox(height: 8),
-            Text(
-              '저장된 사용자정보와 복약 기록을 확인하는 중입니다.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.muted,
-                fontSize: 13,
-                height: 1.4,
-              ),
-            ),
           ],
         ),
       ),

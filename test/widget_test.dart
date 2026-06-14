@@ -416,10 +416,9 @@ void main() {
     await tester.enterText(find.byType(TextFormField).at(1), '1정');
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('허용'));
-    await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
+    expect(find.text('꺼짐'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
@@ -431,7 +430,7 @@ void main() {
     expect(find.text('항구토제'), findsOneWidget);
   });
 
-  testWidgets('profile notification toggle syncs medication reminders',
+  testWidgets('profile notification toggle keeps medication records',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -450,6 +449,8 @@ void main() {
 
     await tester.enterText(find.byType(TextFormField).at(0), '항구토제');
     await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.byKey(const ValueKey('medication-reminder-switch')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('허용'));
@@ -470,8 +471,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
-    expect(find.text('꺼짐'), findsOneWidget);
-    expect(find.text('켜짐'), findsNothing);
+    expect(find.text('켜짐'), findsOneWidget);
+    expect(find.text('꺼짐'), findsNothing);
 
     await tester.tap(find.text('마이페이지'));
     await tester.pumpAndSettle();
@@ -488,6 +489,34 @@ void main() {
     expect(find.text('항구토제'), findsOneWidget);
     expect(find.text('켜짐'), findsOneWidget);
     expect(find.text('꺼짐'), findsNothing);
+  });
+
+  testWidgets('medication defaults to notification setting without enabling it',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: true,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), '항구토제');
+    await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('항구토제'), findsOneWidget);
+    expect(find.text('꺼짐'), findsOneWidget);
+    expect(find.text('켜짐'), findsNothing);
+    expect(find.text('알림 권한'), findsNothing);
   });
 
   testWidgets('home shell shows loading message until user data is loaded',
@@ -507,7 +536,6 @@ void main() {
     await tester.pump();
 
     expect(find.text('사용자 데이터를 불러오고 있어요.'), findsOneWidget);
-    expect(find.text('저장된 사용자정보와 복약 기록을 확인하는 중입니다.'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.text('복약관리'), findsNothing);
 
