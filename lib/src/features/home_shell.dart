@@ -181,12 +181,12 @@ class _HomeShellState extends State<HomeShell> {
     return write;
   }
 
-  Future<bool> _flushPendingWrites() async {
+  Future<bool> _flushPendingWrites({required bool showFailureMessage}) async {
     try {
       await _pendingWrite.timeout(_signOutWriteTimeout);
       return true;
     } catch (_) {
-      if (mounted) {
+      if (mounted && showFailureMessage) {
         _showMessage('기록 저장을 완료하지 못했습니다. 잠시 후 다시 로그아웃해 주세요.');
       }
       return false;
@@ -197,7 +197,7 @@ class _HomeShellState extends State<HomeShell> {
     if (_canPersist) {
       _showMessage('데이터를 저장 중입니다. 저장 완료 시 로그아웃됩니다.');
     }
-    final saved = await _flushPendingWrites();
+    final saved = await _flushPendingWrites(showFailureMessage: true);
     if (!saved) {
       throw const AuthFailure('기록 저장이 끝나지 않아 로그아웃하지 않았습니다.');
     }
@@ -205,13 +205,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _handleDeleteAccount() async {
-    if (_canPersist) {
-      _showMessage('데이터를 저장 중입니다. 저장 완료 후 회원탈퇴가 진행됩니다.');
-    }
-    final saved = await _flushPendingWrites();
-    if (!saved) {
-      throw const AuthFailure('기록 저장이 끝나지 않아 회원탈퇴를 진행하지 않았습니다.');
-    }
+    await _flushPendingWrites(showFailureMessage: false);
     await widget.onDeleteAccount?.call();
   }
 
