@@ -8,6 +8,7 @@ import 'package:cancer_monitor/src/features/home_shell.dart';
 import 'package:cancer_monitor/src/features/medication/medication_screen.dart';
 import 'package:cancer_monitor/src/features/symptom/symptom_screen.dart';
 import 'package:cancer_monitor/src/features/weight/weight_screen.dart';
+import 'package:cancer_monitor/src/data/models/medication.dart';
 import 'package:cancer_monitor/src/data/models/user_profile.dart';
 import 'package:cancer_monitor/src/data/repositories/user_data_repository.dart';
 import 'package:cancer_monitor/src/services/health/step_sync_service.dart';
@@ -594,6 +595,56 @@ void main() {
     expect(signedOut, isTrue);
   });
 
+  testWidgets('sign out waits for pending medication reminder save',
+      (WidgetTester tester) async {
+    final repository = _DelayedMedicationSaveRepository();
+    var signedOut = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: true,
+          userId: 'user-1',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+          onSignOut: () async {
+            signedOut = true;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), '항구토제');
+    await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('꺼짐'), findsOneWidget);
+    expect(repository.savedMedications.single.reminderEnabled, isFalse);
+
+    await tester.tap(find.text('마이페이지'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -800));
+    await tester.pumpAndSettle();
+
+    final signOutButton = find.widgetWithText(OutlinedButton, '로그아웃').last;
+    await tester.tap(signOutButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1100));
+
+    expect(signedOut, isFalse);
+    repository.completeMedicationSave();
+    await tester.pumpAndSettle();
+
+    expect(signedOut, isTrue);
+  });
+
   testWidgets('sign out proceeds when pending user data save stalls',
       (WidgetTester tester) async {
     final repository = _DelayedUserDataRepository();
@@ -694,6 +745,39 @@ class _DelayedUserDataRepository extends UserDataRepository {
 
   void completeSave() {
     _saveCompleter?.complete();
+  }
+}
+
+class _DelayedMedicationSaveRepository extends UserDataRepository {
+  final _saveCompleter = Completer<void>();
+  var savedMedications = <Medication>[];
+
+  @override
+  Future<UserDataSnapshot> load(String userId) async {
+    return UserDataSnapshot(
+      settings: const UserSettings(),
+      profile: UserProfile(
+        sex: '여성',
+        birthDate: DateTime(1974, 3, 12),
+        cancerType: '유방암',
+        stage: '2기',
+        diagnosisDate: DateTime(2026, 1, 15),
+        metastasis: '없음',
+        treatmentType: '항암치료',
+        treatmentStartDate: DateTime(2026, 4, 1),
+        heightCm: 162,
+      ),
+    );
+  }
+
+  @override
+  Future<void> saveMedications(String userId, List<Medication> medications) {
+    savedMedications = medications;
+    return _saveCompleter.future;
+  }
+
+  void completeMedicationSave() {
+    _saveCompleter.complete();
   }
 }
 

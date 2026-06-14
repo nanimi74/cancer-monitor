@@ -46,6 +46,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   static const _signOutWriteGracePeriod = Duration(seconds: 1);
+  static const _medicationWriteGracePeriod = Duration(seconds: 4);
 
   late final UserDataRepository _userDataRepository =
       widget.userDataRepository ?? UserDataRepository();
@@ -60,6 +61,7 @@ class _HomeShellState extends State<HomeShell> {
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
   Future<void> _pendingWrite = Future<void>.value();
+  Future<void> _pendingMedicationWrite = Future<void>.value();
 
   bool get _canPersist => !widget.isPreview && widget.userId != null;
 
@@ -126,7 +128,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveMedications(List<Medication> medications) {
     if (!_canPersist) return;
-    _queueWrite(
+    _pendingMedicationWrite = _queueWrite(
       () => _userDataRepository.saveMedications(widget.userId!, medications),
     );
   }
@@ -143,11 +145,13 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  void _queueWrite(Future<void> Function() operation) {
-    _pendingWrite = _pendingWrite
+  Future<void> _queueWrite(Future<void> Function() operation) {
+    final write = _pendingWrite
         .catchError((_) {})
         .then((_) => operation())
         .catchError((_) => _showSaveError());
+    _pendingWrite = write;
+    return write;
   }
 
   Future<void> _flushPendingWrites() async {
@@ -156,6 +160,12 @@ class _HomeShellState extends State<HomeShell> {
     } catch (_) {
       // Continue sign-out/delete when a pending write is still in flight.
       // The queued write path still reports actual save failures.
+    }
+    try {
+      await _pendingMedicationWrite.timeout(_medicationWriteGracePeriod);
+    } catch (_) {
+      // Medication changes can outlive sign-out, but wait a bit longer so
+      // reminder toggles are less likely to appear reverted after re-login.
     }
   }
 
