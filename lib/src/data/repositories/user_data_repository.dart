@@ -174,13 +174,20 @@ class UserDataRepository {
     required Map<String, Map<String, Object?>> values,
   }) async {
     final collection = _db.collection(collectionPath);
-    await _deleteCollection(collectionPath);
-    if (values.isEmpty) return;
+    final snapshot = await collection.get();
+    final staleDocs =
+        snapshot.docs.where((doc) => !values.containsKey(doc.id)).toList();
+    if (values.isEmpty && staleDocs.isEmpty) return;
 
     final batch = _db.batch();
+
     for (final entry in values.entries) {
       batch.set(collection.doc(entry.key), entry.value);
     }
+    for (final doc in staleDocs) {
+      batch.delete(doc.reference);
+    }
+
     await batch.commit();
   }
 

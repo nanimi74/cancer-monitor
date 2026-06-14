@@ -645,7 +645,7 @@ void main() {
     expect(signedOut, isTrue);
   });
 
-  testWidgets('sign out proceeds when pending user data save stalls',
+  testWidgets('sign out stays signed in when pending user data save stalls',
       (WidgetTester tester) async {
     final repository = _DelayedUserDataRepository();
     var signedOut = false;
@@ -681,14 +681,14 @@ void main() {
     await tester.pump();
 
     expect(signedOut, isFalse);
-    await tester.pump(const Duration(milliseconds: 5100));
+    await tester.pump(const Duration(milliseconds: 12100));
     await tester.pumpAndSettle();
 
     expect(repository.savedSettings, isTrue);
-    expect(signedOut, isTrue);
+    expect(signedOut, isFalse);
     expect(
-      find.text('기록 저장에 실패했습니다. 네트워크 상태를 확인해 주세요.'),
-      findsNothing,
+      find.textContaining('기록 저장'),
+      findsWidgets,
     );
   });
 }

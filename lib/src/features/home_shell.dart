@@ -8,6 +8,7 @@ import '../data/models/symptom_record.dart';
 import '../data/models/user_profile.dart';
 import '../data/models/weight_record.dart';
 import '../data/repositories/user_data_repository.dart';
+import '../services/auth/auth_service.dart';
 import '../services/health/step_sync_service.dart';
 import '../services/notifications/notification_permission_service.dart';
 import 'analysis/analysis_screen.dart';
@@ -45,9 +46,7 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  static const _signOutWriteGracePeriod = Duration(seconds: 1);
-  static const _settingsWriteGracePeriod = Duration(seconds: 4);
-  static const _medicationWriteGracePeriod = Duration(seconds: 4);
+  static const _signOutWriteTimeout = Duration(seconds: 12);
 
   late final UserDataRepository _userDataRepository =
       widget.userDataRepository ?? UserDataRepository();
@@ -62,8 +61,6 @@ class _HomeShellState extends State<HomeShell> {
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
   Future<void> _pendingWrite = Future<void>.value();
-  Future<void> _pendingSettingsWrite = Future<void>.value();
-  Future<void> _pendingMedicationWrite = Future<void>.value();
 
   bool get _canPersist => !widget.isPreview && widget.userId != null;
 
@@ -112,7 +109,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveSettings() {
     if (!_canPersist) return;
-    _pendingSettingsWrite = _queueWrite(
+    _queueWrite(
       () => _userDataRepository.saveSettings(
         widget.userId!,
         UserSettings(
@@ -130,7 +127,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveMedications(List<Medication> medications) {
     if (!_canPersist) return;
-    _pendingMedicationWrite = _queueWrite(
+    _queueWrite(
       () => _userDataRepository.saveMedications(widget.userId!, medications),
     );
   }
@@ -176,39 +173,39 @@ class _HomeShellState extends State<HomeShell> {
     final write = _pendingWrite
         .catchError((_) {})
         .then((_) => operation())
-        .catchError((_) => _showSaveError());
+        .catchError((error) {
+      _showSaveError();
+      throw error;
+    });
     _pendingWrite = write;
     return write;
   }
 
-  Future<void> _flushPendingWrites() async {
+  Future<bool> _flushPendingWrites() async {
     try {
-      await _pendingWrite.timeout(_signOutWriteGracePeriod);
+      await _pendingWrite.timeout(_signOutWriteTimeout);
+      return true;
     } catch (_) {
-      // Continue sign-out/delete when a pending write is still in flight.
-      // The queued write path still reports actual save failures.
-    }
-    try {
-      await _pendingSettingsWrite.timeout(_settingsWriteGracePeriod);
-    } catch (_) {
-      // Settings updates should usually finish quickly, but sign-out should
-      // still proceed if the network stalls.
-    }
-    try {
-      await _pendingMedicationWrite.timeout(_medicationWriteGracePeriod);
-    } catch (_) {
-      // Medication changes can outlive sign-out, but wait a bit longer so
-      // reminder toggles are less likely to appear reverted after re-login.
+      if (mounted) {
+        _showMessage('기록 저장을 완료하지 못했습니다. 잠시 후 다시 로그아웃해 주세요.');
+      }
+      return false;
     }
   }
 
   Future<void> _handleSignOut() async {
-    await _flushPendingWrites();
+    final saved = await _flushPendingWrites();
+    if (!saved) {
+      throw const AuthFailure('기록 저장이 끝나지 않아 로그아웃하지 않았습니다.');
+    }
     await widget.onSignOut?.call();
   }
 
   Future<void> _handleDeleteAccount() async {
-    await _flushPendingWrites();
+    final saved = await _flushPendingWrites();
+    if (!saved) {
+      throw const AuthFailure('기록 저장이 끝나지 않아 회원탈퇴를 진행하지 않았습니다.');
+    }
     await widget.onDeleteAccount?.call();
   }
 
