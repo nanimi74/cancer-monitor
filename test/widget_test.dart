@@ -10,6 +10,7 @@ import 'package:cancer_monitor/src/features/symptom/symptom_screen.dart';
 import 'package:cancer_monitor/src/features/weight/weight_screen.dart';
 import 'package:cancer_monitor/src/data/models/medication.dart';
 import 'package:cancer_monitor/src/data/models/user_profile.dart';
+import 'package:cancer_monitor/src/data/models/weight_record.dart';
 import 'package:cancer_monitor/src/data/repositories/user_data_repository.dart';
 import 'package:cancer_monitor/src/services/health/step_sync_service.dart';
 import 'package:cancer_monitor/src/services/notifications/notification_permission_service.dart';
@@ -235,6 +236,32 @@ void main() {
     expect(find.textContaining('최근 체중 50.5kg'), findsOneWidget);
     expect(find.text('50.5kg'), findsWidgets);
     expect(find.textContaining('그래프를 그릴 체중 기록이 부족합니다'), findsNothing);
+  });
+
+  testWidgets('weight screen places bmi banner above calendar',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WeightScreen(
+            heightCm: 162,
+            initialRecords: [
+              WeightRecord(date: DateTime(2026, 6, 2), weightKg: 59.8),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final bmiTop = tester.getTopLeft(find.textContaining('현재 BMI')).dy;
+    final calendarTop = tester
+        .getTopLeft(
+          find.text('${DateTime.now().year}년 ${DateTime.now().month}월'),
+        )
+        .dy;
+
+    expect(bmiTop, lessThan(calendarTop));
   });
 
   testWidgets('rapid weight gain shows consultation advice',
