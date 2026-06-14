@@ -226,21 +226,17 @@ class _HomeShellState extends State<HomeShell> {
     return write;
   }
 
-  Future<void> _flushPendingWrites({required bool showFailureMessage}) async {
+  Future<void> _flushPendingWrites() async {
     try {
       await _pendingWrite.timeout(_signOutWriteTimeout);
-    } catch (_) {
-      if (mounted && showFailureMessage) {
-        _showMessage('저장이 지연되고 있습니다. 저장된 기록은 네트워크 연결 후 동기화됩니다.');
-      }
-    }
+    } catch (_) {}
   }
 
   Future<void> _handleSignOut() async {
     if (_canPersist) {
       _showMessage('데이터를 저장 중입니다. 저장 완료 시 로그아웃됩니다.');
     }
-    await _flushPendingWrites(showFailureMessage: true);
+    await _flushPendingWrites();
     await widget.onSignOut?.call();
   }
 
