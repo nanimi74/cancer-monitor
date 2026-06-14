@@ -45,7 +45,7 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  static const _writeTimeout = Duration(seconds: 6);
+  static const _signOutWriteGracePeriod = Duration(seconds: 1);
 
   late final UserDataRepository _userDataRepository =
       widget.userDataRepository ?? UserDataRepository();
@@ -152,7 +152,7 @@ class _HomeShellState extends State<HomeShell> {
 
   Future<void> _flushPendingWrites() async {
     try {
-      await _pendingWrite.timeout(_writeTimeout);
+      await _pendingWrite.timeout(_signOutWriteGracePeriod);
     } catch (_) {
       // Continue sign-out/delete when a pending write is still in flight.
       // The queued write path still reports actual save failures.

@@ -569,7 +569,7 @@ void main() {
     await tester.pump();
 
     expect(signedOut, isFalse);
-    await tester.pump(const Duration(seconds: 7));
+    await tester.pump(const Duration(milliseconds: 1100));
     await tester.pumpAndSettle();
 
     expect(repository.savedSettings, isTrue);
