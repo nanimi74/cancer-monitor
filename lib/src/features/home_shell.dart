@@ -146,7 +146,7 @@ class _HomeShellState extends State<HomeShell> {
   void _queueWrite(Future<void> Function() operation) {
     _pendingWrite = _pendingWrite
         .catchError((_) {})
-        .then((_) => operation().timeout(_writeTimeout))
+        .then((_) => operation())
         .catchError((_) => _showSaveError());
   }
 
@@ -154,7 +154,8 @@ class _HomeShellState extends State<HomeShell> {
     try {
       await _pendingWrite.timeout(_writeTimeout);
     } catch (_) {
-      _showSaveError();
+      // Continue sign-out/delete when a pending write is still in flight.
+      // The queued write path still reports actual save failures.
     }
   }
 

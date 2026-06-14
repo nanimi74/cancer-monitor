@@ -574,6 +574,10 @@ void main() {
 
     expect(repository.savedSettings, isTrue);
     expect(signedOut, isTrue);
+    expect(
+      find.text('기록 저장에 실패했습니다. 네트워크 상태를 확인해 주세요.'),
+      findsNothing,
+    );
   });
 }
 
