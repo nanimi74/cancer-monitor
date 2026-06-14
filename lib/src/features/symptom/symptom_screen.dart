@@ -32,10 +32,7 @@ class SymptomScreen extends StatefulWidget {
 }
 
 class _SymptomScreenState extends State<SymptomScreen> {
-  late final _records = {
-    for (final record in widget.initialRecords)
-      _dateOnly(record.date): _SymptomRecord.fromModel(record),
-  };
+  final _records = <DateTime, _SymptomRecord>{};
   late final StepSyncService _stepSyncService =
       widget.stepSyncService ?? PlatformStepSyncService();
   late var _stepSyncEnabled = widget.stepSyncEnabled;
@@ -43,11 +40,33 @@ class _SymptomScreenState extends State<SymptomScreen> {
   DateTime? _selectedDate;
 
   @override
+  void initState() {
+    super.initState();
+    _syncInitialRecords();
+  }
+
+  @override
   void didUpdateWidget(covariant SymptomScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.stepSyncEnabled != widget.stepSyncEnabled) {
       _stepSyncEnabled = widget.stepSyncEnabled;
     }
+    if (oldWidget.initialRecords != widget.initialRecords) {
+      _syncInitialRecords();
+    }
+  }
+
+  void _syncInitialRecords() {
+    _records
+      ..clear()
+      ..addEntries(
+        widget.initialRecords.map(
+          (record) => MapEntry(
+            _dateOnly(record.date),
+            _SymptomRecord.fromModel(record),
+          ),
+        ),
+      );
   }
 
   Future<void> _openEditor(DateTime date, [_SymptomRecord? record]) async {
@@ -1356,7 +1375,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                 child: Form(
                   key: _formKey,
                   child: ListView(
-                    key: const PageStorageKey('symptom-editor-scroll'),
+                    key: const ValueKey('symptom-editor-scroll'),
                     controller: _scrollController,
                     scrollCacheExtent: const ScrollCacheExtent.pixels(2400),
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),

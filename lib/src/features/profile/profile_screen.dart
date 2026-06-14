@@ -22,6 +22,7 @@ class ProfileScreen extends StatefulWidget {
     this.stepSyncService,
     this.notificationEnabled = false,
     this.stepSyncEnabled = false,
+    this.initialProfile,
     this.onNotificationPermissionChanged,
     this.onStepSyncChanged,
     this.onRequiredInfoChanged,
@@ -38,6 +39,7 @@ class ProfileScreen extends StatefulWidget {
   final StepSyncService? stepSyncService;
   final bool notificationEnabled;
   final bool stepSyncEnabled;
+  final UserProfile? initialProfile;
   final ValueChanged<bool>? onNotificationPermissionChanged;
   final ValueChanged<bool>? onStepSyncChanged;
   final ValueChanged<bool>? onRequiredInfoChanged;
@@ -49,7 +51,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  _ProfileInfo? _profileInfo;
+  late _ProfileInfo? _profileInfo = widget.initialProfile == null
+      ? null
+      : _ProfileInfo.fromUserProfile(widget.initialProfile!);
   late var _notificationEnabled = widget.notificationEnabled;
   late var _stepSyncEnabled = widget.stepSyncEnabled;
   var _accountActionInProgress = false;
@@ -71,6 +75,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     if (oldWidget.stepSyncEnabled != widget.stepSyncEnabled) {
       _stepSyncEnabled = widget.stepSyncEnabled;
+    }
+    if (oldWidget.initialProfile != widget.initialProfile) {
+      _profileInfo = widget.initialProfile == null
+          ? null
+          : _ProfileInfo.fromUserProfile(widget.initialProfile!);
     }
   }
 
@@ -1907,6 +1916,21 @@ class _ProfileInfo {
     required this.heightCm,
     this.extra = '',
   });
+
+  factory _ProfileInfo.fromUserProfile(UserProfile profile) {
+    return _ProfileInfo(
+      sex: profile.sex,
+      birthDate: profile.birthDate,
+      cancerType: profile.cancerType,
+      stage: profile.stage,
+      diagnosisDate: profile.diagnosisDate,
+      metastasis: profile.metastasis,
+      treatmentType: profile.treatmentType,
+      treatmentStartDate: profile.treatmentStartDate,
+      heightCm: profile.heightCm,
+      extra: profile.extra,
+    );
+  }
 
   final String sex;
   final DateTime birthDate;

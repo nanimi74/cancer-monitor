@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../data/models/medication.dart';
 import '../data/models/symptom_record.dart';
 import '../data/models/user_profile.dart';
 import '../data/models/weight_record.dart';
+import '../data/repositories/user_data_repository.dart';
 import '../services/health/step_sync_service.dart';
 import '../services/notifications/notification_permission_service.dart';
 import 'analysis/analysis_screen.dart';
@@ -22,6 +26,8 @@ class HomeShell extends StatefulWidget {
     this.onDeleteAccount,
     this.notificationPermissionService,
     this.stepSyncService,
+    this.userId,
+    this.userDataRepository,
   });
 
   final bool isPreview;
@@ -31,20 +37,132 @@ class HomeShell extends StatefulWidget {
   final Future<void> Function()? onDeleteAccount;
   final NotificationPermissionService? notificationPermissionService;
   final StepSyncService? stepSyncService;
+  final String? userId;
+  final UserDataRepository? userDataRepository;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
 }
 
 class _HomeShellState extends State<HomeShell> {
+  late final UserDataRepository _userDataRepository =
+      widget.userDataRepository ?? UserDataRepository();
   late var _hasRequiredInfo = widget.hasRequiredInfo;
   late var _index = _hasRequiredInfo ? 3 : 0;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
+  var _loadingUserData = false;
   double? _heightCm;
   UserProfile? _userProfile;
+  var _medications = <Medication>[];
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
+
+  bool get _canPersist => !widget.isPreview && widget.userId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadUserData());
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId ||
+        oldWidget.isPreview != widget.isPreview) {
+      unawaited(_loadUserData());
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    if (!_canPersist) return;
+    final userId = widget.userId!;
+    setState(() => _loadingUserData = true);
+    try {
+      final snapshot = await _userDataRepository.load(userId);
+      if (!mounted || widget.userId != userId) return;
+      setState(() {
+        _notificationEnabled = snapshot.settings.notificationEnabled;
+        _stepSyncEnabled = snapshot.settings.stepSyncEnabled;
+        _userProfile = snapshot.profile;
+        _heightCm = snapshot.profile?.heightCm;
+        _hasRequiredInfo = snapshot.profile != null;
+        _medications = snapshot.medications;
+        _weightRecords = snapshot.weights;
+        _symptomRecords = snapshot.symptoms;
+        if (_hasRequiredInfo && _index == 0) _index = 3;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('저장된 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      if (mounted && widget.userId == userId) {
+        setState(() => _loadingUserData = false);
+      }
+    }
+  }
+
+  void _saveSettings() {
+    if (!_canPersist) return;
+    unawaited(
+      _userDataRepository
+          .saveSettings(
+            widget.userId!,
+            UserSettings(
+              notificationEnabled: _notificationEnabled,
+              stepSyncEnabled: _stepSyncEnabled,
+            ),
+          )
+          .catchError((_) => _showSaveError()),
+    );
+  }
+
+  void _saveProfile(UserProfile? profile) {
+    if (!_canPersist || profile == null) return;
+    unawaited(
+      _userDataRepository
+          .saveProfile(widget.userId!, profile)
+          .catchError((_) => _showSaveError()),
+    );
+  }
+
+  void _saveMedications(List<Medication> medications) {
+    if (!_canPersist) return;
+    unawaited(
+      _userDataRepository
+          .saveMedications(widget.userId!, medications)
+          .catchError((_) => _showSaveError()),
+    );
+  }
+
+  void _saveWeights(List<WeightRecord> records) {
+    if (!_canPersist) return;
+    unawaited(
+      _userDataRepository
+          .saveWeights(widget.userId!, records)
+          .catchError((_) => _showSaveError()),
+    );
+  }
+
+  void _saveSymptoms(List<SymptomRecord> records) {
+    if (!_canPersist) return;
+    unawaited(
+      _userDataRepository
+          .saveSymptoms(widget.userId!, records)
+          .catchError((_) => _showSaveError()),
+    );
+  }
+
+  void _showSaveError() {
+    if (!mounted) return;
+    _showMessage('기록 저장에 실패했습니다. 네트워크 상태를 확인해 주세요.');
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,10 +177,12 @@ class _HomeShellState extends State<HomeShell> {
               child: SizedBox(
                 width: width,
                 height: constraints.maxHeight,
-                child: IndexedStack(
-                  index: _index,
-                  children: _screens,
-                ),
+                child: _loadingUserData
+                    ? const Center(child: CircularProgressIndicator())
+                    : IndexedStack(
+                        index: _index,
+                        children: _screens,
+                      ),
               ),
             );
           },
@@ -169,34 +289,50 @@ class _HomeShellState extends State<HomeShell> {
           onDeleteAccount: widget.onDeleteAccount,
           notificationPermissionService: widget.notificationPermissionService,
           stepSyncService: widget.stepSyncService,
+          initialProfile: _userProfile,
           notificationEnabled: _notificationEnabled,
           stepSyncEnabled: _stepSyncEnabled,
-          onNotificationPermissionChanged: (value) =>
-              setState(() => _notificationEnabled = value),
-          onStepSyncChanged: (value) =>
-              setState(() => _stepSyncEnabled = value),
+          onNotificationPermissionChanged: (value) => setState(() {
+            _notificationEnabled = value;
+            _saveSettings();
+          }),
+          onStepSyncChanged: (value) => setState(() {
+            _stepSyncEnabled = value;
+            _saveSettings();
+          }),
           onRequiredInfoChanged: (value) =>
               setState(() => _hasRequiredInfo = value),
           onHeightChanged: (value) => setState(() => _heightCm = value),
           onProfileChanged: (value) => setState(() {
             _userProfile = value;
             _heightCm = value?.heightCm;
+            _saveProfile(value);
           }),
         ),
         MedicationScreen(
           hasRequiredInfo: _hasRequiredInfo,
           isPreview: widget.isPreview,
           notificationEnabled: _notificationEnabled,
+          initialMedications: _medications,
           notificationPermissionService: widget.notificationPermissionService,
-          onNotificationPermissionChanged: (value) =>
-              setState(() => _notificationEnabled = value),
+          onNotificationPermissionChanged: (value) => setState(() {
+            _notificationEnabled = value;
+            _saveSettings();
+          }),
+          onMedicationsChanged: (medications) => setState(() {
+            _medications = medications;
+            _saveMedications(medications);
+          }),
         ),
         WeightScreen(
           hasRequiredInfo: _hasRequiredInfo,
           isPreview: widget.isPreview,
           heightCm: _heightCm,
-          onRecordsChanged: (records) =>
-              setState(() => _weightRecords = records),
+          initialRecords: _weightRecords,
+          onRecordsChanged: (records) => setState(() {
+            _weightRecords = records;
+            _saveWeights(records);
+          }),
         ),
         SymptomScreen(
           hasRequiredInfo: _hasRequiredInfo,
@@ -204,10 +340,14 @@ class _HomeShellState extends State<HomeShell> {
           stepSyncEnabled: _stepSyncEnabled,
           initialRecords: _symptomRecords,
           stepSyncService: widget.stepSyncService,
-          onStepSyncChanged: (value) =>
-              setState(() => _stepSyncEnabled = value),
-          onRecordsChanged: (records) =>
-              setState(() => _symptomRecords = records),
+          onStepSyncChanged: (value) => setState(() {
+            _stepSyncEnabled = value;
+            _saveSettings();
+          }),
+          onRecordsChanged: (records) => setState(() {
+            _symptomRecords = records;
+            _saveSymptoms(records);
+          }),
         ),
         AnalysisScreen(
           hasRequiredInfo: _hasRequiredInfo,
