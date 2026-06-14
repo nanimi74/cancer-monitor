@@ -51,11 +51,6 @@ class _MedicationScreenState extends State<MedicationScreen> {
     }
     if (oldWidget.notificationEnabled != widget.notificationEnabled) {
       _notificationEnabled = widget.notificationEnabled;
-      for (var index = 0; index < _medications.length; index += 1) {
-        _medications[index] = _medications[index].copyWith(
-          reminderEnabled: widget.notificationEnabled,
-        );
-      }
     }
   }
 
@@ -170,7 +165,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
                       dose: '',
                       frequency: '매일',
                       weekdays: const [],
-                      reminderEnabled: true,
+                      reminderEnabled: _notificationEnabled,
                       reminders: _defaultReminders(),
                       memo: '',
                     ),
@@ -704,6 +699,7 @@ class _MedicationEditorSheetState extends State<_MedicationEditorSheet> {
                           label: '섭취 시간 알림',
                           requiredMark: true,
                           trailing: _InlineSwitch(
+                            key: const ValueKey('medication-reminder-switch'),
                             value: _reminderEnabled,
                             onChanged: (value) =>
                                 setState(() => _reminderEnabled = value),
@@ -1121,6 +1117,7 @@ class _ReminderEditorRow extends StatelessWidget {
 
 class _InlineSwitch extends StatelessWidget {
   const _InlineSwitch({
+    super.key,
     required this.value,
     required this.onChanged,
   });

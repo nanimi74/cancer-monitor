@@ -45,6 +45,8 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
+  static const _signOutWriteTimeout = Duration(seconds: 2);
+
   late final UserDataRepository _userDataRepository =
       widget.userDataRepository ?? UserDataRepository();
   late var _hasRequiredInfo = widget.hasRequiredInfo;
@@ -57,6 +59,7 @@ class _HomeShellState extends State<HomeShell> {
   var _medications = <Medication>[];
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
+  Future<void> _pendingWrite = Future<void>.value();
 
   bool get _canPersist => !widget.isPreview && widget.userId != null;
 
@@ -80,7 +83,10 @@ class _HomeShellState extends State<HomeShell> {
     final userId = widget.userId!;
     setState(() => _loadingUserData = true);
     try {
-      final snapshot = await _userDataRepository.load(userId);
+      final remoteSnapshot = await _userDataRepository.load(userId);
+      final cachedSnapshot =
+          await _userDataRepository.loadCachedSnapshot(userId);
+      final snapshot = cachedSnapshot ?? remoteSnapshot;
       if (!mounted || widget.userId != userId) return;
       setState(() {
         _notificationEnabled = snapshot.settings.notificationEnabled;
@@ -93,8 +99,27 @@ class _HomeShellState extends State<HomeShell> {
         _symptomRecords = snapshot.symptoms;
         if (_hasRequiredInfo && _index == 0) _index = 3;
       });
+      if (cachedSnapshot == null) {
+        unawaited(_userDataRepository.saveCachedSnapshot(userId, snapshot));
+      }
     } catch (_) {
-      if (!mounted) return;
+      final cachedSnapshot =
+          await _userDataRepository.loadCachedSnapshot(userId);
+      if (!mounted || widget.userId != userId) return;
+      if (cachedSnapshot != null) {
+        setState(() {
+          _notificationEnabled = cachedSnapshot.settings.notificationEnabled;
+          _stepSyncEnabled = cachedSnapshot.settings.stepSyncEnabled;
+          _userProfile = cachedSnapshot.profile;
+          _heightCm = cachedSnapshot.profile?.heightCm;
+          _hasRequiredInfo = cachedSnapshot.profile != null;
+          _medications = cachedSnapshot.medications;
+          _weightRecords = cachedSnapshot.weights;
+          _symptomRecords = cachedSnapshot.symptoms;
+          if (_hasRequiredInfo && _index == 0) _index = 3;
+        });
+        return;
+      }
       _showMessage('저장된 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       if (mounted && widget.userId == userId) {
@@ -105,53 +130,122 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveSettings() {
     if (!_canPersist) return;
-    unawaited(
-      _userDataRepository
-          .saveSettings(
-            widget.userId!,
-            UserSettings(
-              notificationEnabled: _notificationEnabled,
-              stepSyncEnabled: _stepSyncEnabled,
-            ),
-          )
-          .catchError((_) => _showSaveError()),
+    _cacheCurrentSnapshot();
+    _queueWrite(
+      () => _userDataRepository.saveSettings(
+        widget.userId!,
+        UserSettings(
+          notificationEnabled: _notificationEnabled,
+          stepSyncEnabled: _stepSyncEnabled,
+        ),
+      ),
     );
   }
 
   void _saveProfile(UserProfile? profile) {
     if (!_canPersist || profile == null) return;
-    unawaited(
-      _userDataRepository
-          .saveProfile(widget.userId!, profile)
-          .catchError((_) => _showSaveError()),
-    );
+    _cacheCurrentSnapshot();
+    _queueWrite(() => _userDataRepository.saveProfile(widget.userId!, profile));
   }
 
   void _saveMedications(List<Medication> medications) {
     if (!_canPersist) return;
-    unawaited(
-      _userDataRepository
-          .saveMedications(widget.userId!, medications)
-          .catchError((_) => _showSaveError()),
+    _cacheCurrentSnapshot();
+    _queueWrite(
+      () => _userDataRepository.saveMedications(widget.userId!, medications),
     );
   }
 
   void _saveWeights(List<WeightRecord> records) {
     if (!_canPersist) return;
-    unawaited(
-      _userDataRepository
-          .saveWeights(widget.userId!, records)
-          .catchError((_) => _showSaveError()),
-    );
+    _cacheCurrentSnapshot();
+    _queueWrite(() => _userDataRepository.saveWeights(widget.userId!, records));
   }
 
   void _saveSymptoms(List<SymptomRecord> records) {
     if (!_canPersist) return;
-    unawaited(
-      _userDataRepository
-          .saveSymptoms(widget.userId!, records)
-          .catchError((_) => _showSaveError()),
+    _cacheCurrentSnapshot();
+    _queueWrite(
+      () => _userDataRepository.saveSymptoms(widget.userId!, records),
     );
+  }
+
+  void _cacheCurrentSnapshot() {
+    if (!_canPersist) return;
+    unawaited(
+      _userDataRepository.saveCachedSnapshot(
+        widget.userId!,
+        UserDataSnapshot(
+          settings: UserSettings(
+            notificationEnabled: _notificationEnabled,
+            stepSyncEnabled: _stepSyncEnabled,
+          ),
+          profile: _userProfile,
+          medications: _medications,
+          weights: _weightRecords,
+          symptoms: _symptomRecords,
+        ),
+      ),
+    );
+  }
+
+  List<Medication> _disableMedicationReminders(
+    List<Medication> medications,
+  ) {
+    return [
+      for (final medication in medications)
+        Medication(
+          id: medication.id,
+          name: medication.name,
+          dose: medication.dose,
+          frequency: medication.frequency,
+          weekdays: medication.weekdays,
+          reminderEnabled: false,
+          reminders: [
+            for (final reminder in medication.reminders)
+              MedicationReminder(
+                label: reminder.label,
+                time: reminder.time,
+                enabled: false,
+              ),
+          ],
+          memo: medication.memo,
+        ),
+    ];
+  }
+
+  Future<void> _queueWrite(Future<void> Function() operation) {
+    final write = _pendingWrite
+        .catchError((_) {})
+        .then((_) => operation())
+        .catchError((error) {
+      _showSaveError();
+      throw error;
+    });
+    _pendingWrite = write;
+    return write;
+  }
+
+  Future<void> _flushPendingWrites({required bool showFailureMessage}) async {
+    try {
+      await _pendingWrite.timeout(_signOutWriteTimeout);
+    } catch (_) {
+      if (mounted && showFailureMessage) {
+        _showMessage('저장이 지연되고 있습니다. 저장된 기록은 네트워크 연결 후 동기화됩니다.');
+      }
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    if (_canPersist) {
+      _showMessage('데이터를 저장 중입니다. 저장 완료 시 로그아웃됩니다.');
+    }
+    await _flushPendingWrites(showFailureMessage: true);
+    await widget.onSignOut?.call();
+  }
+
+  Future<void> _handleDeleteAccount() async {
+    await widget.onDeleteAccount?.call();
   }
 
   void _showSaveError() {
@@ -161,7 +255,8 @@ class _HomeShellState extends State<HomeShell> {
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -178,7 +273,7 @@ class _HomeShellState extends State<HomeShell> {
                 width: width,
                 height: constraints.maxHeight,
                 child: _loadingUserData
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const _UserDataLoadingView()
                     : IndexedStack(
                         index: _index,
                         children: _screens,
@@ -188,95 +283,99 @@ class _HomeShellState extends State<HomeShell> {
           },
         ),
       ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: .97),
-          border: const Border(top: BorderSide(color: AppColors.line)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.text.withValues(alpha: .08),
-              blurRadius: 24,
-              offset: const Offset(0, -8),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 74,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 680),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 7, 14, 9),
-                  child: NavigationBarTheme(
-                    data: NavigationBarThemeData(
-                      indicatorColor: Colors.transparent,
-                      labelTextStyle: WidgetStateProperty.resolveWith(
-                        (states) => TextStyle(
-                          color: states.contains(WidgetState.selected)
-                              ? AppColors.accent
-                              : AppColors.muted,
-                          fontSize: 12,
-                          fontWeight: states.contains(WidgetState.selected)
-                              ? FontWeight.w600
-                              : FontWeight.w500,
+      bottomNavigationBar: _loadingUserData
+          ? null
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .97),
+                border: const Border(top: BorderSide(color: AppColors.line)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.text.withValues(alpha: .08),
+                    blurRadius: 24,
+                    offset: const Offset(0, -8),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 74,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 7, 14, 9),
+                        child: NavigationBarTheme(
+                          data: NavigationBarThemeData(
+                            indicatorColor: Colors.transparent,
+                            labelTextStyle: WidgetStateProperty.resolveWith(
+                              (states) => TextStyle(
+                                color: states.contains(WidgetState.selected)
+                                    ? AppColors.accent
+                                    : AppColors.muted,
+                                fontSize: 12,
+                                fontWeight:
+                                    states.contains(WidgetState.selected)
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                              ),
+                            ),
+                            iconTheme: WidgetStateProperty.resolveWith(
+                              (states) => IconThemeData(
+                                color: states.contains(WidgetState.selected)
+                                    ? AppColors.accent
+                                    : AppColors.muted,
+                                size: 27,
+                              ),
+                            ),
+                          ),
+                          child: NavigationBar(
+                            selectedIndex: _index,
+                            height: 58,
+                            elevation: 0,
+                            backgroundColor: Colors.transparent,
+                            indicatorColor: Colors.transparent,
+                            labelBehavior:
+                                NavigationDestinationLabelBehavior.alwaysShow,
+                            onDestinationSelected: (index) =>
+                                setState(() => _index = index),
+                            destinations: const [
+                              NavigationDestination(
+                                icon: Icon(Icons.person_outline),
+                                selectedIcon: Icon(Icons.person_outline),
+                                label: '마이페이지',
+                              ),
+                              NavigationDestination(
+                                icon: _CapsuleIcon(),
+                                selectedIcon: _CapsuleIcon(selected: true),
+                                label: '복약관리',
+                              ),
+                              NavigationDestination(
+                                icon: _ScaleIcon(),
+                                selectedIcon: _ScaleIcon(selected: true),
+                                label: '체중관리',
+                              ),
+                              NavigationDestination(
+                                icon: Icon(Icons.calendar_month_outlined),
+                                selectedIcon:
+                                    Icon(Icons.calendar_month_outlined),
+                                label: '증상관리',
+                              ),
+                              NavigationDestination(
+                                icon: _AiIcon(),
+                                selectedIcon: _AiIcon(selected: true),
+                                label: 'AI분석',
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      iconTheme: WidgetStateProperty.resolveWith(
-                        (states) => IconThemeData(
-                          color: states.contains(WidgetState.selected)
-                              ? AppColors.accent
-                              : AppColors.muted,
-                          size: 27,
-                        ),
-                      ),
-                    ),
-                    child: NavigationBar(
-                      selectedIndex: _index,
-                      height: 58,
-                      elevation: 0,
-                      backgroundColor: Colors.transparent,
-                      indicatorColor: Colors.transparent,
-                      labelBehavior:
-                          NavigationDestinationLabelBehavior.alwaysShow,
-                      onDestinationSelected: (index) =>
-                          setState(() => _index = index),
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.person_outline),
-                          selectedIcon: Icon(Icons.person_outline),
-                          label: '마이페이지',
-                        ),
-                        NavigationDestination(
-                          icon: _CapsuleIcon(),
-                          selectedIcon: _CapsuleIcon(selected: true),
-                          label: '복약관리',
-                        ),
-                        NavigationDestination(
-                          icon: _ScaleIcon(),
-                          selectedIcon: _ScaleIcon(selected: true),
-                          label: '체중관리',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.calendar_month_outlined),
-                          selectedIcon: Icon(Icons.calendar_month_outlined),
-                          label: '증상관리',
-                        ),
-                        NavigationDestination(
-                          icon: _AiIcon(),
-                          selectedIcon: _AiIcon(selected: true),
-                          label: 'AI분석',
-                        ),
-                      ],
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -285,8 +384,9 @@ class _HomeShellState extends State<HomeShell> {
           hasRequiredInfo: _hasRequiredInfo,
           isPreview: widget.isPreview,
           onExitPreview: widget.onExitPreview,
-          onSignOut: widget.onSignOut,
-          onDeleteAccount: widget.onDeleteAccount,
+          onSignOut: widget.onSignOut == null ? null : _handleSignOut,
+          onDeleteAccount:
+              widget.onDeleteAccount == null ? null : _handleDeleteAccount,
           notificationPermissionService: widget.notificationPermissionService,
           stepSyncService: widget.stepSyncService,
           initialProfile: _userProfile,
@@ -294,6 +394,10 @@ class _HomeShellState extends State<HomeShell> {
           stepSyncEnabled: _stepSyncEnabled,
           onNotificationPermissionChanged: (value) => setState(() {
             _notificationEnabled = value;
+            if (!value && _medications.any((item) => item.reminderEnabled)) {
+              _medications = _disableMedicationReminders(_medications);
+              _saveMedications(_medications);
+            }
             _saveSettings();
           }),
           onStepSyncChanged: (value) => setState(() {
@@ -357,6 +461,39 @@ class _HomeShellState extends State<HomeShell> {
           weights: _weightRecords,
         ),
       ];
+}
+
+class _UserDataLoadingView extends StatelessWidget {
+  const _UserDataLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            SizedBox(height: 18),
+            Text(
+              '사용자 데이터를 불러오고 있어요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _CapsuleIcon extends StatelessWidget {
