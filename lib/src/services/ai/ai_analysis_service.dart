@@ -236,6 +236,8 @@ class AiAnalysisService {
         return '선택한 항암 회차 정보를 확인해 주세요.';
       case 'NO_RECORDS':
         return '분석할 증상 기록을 먼저 입력해 주세요.';
+      case 'AI_RATE_LIMITED':
+        return 'AI 분석 요청이 많습니다. 잠시 후 다시 시도해 주세요.';
       case 'CLAUDE_AUTH_FAILED':
         return 'AI 분석 설정을 확인해야 합니다. 잠시 후 다시 시도해 주세요.';
       case 'CLAUDE_RATE_LIMITED':

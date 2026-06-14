@@ -1,6 +1,10 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+const db = admin.firestore();
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 
@@ -14,9 +18,14 @@ const ANTHROPIC_VERSION = "2023-06-01";
 const MAX_MODEL_CANDIDATES = 5;
 const MAX_RECORDS_PER_REQUEST = 100;
 const MAX_WEIGHT_RECORDS = 30;
+const MAX_REQUESTS_PER_MINUTE = 3;
+const MAX_REQUESTS_PER_DAY = 20;
 const ERROR_CODES = {
   INVALID_CYCLE: "INVALID_CYCLE",
+  INVALID_PROFILE: "INVALID_PROFILE",
+  INVALID_RECORDS: "INVALID_RECORDS",
   NO_RECORDS: "NO_RECORDS",
+  AI_RATE_LIMITED: "AI_RATE_LIMITED",
   CLAUDE_API_FAILED: "CLAUDE_API_FAILED",
   CLAUDE_AUTH_FAILED: "CLAUDE_AUTH_FAILED",
   CLAUDE_RATE_LIMITED: "CLAUDE_RATE_LIMITED",
@@ -41,6 +50,8 @@ exports.analyzeCycle = onCall(
     secrets: [anthropicApiKey],
     timeoutSeconds: 60,
     memory: "256MiB",
+    enforceAppCheck: true,
+    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -52,15 +63,71 @@ exports.analyzeCycle = onCall(
     if (!payload.records.length) {
       throw aiFailedPrecondition(ERROR_CODES.NO_RECORDS, "분석할 기록이 없습니다.");
     }
+    await enforceRateLimit(request.auth.uid, request);
 
     const body = await requestClaudeAnalysis(payload);
     const text = extractClaudeText(body);
-    const parsed = parseJson(text);
-    return validateAnalysis(parsed, payload.previousRecords.length > 0);
+    try {
+      const parsed = parseJson(text);
+      return validateAnalysis(parsed, payload.previousRecords.length > 0);
+    } catch (error) {
+      if (!isClaudeResponseError(error)) throw error;
+      logger.warn("Claude response invalid, retrying JSON repair", {
+        errorCode: error.details && error.details.errorCode,
+        requestId: requestIdFromCallable(request),
+      });
+      const retryBody = await requestClaudeAnalysis(payload, text);
+      const retryText = extractClaudeText(retryBody);
+      const retryParsed = parseJson(retryText);
+      return validateAnalysis(retryParsed, payload.previousRecords.length > 0);
+    }
   },
 );
 
-async function requestClaudeAnalysis(payload) {
+async function enforceRateLimit(uid, request) {
+  const now = new Date();
+  const dayKey = now.toISOString().slice(0, 10);
+  const minuteKey = now.toISOString().slice(0, 16);
+  const usageRef = db.collection("aiAnalysisUsage").doc(uid);
+  const requestId = requestIdFromCallable(request);
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(usageRef);
+    const data = snapshot.exists ? snapshot.data() : {};
+    const dayCount = data.dayKey === dayKey ? Number(data.dayCount || 0) : 0;
+    const minuteCount =
+      data.minuteKey === minuteKey ? Number(data.minuteCount || 0) : 0;
+
+    if (dayCount >= MAX_REQUESTS_PER_DAY || minuteCount >= MAX_REQUESTS_PER_MINUTE) {
+      logger.warn("AI analysis rate limit exceeded", {
+        uid,
+        dayKey,
+        minuteKey,
+        dayCount,
+        minuteCount,
+        requestId,
+      });
+      throw new HttpsError("resource-exhausted", "AI 분석 요청이 많습니다.", {
+        errorCode: ERROR_CODES.AI_RATE_LIMITED,
+      });
+    }
+
+    transaction.set(
+      usageRef,
+      {
+        dayKey,
+        dayCount: dayCount + 1,
+        minuteKey,
+        minuteCount: minuteCount + 1,
+        lastRequestAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastRequestId: requestId,
+      },
+      { merge: true },
+    );
+  });
+}
+
+async function requestClaudeAnalysis(payload, repairText) {
   const errors = [];
 
   for (const model of CLAUDE_MODELS) {
@@ -75,11 +142,17 @@ async function requestClaudeAnalysis(payload) {
         model,
         max_tokens: 3400,
         temperature: 0.35,
-        system: buildSystemPrompt(),
+        system: repairText ? buildJsonRepairPrompt() : buildSystemPrompt(),
         messages: [
           {
             role: "user",
-            content: JSON.stringify(payload),
+            content: repairText
+              ? JSON.stringify({
+                  invalidResponse: limitText(repairText, 6000),
+                  expectedSchema:
+                    "{\"items\":[{\"title\":\"식사량\",\"current\":\"...\",\"previous\":\"...\"}],\"comment\":\"...\",\"encouragement\":\"...\"}",
+                })
+              : JSON.stringify(payload),
           },
         ],
       }),
@@ -140,6 +213,7 @@ async function buildClaudeErrorMeta(response, model) {
     model,
     status: response.status,
     errorCode: toClaudeErrorCode(response.status),
+    requestId: limitText(response.headers.get("request-id"), 120),
     type,
   };
 }
@@ -168,6 +242,39 @@ function normalizePayload(data) {
 function validatePayloadForAnalysis(payload) {
   if (!Number.isInteger(payload.cycleNo) || payload.cycleNo < 1 || payload.cycleNo > 100) {
     throw aiFailedPrecondition(ERROR_CODES.INVALID_CYCLE, "항암 회차 정보를 확인해 주세요.");
+  }
+  if (payload.profile) validateProfile(payload.profile);
+  for (const weight of payload.weights) validateWeight(weight);
+  for (const record of payload.records) validateRecord(record);
+  for (const record of payload.previousRecords) validateRecord(record);
+}
+
+function validateProfile(profile) {
+  if (!numberInRange(profile.age, 0, 120) || !numberInRange(profile.heightCm, 80, 250)) {
+    throw aiFailedPrecondition(ERROR_CODES.INVALID_PROFILE, "사용자 정보를 확인해 주세요.");
+  }
+  validateOptionalIsoDate(profile.diagnosisDate, ERROR_CODES.INVALID_PROFILE);
+  validateOptionalIsoDate(profile.treatmentStartDate, ERROR_CODES.INVALID_PROFILE);
+}
+
+function validateWeight(weight) {
+  validateRequiredIsoDate(weight.date, ERROR_CODES.INVALID_RECORDS);
+  if (!numberInRange(weight.weightKg, 20, 300)) {
+    throw aiFailedPrecondition(ERROR_CODES.INVALID_RECORDS, "체중 기록을 확인해 주세요.");
+  }
+}
+
+function validateRecord(record) {
+  validateRequiredIsoDate(record.date, ERROR_CODES.INVALID_RECORDS);
+  if (
+    !Number.isInteger(record.cycleNo) ||
+    !numberInRange(record.cycleNo, 1, 100) ||
+    !Number.isInteger(record.cycleDay) ||
+    !numberInRange(record.cycleDay, 1, 100) ||
+    !Number.isInteger(record.steps) ||
+    !numberInRange(record.steps, 0, 100000)
+  ) {
+    throw aiFailedPrecondition(ERROR_CODES.INVALID_RECORDS, "증상 기록을 확인해 주세요.");
   }
 }
 
@@ -309,6 +416,17 @@ function buildSystemPrompt() {
   ].join("\n");
 }
 
+function buildJsonRepairPrompt() {
+  return [
+    "너는 JSON 응답 형식을 고치는 보정기이다.",
+    "입력으로 받은 invalidResponse의 의미를 유지하되, 반드시 JSON 객체만 반환한다.",
+    "코드블록, 설명, 마크다운 문장, 앞뒤 텍스트는 절대 쓰지 않는다.",
+    "반환 형식은 {\"items\":[{\"title\":\"식사량\",\"current\":\"...\",\"previous\":\"...\"}],\"comment\":\"...\",\"encouragement\":\"...\"} 이다.",
+    `items는 ${ANALYSIS_TITLES.join(", ")} 5개 항목을 이 순서로 제공한다.`,
+    "값이 누락된 항목은 빈 문자열이 아니라 현재 응답에서 가장 가까운 내용을 짧게 보정한다.",
+  ].join("\n");
+}
+
 function extractClaudeText(body) {
   const content = Array.isArray(body && body.content) ? body.content : [];
   return content
@@ -373,6 +491,47 @@ function aiInternalError(errorCode, message) {
 
 function aiFailedPrecondition(errorCode, message) {
   return new HttpsError("failed-precondition", message, { errorCode });
+}
+
+function isClaudeResponseError(error) {
+  return (
+    error instanceof HttpsError &&
+    error.details &&
+    [
+      ERROR_CODES.CLAUDE_RESPONSE_PARSE_FAILED,
+      ERROR_CODES.CLAUDE_RESPONSE_SCHEMA_INVALID,
+    ].includes(error.details.errorCode)
+  );
+}
+
+function requestIdFromCallable(request) {
+  const headers = request.rawRequest && request.rawRequest.headers;
+  return limitText(
+    (headers && (headers["x-request-id"] || headers["x-cloud-trace-context"])) || "",
+    120,
+  );
+}
+
+function validateRequiredIsoDate(value, errorCode) {
+  if (!isIsoDate(value)) {
+    throw aiFailedPrecondition(errorCode, "기록 날짜를 확인해 주세요.");
+  }
+}
+
+function validateOptionalIsoDate(value, errorCode) {
+  if (value && !isIsoDate(value)) {
+    throw aiFailedPrecondition(errorCode, "날짜 정보를 확인해 주세요.");
+  }
+}
+
+function isIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function numberInRange(value, min, max) {
+  return Number.isFinite(value) && value >= min && value <= max;
 }
 
 function toArray(value) {
