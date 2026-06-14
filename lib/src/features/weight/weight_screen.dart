@@ -13,12 +13,14 @@ class WeightScreen extends StatefulWidget {
     this.hasRequiredInfo = true,
     this.isPreview = false,
     this.heightCm,
+    this.initialRecords = const [],
     this.onRecordsChanged,
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
   final double? heightCm;
+  final List<WeightRecord> initialRecords;
   final ValueChanged<List<WeightRecord>>? onRecordsChanged;
 
   @override
@@ -30,6 +32,30 @@ class _WeightScreenState extends State<WeightScreen> {
   late var _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
   late var _selectedDate = _dateOnly(DateTime.now());
   var _range = _WeightRange.recent30;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncInitialRecords();
+  }
+
+  @override
+  void didUpdateWidget(covariant WeightScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialRecords != widget.initialRecords) {
+      _syncInitialRecords();
+    }
+  }
+
+  void _syncInitialRecords() {
+    _records
+      ..clear()
+      ..addEntries(
+        widget.initialRecords.map(
+          (record) => MapEntry(_dateOnly(record.date), record.weightKg),
+        ),
+      );
+  }
 
   List<MapEntry<DateTime, double>> get _sortedRecords {
     final values = _records.entries.toList()
@@ -96,54 +122,58 @@ class _WeightScreenState extends State<WeightScreen> {
   @override
   Widget build(BuildContext context) {
     final latest = _latestRecord;
-    return ListView(
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 34),
-      children: [
-        const SectionHeader(
-          title: '체중 관리',
-          subtitle: '최근 체중과 사용자정보의 키를 기준으로 BMI를 계산하고, 기간별 체중 변화를 확인합니다.',
-        ),
-        if (!widget.hasRequiredInfo) ...[
-          const RequiredInfoBanner(),
-          const SizedBox(height: 14),
-        ],
-        if (latest != null && widget.heightCm != null) ...[
-          _BmiCard(
-            latest: latest,
-            heightCm: widget.heightCm!,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionHeader(
+            title: '체중 관리',
+            subtitle: '최근 체중과 사용자정보의 키를 기준으로 BMI를 계산하고, 기간별 체중 변화를 확인합니다.',
           ),
-          const SizedBox(height: 14),
-        ],
-        if (_weightAdvice(latest) case final advice?) ...[
-          _WeightAdviceCard(advice: advice),
-          const SizedBox(height: 14),
-        ],
-        AppCard(
-          padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
-          child: _WeightCalendar(
-            visibleMonth: _visibleMonth,
-            selectedDate: _selectedDate,
-            records: _records,
-            onMoveMonth: _moveMonth,
-            onSelectDate: _openWeightEditor,
+          if (!widget.hasRequiredInfo) ...[
+            const RequiredInfoBanner(),
+            const SizedBox(height: 14),
+          ],
+          AppCard(
+            padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+            child: _WeightCalendar(
+              visibleMonth: _visibleMonth,
+              selectedDate: _selectedDate,
+              records: _records,
+              onMoveMonth: _moveMonth,
+              onSelectDate: _openWeightEditor,
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        AppCard(
-          padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
-          child: _WeightChartSection(
-            range: _range,
-            records: _chartRecords(),
-            onRangeChanged: (value) => setState(() => _range = value),
+          if (latest != null && widget.heightCm != null) ...[
+            const SizedBox(height: 14),
+            _BmiCard(
+              latest: latest,
+              heightCm: widget.heightCm!,
+            ),
+          ],
+          if (_weightAdvice(latest) case final advice?) ...[
+            const SizedBox(height: 14),
+            _WeightAdviceCard(advice: advice),
+          ],
+          const SizedBox(height: 14),
+          AppCard(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+            child: _WeightChartSection(
+              range: _range,
+              records: _chartRecords(),
+              onRangeChanged: (value) => setState(() => _range = value),
+            ),
           ),
-        ),
-        const SizedBox(height: 22),
-        const Text(
-          'BMI와 체중 변화 안내는 참고용 정보이며,\n의학적 진단이나 치료 결정을 대체하지 않습니다.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.muted, fontSize: 11, height: 1.45),
-        ),
-      ],
+          const SizedBox(height: 22),
+          const Text(
+            'BMI와 체중 변화 안내는 참고용 정보이며,\n의학적 진단이나 치료 결정을 대체하지 않습니다.',
+            textAlign: TextAlign.center,
+            style:
+                TextStyle(color: AppColors.muted, fontSize: 11, height: 1.45),
+          ),
+        ],
+      ),
     );
   }
 

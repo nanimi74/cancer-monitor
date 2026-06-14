@@ -4,6 +4,7 @@ import '../core/theme/app_theme.dart';
 import '../features/home/entry_screen.dart';
 import '../features/home/login_screen.dart';
 import '../features/home_shell.dart';
+import '../data/repositories/user_data_repository.dart';
 import '../services/auth/auth_service.dart';
 import '../services/auth/firebase_bootstrap.dart';
 
@@ -123,6 +124,10 @@ class _AppStartFlowState extends State<AppStartFlow> {
   }
 
   Future<void> _deleteAccount(AuthService authService) async {
+    final userId = _session?.userId;
+    if (userId != null) {
+      await UserDataRepository().deleteUserData(userId);
+    }
     await authService.deleteAccount();
     if (!mounted) return;
     setState(() {
@@ -160,6 +165,7 @@ class _AppStartFlowState extends State<AppStartFlow> {
               onExitPreview: _backToEntry,
               onSignOut: () => _signOut(authService),
               onDeleteAccount: () => _deleteAccount(authService),
+              userId: _session?.userId,
             ),
         };
       },

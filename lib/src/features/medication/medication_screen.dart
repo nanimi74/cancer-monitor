@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
+import '../../data/models/medication.dart' as data;
 import '../../services/notifications/notification_permission_service.dart';
 
 class MedicationScreen extends StatefulWidget {
@@ -10,14 +11,18 @@ class MedicationScreen extends StatefulWidget {
     this.hasRequiredInfo = true,
     this.isPreview = false,
     this.notificationEnabled = false,
+    this.initialMedications = const [],
     this.onNotificationPermissionChanged,
+    this.onMedicationsChanged,
     this.notificationPermissionService,
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
   final bool notificationEnabled;
+  final List<data.Medication> initialMedications;
   final ValueChanged<bool>? onNotificationPermissionChanged;
+  final ValueChanged<List<data.Medication>>? onMedicationsChanged;
   final NotificationPermissionService? notificationPermissionService;
 
   @override
@@ -33,8 +38,17 @@ class _MedicationScreenState extends State<MedicationScreen> {
           LocalNotificationPermissionService();
 
   @override
+  void initState() {
+    super.initState();
+    _syncInitialMedications();
+  }
+
+  @override
   void didUpdateWidget(covariant MedicationScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialMedications != widget.initialMedications) {
+      _syncInitialMedications();
+    }
     if (oldWidget.notificationEnabled != widget.notificationEnabled) {
       _notificationEnabled = widget.notificationEnabled;
       for (var index = 0; index < _medications.length; index += 1) {
@@ -76,6 +90,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
         _medications.removeWhere((item) => item.id == result.deletedId);
       });
       _showMessage('약물 기록이 삭제되었습니다.');
+      _notifyMedicationsChanged();
       return;
     }
 
@@ -89,7 +104,25 @@ class _MedicationScreenState extends State<MedicationScreen> {
         _medications[index] = saved;
       }
     });
+    _notifyMedicationsChanged();
     _showMessage('약물 정보가 저장되었습니다.');
+  }
+
+  void _syncInitialMedications() {
+    _medications
+      ..clear()
+      ..addAll(widget.initialMedications.map(_Medication.fromModel));
+    final maxId = _medications.fold<int>(
+      0,
+      (value, medication) => medication.id > value ? medication.id : value,
+    );
+    _nextMedicationId = maxId + 1;
+  }
+
+  void _notifyMedicationsChanged() {
+    widget.onMedicationsChanged?.call(
+      _medications.map((medication) => medication.toModel()).toList(),
+    );
   }
 
   void _showMessage(String message) {
@@ -476,10 +509,13 @@ class _MedicationEditorSheetState extends State<_MedicationEditorSheet> {
     }
 
     final source = widget.initialMedication;
+    final parsedDose = _parseDose(_doseAmount.text.trim());
+    final doseAmount = parsedDose.amount;
+    final doseUnit = parsedDose.unit == '정' ? _doseUnit : parsedDose.unit;
     final medication = _Medication(
       id: source?.id ?? DateTime.now().microsecondsSinceEpoch,
       name: _name.text.trim(),
-      dose: '${_doseAmount.text.trim()}$_doseUnit',
+      dose: '$doseAmount$doseUnit',
       frequency: _frequency,
       weekdays: _orderedWeekdays(_weekdays),
       reminderEnabled: shouldEnableReminder,
@@ -1143,6 +1179,20 @@ class _Medication {
     required this.memo,
   });
 
+  factory _Medication.fromModel(data.Medication medication) {
+    return _Medication(
+      id: medication.id,
+      name: medication.name,
+      dose: medication.dose,
+      frequency: medication.frequency,
+      weekdays: medication.weekdays,
+      reminderEnabled: medication.reminderEnabled,
+      reminders:
+          medication.reminders.map(_MedicationReminder.fromModel).toList(),
+      memo: medication.memo,
+    );
+  }
+
   final int id;
   final String name;
   final String dose;
@@ -1181,6 +1231,21 @@ class _Medication {
       memo: memo,
     );
   }
+
+  data.Medication toModel() {
+    return data.Medication(
+      id: id,
+      name: name,
+      dose: dose,
+      frequency: frequency,
+      weekdays: weekdays,
+      reminderEnabled: reminderEnabled,
+      reminders: reminders
+          .map((reminder) => reminder.toModel(enabled: reminderEnabled))
+          .toList(),
+      memo: memo,
+    );
+  }
 }
 
 class _MedicationReminder {
@@ -1188,6 +1253,16 @@ class _MedicationReminder {
     required this.label,
     required this.time,
   });
+
+  factory _MedicationReminder.fromModel(data.MedicationReminder reminder) {
+    final parts = reminder.time.split(':');
+    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 9 : 9;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    return _MedicationReminder(
+      label: reminder.label,
+      time: TimeOfDay(hour: hour.clamp(0, 23), minute: minute.clamp(0, 59)),
+    );
+  }
 
   final String label;
   final TimeOfDay time;
@@ -1204,6 +1279,14 @@ class _MedicationReminder {
     return _MedicationReminder(
       label: label ?? this.label,
       time: time ?? this.time,
+    );
+  }
+
+  data.MedicationReminder toModel({required bool enabled}) {
+    return data.MedicationReminder(
+      label: label,
+      time: formattedTime,
+      enabled: enabled,
     );
   }
 }
@@ -1244,7 +1327,7 @@ String? _requiredValidator(String? value) {
 String? _doseAmountValidator(String? value) {
   final trimmed = value?.trim() ?? '';
   if (trimmed.isEmpty) return '필수 입력 항목입니다.';
-  final number = double.tryParse(trimmed);
+  final number = double.tryParse(_parseDose(trimmed).amount);
   if (number == null || number <= 0) {
     return '숫자로 입력해 주세요.';
   }
