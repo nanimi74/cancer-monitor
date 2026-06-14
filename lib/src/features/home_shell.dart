@@ -46,6 +46,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   static const _signOutWriteGracePeriod = Duration(seconds: 1);
+  static const _settingsWriteGracePeriod = Duration(seconds: 4);
   static const _medicationWriteGracePeriod = Duration(seconds: 4);
 
   late final UserDataRepository _userDataRepository =
@@ -61,6 +62,7 @@ class _HomeShellState extends State<HomeShell> {
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
   Future<void> _pendingWrite = Future<void>.value();
+  Future<void> _pendingSettingsWrite = Future<void>.value();
   Future<void> _pendingMedicationWrite = Future<void>.value();
 
   bool get _canPersist => !widget.isPreview && widget.userId != null;
@@ -110,7 +112,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveSettings() {
     if (!_canPersist) return;
-    _queueWrite(
+    _pendingSettingsWrite = _queueWrite(
       () => _userDataRepository.saveSettings(
         widget.userId!,
         UserSettings(
@@ -185,6 +187,12 @@ class _HomeShellState extends State<HomeShell> {
     } catch (_) {
       // Continue sign-out/delete when a pending write is still in flight.
       // The queued write path still reports actual save failures.
+    }
+    try {
+      await _pendingSettingsWrite.timeout(_settingsWriteGracePeriod);
+    } catch (_) {
+      // Settings updates should usually finish quickly, but sign-out should
+      // still proceed if the network stalls.
     }
     try {
       await _pendingMedicationWrite.timeout(_medicationWriteGracePeriod);

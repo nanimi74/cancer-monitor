@@ -636,7 +636,7 @@ void main() {
     final signOutButton = find.widgetWithText(OutlinedButton, '로그아웃').last;
     await tester.tap(signOutButton);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1100));
+    await tester.pump(const Duration(milliseconds: 4100));
 
     expect(signedOut, isFalse);
     repository.completeMedicationSave();
@@ -681,7 +681,7 @@ void main() {
     await tester.pump();
 
     expect(signedOut, isFalse);
-    await tester.pump(const Duration(milliseconds: 1100));
+    await tester.pump(const Duration(milliseconds: 5100));
     await tester.pumpAndSettle();
 
     expect(repository.savedSettings, isTrue);
