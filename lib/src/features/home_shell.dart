@@ -192,115 +192,110 @@ class _HomeShellState extends State<HomeShell> {
               child: SizedBox(
                 width: width,
                 height: constraints.maxHeight,
-                child: Stack(
-                  children: [
-                    IndexedStack(
-                      index: _index,
-                      children: _screens,
-                    ),
-                    if (_loadingUserData)
-                      const Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: LinearProgressIndicator(minHeight: 2),
+                child: _loadingUserData
+                    ? const _UserDataLoadingView()
+                    : IndexedStack(
+                        index: _index,
+                        children: _screens,
                       ),
-                  ],
-                ),
               ),
             );
           },
         ),
       ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: .97),
-          border: const Border(top: BorderSide(color: AppColors.line)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.text.withValues(alpha: .08),
-              blurRadius: 24,
-              offset: const Offset(0, -8),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 74,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 680),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 7, 14, 9),
-                  child: NavigationBarTheme(
-                    data: NavigationBarThemeData(
-                      indicatorColor: Colors.transparent,
-                      labelTextStyle: WidgetStateProperty.resolveWith(
-                        (states) => TextStyle(
-                          color: states.contains(WidgetState.selected)
-                              ? AppColors.accent
-                              : AppColors.muted,
-                          fontSize: 12,
-                          fontWeight: states.contains(WidgetState.selected)
-                              ? FontWeight.w600
-                              : FontWeight.w500,
+      bottomNavigationBar: _loadingUserData
+          ? null
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .97),
+                border: const Border(top: BorderSide(color: AppColors.line)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.text.withValues(alpha: .08),
+                    blurRadius: 24,
+                    offset: const Offset(0, -8),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 74,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 7, 14, 9),
+                        child: NavigationBarTheme(
+                          data: NavigationBarThemeData(
+                            indicatorColor: Colors.transparent,
+                            labelTextStyle: WidgetStateProperty.resolveWith(
+                              (states) => TextStyle(
+                                color: states.contains(WidgetState.selected)
+                                    ? AppColors.accent
+                                    : AppColors.muted,
+                                fontSize: 12,
+                                fontWeight:
+                                    states.contains(WidgetState.selected)
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                              ),
+                            ),
+                            iconTheme: WidgetStateProperty.resolveWith(
+                              (states) => IconThemeData(
+                                color: states.contains(WidgetState.selected)
+                                    ? AppColors.accent
+                                    : AppColors.muted,
+                                size: 27,
+                              ),
+                            ),
+                          ),
+                          child: NavigationBar(
+                            selectedIndex: _index,
+                            height: 58,
+                            elevation: 0,
+                            backgroundColor: Colors.transparent,
+                            indicatorColor: Colors.transparent,
+                            labelBehavior:
+                                NavigationDestinationLabelBehavior.alwaysShow,
+                            onDestinationSelected: (index) =>
+                                setState(() => _index = index),
+                            destinations: const [
+                              NavigationDestination(
+                                icon: Icon(Icons.person_outline),
+                                selectedIcon: Icon(Icons.person_outline),
+                                label: '마이페이지',
+                              ),
+                              NavigationDestination(
+                                icon: _CapsuleIcon(),
+                                selectedIcon: _CapsuleIcon(selected: true),
+                                label: '복약관리',
+                              ),
+                              NavigationDestination(
+                                icon: _ScaleIcon(),
+                                selectedIcon: _ScaleIcon(selected: true),
+                                label: '체중관리',
+                              ),
+                              NavigationDestination(
+                                icon: Icon(Icons.calendar_month_outlined),
+                                selectedIcon:
+                                    Icon(Icons.calendar_month_outlined),
+                                label: '증상관리',
+                              ),
+                              NavigationDestination(
+                                icon: _AiIcon(),
+                                selectedIcon: _AiIcon(selected: true),
+                                label: 'AI분석',
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      iconTheme: WidgetStateProperty.resolveWith(
-                        (states) => IconThemeData(
-                          color: states.contains(WidgetState.selected)
-                              ? AppColors.accent
-                              : AppColors.muted,
-                          size: 27,
-                        ),
-                      ),
-                    ),
-                    child: NavigationBar(
-                      selectedIndex: _index,
-                      height: 58,
-                      elevation: 0,
-                      backgroundColor: Colors.transparent,
-                      indicatorColor: Colors.transparent,
-                      labelBehavior:
-                          NavigationDestinationLabelBehavior.alwaysShow,
-                      onDestinationSelected: (index) =>
-                          setState(() => _index = index),
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.person_outline),
-                          selectedIcon: Icon(Icons.person_outline),
-                          label: '마이페이지',
-                        ),
-                        NavigationDestination(
-                          icon: _CapsuleIcon(),
-                          selectedIcon: _CapsuleIcon(selected: true),
-                          label: '복약관리',
-                        ),
-                        NavigationDestination(
-                          icon: _ScaleIcon(),
-                          selectedIcon: _ScaleIcon(selected: true),
-                          label: '체중관리',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.calendar_month_outlined),
-                          selectedIcon: Icon(Icons.calendar_month_outlined),
-                          label: '증상관리',
-                        ),
-                        NavigationDestination(
-                          icon: _AiIcon(),
-                          selectedIcon: _AiIcon(selected: true),
-                          label: 'AI분석',
-                        ),
-                      ],
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -382,6 +377,49 @@ class _HomeShellState extends State<HomeShell> {
           weights: _weightRecords,
         ),
       ];
+}
+
+class _UserDataLoadingView extends StatelessWidget {
+  const _UserDataLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            SizedBox(height: 18),
+            Text(
+              '사용자 데이터를 불러오고 있어요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '저장된 사용자정보와 복약 기록을 확인하는 중입니다.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _CapsuleIcon extends StatelessWidget {

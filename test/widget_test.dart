@@ -490,7 +490,7 @@ void main() {
     expect(find.text('꺼짐'), findsNothing);
   });
 
-  testWidgets('home shell shows navigation while user data is loading',
+  testWidgets('home shell shows loading message until user data is loaded',
       (WidgetTester tester) async {
     final repository = _DelayedLoadUserDataRepository();
 
@@ -506,18 +506,16 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('마이페이지'), findsWidgets);
-    expect(find.text('복약관리'), findsOneWidget);
-    expect(find.text('체중관리'), findsOneWidget);
-    expect(find.text('증상관리'), findsOneWidget);
-    expect(find.text('AI분석'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('사용자 데이터를 불러오고 있어요.'), findsOneWidget);
+    expect(find.text('저장된 사용자정보와 복약 기록을 확인하는 중입니다.'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('복약관리'), findsNothing);
 
     repository.completeLoad();
     await tester.pumpAndSettle();
 
-    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.text('사용자 데이터를 불러오고 있어요.'), findsNothing);
+    expect(find.text('복약관리'), findsOneWidget);
     await tester.tap(find.text('마이페이지').last);
     await tester.pumpAndSettle();
 
