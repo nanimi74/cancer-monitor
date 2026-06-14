@@ -83,7 +83,8 @@ class AiAnalysisService {
       return _fromRemoteResponse(_normalizeRemoteMap(response.data), records);
     } catch (error, stackTrace) {
       if (kDebugMode) {
-        debugPrint('AI analysis remote call failed: $error');
+        debugPrint(
+            'AI analysis remote call failed: ${_debugFailureCode(error)}');
         debugPrintStack(stackTrace: stackTrace);
       }
       throw _remoteFailure(error);
@@ -196,10 +197,16 @@ class AiAnalysisService {
 
   AiAnalysisException _remoteFailure(Object error) {
     if (error is FirebaseFunctionsException) {
+      final serverCode = _serverErrorCode(error.details);
+      final visibleCode = [
+        'functions',
+        error.code,
+        if (serverCode != null) serverCode,
+      ].join('/');
       return AiAnalysisException(
         title: 'AI 분석을 완료하지 못했어요',
-        message: _functionsFailureMessage(error.code),
-        code: 'functions/${error.code}',
+        message: _functionsFailureMessage(error.code, serverCode),
+        code: visibleCode,
       );
     }
     if (error is TimeoutException) {
@@ -223,7 +230,27 @@ class AiAnalysisService {
     );
   }
 
-  String _functionsFailureMessage(String code) {
+  String _functionsFailureMessage(String code, [String? serverCode]) {
+    switch (serverCode) {
+      case 'INVALID_CYCLE':
+        return '선택한 항암 회차 정보를 확인해 주세요.';
+      case 'NO_RECORDS':
+        return '분석할 증상 기록을 먼저 입력해 주세요.';
+      case 'CLAUDE_AUTH_FAILED':
+        return 'AI 분석 설정을 확인해야 합니다. 잠시 후 다시 시도해 주세요.';
+      case 'CLAUDE_RATE_LIMITED':
+        return '현재 AI 분석 요청이 많아 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      case 'CLAUDE_MODEL_UNAVAILABLE':
+      case 'CLAUDE_MODELS_EXHAUSTED':
+        return '현재 AI 분석 모델을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.';
+      case 'CLAUDE_SERVER_ERROR':
+      case 'CLAUDE_API_FAILED':
+        return 'AI 분석 서버가 응답하지 않았습니다. 잠시 후 다시 시도해 주세요.';
+      case 'CLAUDE_RESPONSE_PARSE_FAILED':
+      case 'CLAUDE_RESPONSE_SCHEMA_INVALID':
+        return 'AI 분석 응답을 앱에서 읽지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    }
+
     switch (code) {
       case 'unauthenticated':
         return '로그인 상태를 확인한 뒤 다시 시도해 주세요.';
@@ -240,6 +267,28 @@ class AiAnalysisService {
       default:
         return 'AI 분석 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.';
     }
+  }
+
+  String _debugFailureCode(Object error) {
+    if (error is FirebaseFunctionsException) {
+      final serverCode = _serverErrorCode(error.details);
+      return [
+        'functions',
+        error.code,
+        if (serverCode != null) serverCode,
+      ].join('/');
+    }
+    if (error is TimeoutException) return 'timeout';
+    if (error is FormatException) return 'invalid-response';
+    return error.runtimeType.toString();
+  }
+
+  String? _serverErrorCode(Object? details) {
+    if (details is Map) {
+      final code = details['errorCode'];
+      if (code is String && code.trim().isNotEmpty) return code.trim();
+    }
+    return null;
   }
 
   Map<String, dynamic> _normalizeRemoteMap(Object? value) {

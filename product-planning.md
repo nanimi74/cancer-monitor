@@ -778,6 +778,8 @@ AI 분석은 Claude API(Anthropic)를 사용한다. 사용자의 건강정보가
 - Claude API 키는 서버 환경변수 또는 비밀 관리 도구에 저장하고 앱에 포함하지 않는다.
 - Claude API 요청 전 서버에서 입력 데이터를 최소화한다.
 - 분석 요청/응답 로그는 운영상 필요한 최소 범위로만 저장하고, 저장 여부와 기간을 개인정보처리방침에 명시한다.
+- 서버 로그에는 원문 건강기록, 전체 프롬프트, Claude 전체 응답, Claude 원문 오류 메시지 또는 오류 본문을 저장하지 않는다.
+- 서버 로그에는 모델 후보명, HTTP 상태코드, 내부 에러코드, Claude 오류 유형(type), 재시도/최종 실패 여부처럼 문제 추적에 필요한 비식별 메타데이터만 남긴다.
 - Claude API의 데이터 보관 정책, 모델 학습 사용 여부, 국외 이전 여부는 Anthropic의 최신 계약/정책과 실제 사용 리전에 맞춰 운영 전 최종 확인한다.
 - Flutter 앱은 Firebase Callable Functions의 `analyzeCycle` 함수를 호출해 AI 분석을 요청한다.
 - `analyzeCycle` 함수는 서버에 저장된 `ANTHROPIC_API_KEY` 비밀값을 사용해 Claude API를 호출한다.
@@ -785,9 +787,12 @@ AI 분석은 Claude API(Anthropic)를 사용한다. 사용자의 건강정보가
 - 서버는 Claude 모델 후보를 비용과 응답 속도를 고려한 순서로 보관하고, 1순위 모델이 중단/미지원/일시 장애인 경우 다음 후보 모델로 자동 재시도한다.
 - Claude 모델 후보 자동 재시도는 모두 Claude API를 통한 분석이며, 로컬 임시 분석이나 규칙 기반 요약으로 대체하지 않는다.
 - 모든 Claude 후보 모델이 실패하거나 결제/권한/API 키 문제로 Claude 분석을 수행할 수 없는 경우에는 사용자에게 AI 분석 실패 안내 팝업을 노출한다.
+- 서버는 실패 원인을 인증/API 키, 요청 제한, 모델 미지원, Claude 서버 오류, 응답 파싱 실패, 응답 스키마 오류 등으로 구분해 내부 에러코드를 내려준다.
 - 사용 중인 Claude 모델 후보가 장기적으로 중단되거나 더 이상 제공되지 않는 경우 운영자는 Anthropic의 최신 제공 모델과 개인정보 처리 조건을 확인한 뒤 서버의 모델 설정을 변경하고 Cloud Functions를 재배포한다.
 - Claude API 호출이 실패하거나 함수가 응답하지 않는 경우에는 로컬 임시 분석으로 대체하지 않고, 사용자에게 AI 분석 실패 안내 팝업을 노출한다.
 - AI 분석 실패 팝업은 사용자 친화적인 제목과 재시도 안내 문구를 제공하고, 하단에 오류 코드를 표시해 원인 추적이 가능하도록 한다.
+- Firebase Functions 오류는 `functions/{Firebase Functions code}/{server errorCode}` 형식으로 표시한다. 예: `functions/internal/CLAUDE_MODELS_EXHAUSTED`, `functions/internal/CLAUDE_AUTH_FAILED`
+- 네트워크 지연과 앱 응답 해석 실패는 각각 `timeout`, `invalid-response`처럼 앱 내부 코드로 표시한다.
 - 개발 빌드에서는 QA를 위해 AI 분석 결과 상단에 `Claude 분석` 출처 배지를 표시하고, 출시 빌드에서는 해당 개발용 배지를 노출하지 않는다.
 - 개발 빌드에서 AI 분석 요청이 실패한 경우 토스트가 아닌 확인형 팝업을 노출한다. 팝업 타이틀은 사용자가 이해하기 쉬운 문구로 제공하고, 본문에는 재시도 안내와 함께 `functions/internal`, `timeout` 등 원인 파악용 에러코드를 표시한다.
 - 운영 출시 전에는 `ANTHROPIC_API_KEY` 등록, 함수 배포, 개인정보처리방침/AI 분석 이용 안내 고지, 실제 Claude 응답 검수 기준을 모두 확인한다.

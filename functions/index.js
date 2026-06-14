@@ -11,6 +11,21 @@ const DEFAULT_CLAUDE_MODELS = [
 ];
 const CLAUDE_MODELS = buildClaudeModelList();
 const ANTHROPIC_VERSION = "2023-06-01";
+const MAX_MODEL_CANDIDATES = 5;
+const MAX_RECORDS_PER_REQUEST = 100;
+const MAX_WEIGHT_RECORDS = 30;
+const ERROR_CODES = {
+  INVALID_CYCLE: "INVALID_CYCLE",
+  NO_RECORDS: "NO_RECORDS",
+  CLAUDE_API_FAILED: "CLAUDE_API_FAILED",
+  CLAUDE_AUTH_FAILED: "CLAUDE_AUTH_FAILED",
+  CLAUDE_RATE_LIMITED: "CLAUDE_RATE_LIMITED",
+  CLAUDE_MODEL_UNAVAILABLE: "CLAUDE_MODEL_UNAVAILABLE",
+  CLAUDE_SERVER_ERROR: "CLAUDE_SERVER_ERROR",
+  CLAUDE_MODELS_EXHAUSTED: "CLAUDE_MODELS_EXHAUSTED",
+  CLAUDE_RESPONSE_PARSE_FAILED: "CLAUDE_RESPONSE_PARSE_FAILED",
+  CLAUDE_RESPONSE_SCHEMA_INVALID: "CLAUDE_RESPONSE_SCHEMA_INVALID",
+};
 const ANALYSIS_TITLES = [
   "식사량",
   "음수량",
@@ -33,8 +48,9 @@ exports.analyzeCycle = onCall(
     }
 
     const payload = normalizePayload(request.data);
+    validatePayloadForAnalysis(payload);
     if (!payload.records.length) {
-      throw new HttpsError("failed-precondition", "분석할 기록이 없습니다.");
+      throw aiFailedPrecondition(ERROR_CODES.NO_RECORDS, "분석할 기록이 없습니다.");
     }
 
     const body = await requestClaudeAnalysis(payload);
@@ -74,26 +90,24 @@ async function requestClaudeAnalysis(payload) {
       return response.json();
     }
 
-    const errorText = await response.text();
-    errors.push({ model, status: response.status, errorText });
+    const errorMeta = await buildClaudeErrorMeta(response, model);
+    errors.push(errorMeta);
 
     if (!isRetryableClaudeError(response.status)) {
-      logger.error("Claude API request failed", {
-        model,
-        status: response.status,
-        errorText,
-      });
-      throw new HttpsError("internal", "AI 분석 요청에 실패했습니다.");
+      logger.error("Claude API request failed", errorMeta);
+      throw aiInternalError(errorMeta.errorCode, "AI 분석 요청에 실패했습니다.");
     }
 
     logger.warn("Claude model failed, trying next candidate", {
       model,
       status: response.status,
+      errorCode: errorMeta.errorCode,
+      type: errorMeta.type,
     });
   }
 
   logger.error("All Claude model candidates failed", { errors });
-  throw new HttpsError("internal", "AI 분석 요청에 실패했습니다.");
+  throw aiInternalError(ERROR_CODES.CLAUDE_MODELS_EXHAUSTED, "AI 분석 요청에 실패했습니다.");
 }
 
 function buildClaudeModelList() {
@@ -103,7 +117,8 @@ function buildClaudeModelList() {
   const models = configured
     .split(",")
     .map((model) => model.trim())
-    .filter(Boolean);
+    .filter((model) => /^[a-zA-Z0-9._:-]+$/.test(model))
+    .slice(0, MAX_MODEL_CANDIDATES);
   return models.length ? models : DEFAULT_CLAUDE_MODELS;
 }
 
@@ -111,17 +126,49 @@ function isRetryableClaudeError(status) {
   return [400, 404, 429, 500, 502, 503, 504].includes(status);
 }
 
+async function buildClaudeErrorMeta(response, model) {
+  let type = "";
+  try {
+    const errorText = await response.text();
+    const parsed = JSON.parse(errorText);
+    type = limitText(parsed && parsed.error && parsed.error.type, 80);
+  } catch (error) {
+    type = "";
+  }
+
+  return {
+    model,
+    status: response.status,
+    errorCode: toClaudeErrorCode(response.status),
+    type,
+  };
+}
+
+function toClaudeErrorCode(status) {
+  if (status === 401 || status === 403) return ERROR_CODES.CLAUDE_AUTH_FAILED;
+  if (status === 400 || status === 404) return ERROR_CODES.CLAUDE_MODEL_UNAVAILABLE;
+  if (status === 429) return ERROR_CODES.CLAUDE_RATE_LIMITED;
+  if (status >= 500) return ERROR_CODES.CLAUDE_SERVER_ERROR;
+  return ERROR_CODES.CLAUDE_API_FAILED;
+}
+
 function normalizePayload(data) {
   const source = data && typeof data === "object" ? data : {};
   return {
     cycleNo: toNumber(source.cycleNo),
     profile: sanitizeProfile(source.profile),
-    weights: toArray(source.weights).map(sanitizeWeight).slice(-30),
-    records: toArray(source.records).map(sanitizeRecord).slice(0, 100),
+    weights: toArray(source.weights).map(sanitizeWeight).slice(-MAX_WEIGHT_RECORDS),
+    records: toArray(source.records).map(sanitizeRecord).slice(0, MAX_RECORDS_PER_REQUEST),
     previousRecords: toArray(source.previousRecords)
       .map(sanitizeRecord)
-      .slice(0, 100),
+      .slice(0, MAX_RECORDS_PER_REQUEST),
   };
+}
+
+function validatePayloadForAnalysis(payload) {
+  if (!Number.isInteger(payload.cycleNo) || payload.cycleNo < 1 || payload.cycleNo > 100) {
+    throw aiFailedPrecondition(ERROR_CODES.INVALID_CYCLE, "항암 회차 정보를 확인해 주세요.");
+  }
 }
 
 function sanitizeProfile(profile) {
@@ -277,15 +324,28 @@ function parseJson(text) {
   } catch (error) {
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) {
-      throw new HttpsError("internal", "AI 분석 응답을 해석하지 못했습니다.");
+      throw aiInternalError(
+        ERROR_CODES.CLAUDE_RESPONSE_PARSE_FAILED,
+        "AI 분석 응답을 해석하지 못했습니다.",
+      );
     }
-    return JSON.parse(match[0]);
+    try {
+      return JSON.parse(match[0]);
+    } catch (parseError) {
+      throw aiInternalError(
+        ERROR_CODES.CLAUDE_RESPONSE_PARSE_FAILED,
+        "AI 분석 응답을 해석하지 못했습니다.",
+      );
+    }
   }
 }
 
 function validateAnalysis(data, hasPrevious) {
   if (!data || typeof data !== "object") {
-    throw new HttpsError("internal", "AI 분석 응답 형식이 올바르지 않습니다.");
+    throw aiInternalError(
+      ERROR_CODES.CLAUDE_RESPONSE_SCHEMA_INVALID,
+      "AI 분석 응답 형식이 올바르지 않습니다.",
+    );
   }
 
   const sourceItems = Array.isArray(data.items) ? data.items : [];
@@ -305,6 +365,14 @@ function validateAnalysis(data, hasPrevious) {
       limitText(data.encouragement, 120) ||
       "오늘도 기록을 이어가고 계신 것만으로도 충분히 잘하고 있어요. 💜",
   };
+}
+
+function aiInternalError(errorCode, message) {
+  return new HttpsError("internal", message, { errorCode });
+}
+
+function aiFailedPrecondition(errorCode, message) {
+  return new HttpsError("failed-precondition", message, { errorCode });
 }
 
 function toArray(value) {
