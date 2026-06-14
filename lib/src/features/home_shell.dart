@@ -8,7 +8,6 @@ import '../data/models/symptom_record.dart';
 import '../data/models/user_profile.dart';
 import '../data/models/weight_record.dart';
 import '../data/repositories/user_data_repository.dart';
-import '../services/auth/auth_service.dart';
 import '../services/health/step_sync_service.dart';
 import '../services/notifications/notification_permission_service.dart';
 import 'analysis/analysis_screen.dart';
@@ -46,7 +45,7 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  static const _signOutWriteTimeout = Duration(seconds: 12);
+  static const _signOutWriteTimeout = Duration(seconds: 2);
 
   late final UserDataRepository _userDataRepository =
       widget.userDataRepository ?? UserDataRepository();
@@ -181,15 +180,13 @@ class _HomeShellState extends State<HomeShell> {
     return write;
   }
 
-  Future<bool> _flushPendingWrites({required bool showFailureMessage}) async {
+  Future<void> _flushPendingWrites({required bool showFailureMessage}) async {
     try {
       await _pendingWrite.timeout(_signOutWriteTimeout);
-      return true;
     } catch (_) {
       if (mounted && showFailureMessage) {
-        _showMessage('기록 저장을 완료하지 못했습니다. 잠시 후 다시 로그아웃해 주세요.');
+        _showMessage('저장이 지연되고 있습니다. 저장된 기록은 네트워크 연결 후 동기화됩니다.');
       }
-      return false;
     }
   }
 
@@ -197,15 +194,11 @@ class _HomeShellState extends State<HomeShell> {
     if (_canPersist) {
       _showMessage('데이터를 저장 중입니다. 저장 완료 시 로그아웃됩니다.');
     }
-    final saved = await _flushPendingWrites(showFailureMessage: true);
-    if (!saved) {
-      throw const AuthFailure('기록 저장이 끝나지 않아 로그아웃하지 않았습니다.');
-    }
+    await _flushPendingWrites(showFailureMessage: true);
     await widget.onSignOut?.call();
   }
 
   Future<void> _handleDeleteAccount() async {
-    await _flushPendingWrites(showFailureMessage: false);
     await widget.onDeleteAccount?.call();
   }
 

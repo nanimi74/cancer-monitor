@@ -600,7 +600,7 @@ void main() {
     expect(signedOut, isTrue);
   });
 
-  testWidgets('sign out waits for pending medication reminder save',
+  testWidgets('sign out proceeds when pending medication reminder save stalls',
       (WidgetTester tester) async {
     final repository = _DelayedMedicationSaveRepository();
     var signedOut = false;
@@ -641,16 +641,12 @@ void main() {
     final signOutButton = find.widgetWithText(OutlinedButton, '로그아웃').last;
     await tester.tap(signOutButton);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 4100));
-
-    expect(signedOut, isFalse);
-    repository.completeMedicationSave();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 2300));
 
     expect(signedOut, isTrue);
   });
 
-  testWidgets('sign out stays signed in when pending user data save stalls',
+  testWidgets('sign out proceeds when pending user data save stalls',
       (WidgetTester tester) async {
     final repository = _DelayedUserDataRepository();
     var signedOut = false;
@@ -686,11 +682,11 @@ void main() {
     await tester.pump();
 
     expect(signedOut, isFalse);
-    await tester.pump(const Duration(milliseconds: 12100));
+    await tester.pump(const Duration(milliseconds: 2300));
     await tester.pumpAndSettle();
 
     expect(repository.savedSettings, isTrue);
-    expect(signedOut, isFalse);
+    expect(signedOut, isTrue);
   });
 }
 
