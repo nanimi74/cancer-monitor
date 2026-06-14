@@ -551,3 +551,13 @@ function limitText(value, maxLength) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.length > maxLength ? text.slice(0, maxLength - 1) + "…" : text;
 }
+
+if (process.env.NODE_ENV === "test") {
+  exports._test = {
+    ERROR_CODES,
+    normalizePayload,
+    validatePayloadForAnalysis,
+    parseJson,
+    validateAnalysis,
+  };
+}
