@@ -859,7 +859,12 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
           if (trailing != null)
-            Flexible(child: trailing!)
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: trailing!,
+              ),
+            )
           else
             Text(
               value ?? '',
