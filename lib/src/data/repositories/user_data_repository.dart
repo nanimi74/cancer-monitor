@@ -33,27 +33,22 @@ class UserDataSnapshot {
 }
 
 class UserDataRepository {
-  UserDataRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  UserDataRepository({FirebaseFirestore? firestore}) : _firestore = firestore;
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
+
+  FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;
 
   Future<UserDataSnapshot> load(String userId) async {
     final paths = UserDataPaths(userId);
-    final userDoc = await _firestore.doc(paths.userDocument).get();
-    final profileDoc = await _firestore.doc(paths.profileDocument).get();
-    final medicationDocs = await _firestore
-        .collection(paths.medicationsCollection)
-        .orderBy('id')
-        .get();
-    final weightDocs = await _firestore
-        .collection(paths.weightsCollection)
-        .orderBy('date')
-        .get();
-    final symptomDocs = await _firestore
-        .collection(paths.symptomsCollection)
-        .orderBy('date')
-        .get();
+    final userDoc = await _db.doc(paths.userDocument).get();
+    final profileDoc = await _db.doc(paths.profileDocument).get();
+    final medicationDocs =
+        await _db.collection(paths.medicationsCollection).orderBy('id').get();
+    final weightDocs =
+        await _db.collection(paths.weightsCollection).orderBy('date').get();
+    final symptomDocs =
+        await _db.collection(paths.symptomsCollection).orderBy('date').get();
 
     return UserDataSnapshot(
       settings: _settingsFromMap(userDoc.data() ?? const {}),
@@ -72,7 +67,7 @@ class UserDataRepository {
 
   Future<void> saveSettings(String userId, UserSettings settings) async {
     final paths = UserDataPaths(userId);
-    await _firestore.doc(paths.userDocument).set({
+    await _db.doc(paths.userDocument).set({
       'schemaVersion': 1,
       'notificationEnabled': settings.notificationEnabled,
       'stepSyncEnabled': settings.stepSyncEnabled,
@@ -82,16 +77,16 @@ class UserDataRepository {
 
   Future<void> saveProfile(String userId, UserProfile profile) async {
     final paths = UserDataPaths(userId);
-    final batch = _firestore.batch();
+    final batch = _db.batch();
     batch.set(
-      _firestore.doc(paths.userDocument),
+      _db.doc(paths.userDocument),
       {
         'schemaVersion': 1,
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
-    batch.set(_firestore.doc(paths.profileDocument), {
+    batch.set(_db.doc(paths.profileDocument), {
       'sex': profile.sex,
       'birthDate': _dateKey(profile.birthDate),
       'cancerType': profile.cancerType,
@@ -171,18 +166,18 @@ class UserDataRepository {
     await _deleteCollection(paths.symptomsCollection);
     await _deleteCollection(paths.analysisCollection);
     await _deleteCollection('${paths.userDocument}/profile');
-    await _firestore.doc(paths.userDocument).delete();
+    await _db.doc(paths.userDocument).delete();
   }
 
   Future<void> _replaceCollection({
     required String collectionPath,
     required Map<String, Map<String, Object?>> values,
   }) async {
-    final collection = _firestore.collection(collectionPath);
+    final collection = _db.collection(collectionPath);
     await _deleteCollection(collectionPath);
     if (values.isEmpty) return;
 
-    final batch = _firestore.batch();
+    final batch = _db.batch();
     for (final entry in values.entries) {
       batch.set(collection.doc(entry.key), entry.value);
     }
@@ -190,11 +185,11 @@ class UserDataRepository {
   }
 
   Future<void> _deleteCollection(String collectionPath) async {
-    final collection = _firestore.collection(collectionPath);
+    final collection = _db.collection(collectionPath);
     while (true) {
       final snapshot = await collection.limit(200).get();
       if (snapshot.docs.isEmpty) return;
-      final batch = _firestore.batch();
+      final batch = _db.batch();
       for (final doc in snapshot.docs) {
         batch.delete(doc.reference);
       }

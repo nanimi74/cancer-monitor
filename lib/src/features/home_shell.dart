@@ -57,6 +57,7 @@ class _HomeShellState extends State<HomeShell> {
   var _medications = <Medication>[];
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
+  Future<void> _pendingWrite = Future<void>.value();
 
   bool get _canPersist => !widget.isPreview && widget.userId != null;
 
@@ -105,53 +106,60 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveSettings() {
     if (!_canPersist) return;
-    unawaited(
-      _userDataRepository
-          .saveSettings(
-            widget.userId!,
-            UserSettings(
-              notificationEnabled: _notificationEnabled,
-              stepSyncEnabled: _stepSyncEnabled,
-            ),
-          )
-          .catchError((_) => _showSaveError()),
+    _queueWrite(
+      () => _userDataRepository.saveSettings(
+        widget.userId!,
+        UserSettings(
+          notificationEnabled: _notificationEnabled,
+          stepSyncEnabled: _stepSyncEnabled,
+        ),
+      ),
     );
   }
 
   void _saveProfile(UserProfile? profile) {
     if (!_canPersist || profile == null) return;
-    unawaited(
-      _userDataRepository
-          .saveProfile(widget.userId!, profile)
-          .catchError((_) => _showSaveError()),
-    );
+    _queueWrite(() => _userDataRepository.saveProfile(widget.userId!, profile));
   }
 
   void _saveMedications(List<Medication> medications) {
     if (!_canPersist) return;
-    unawaited(
-      _userDataRepository
-          .saveMedications(widget.userId!, medications)
-          .catchError((_) => _showSaveError()),
+    _queueWrite(
+      () => _userDataRepository.saveMedications(widget.userId!, medications),
     );
   }
 
   void _saveWeights(List<WeightRecord> records) {
     if (!_canPersist) return;
-    unawaited(
-      _userDataRepository
-          .saveWeights(widget.userId!, records)
-          .catchError((_) => _showSaveError()),
-    );
+    _queueWrite(() => _userDataRepository.saveWeights(widget.userId!, records));
   }
 
   void _saveSymptoms(List<SymptomRecord> records) {
     if (!_canPersist) return;
-    unawaited(
-      _userDataRepository
-          .saveSymptoms(widget.userId!, records)
-          .catchError((_) => _showSaveError()),
+    _queueWrite(
+      () => _userDataRepository.saveSymptoms(widget.userId!, records),
     );
+  }
+
+  void _queueWrite(Future<void> Function() operation) {
+    _pendingWrite = _pendingWrite
+        .catchError((_) {})
+        .then((_) => operation())
+        .catchError((_) => _showSaveError());
+  }
+
+  Future<void> _flushPendingWrites() async {
+    await _pendingWrite;
+  }
+
+  Future<void> _handleSignOut() async {
+    await _flushPendingWrites();
+    await widget.onSignOut?.call();
+  }
+
+  Future<void> _handleDeleteAccount() async {
+    await _flushPendingWrites();
+    await widget.onDeleteAccount?.call();
   }
 
   void _showSaveError() {
@@ -285,8 +293,9 @@ class _HomeShellState extends State<HomeShell> {
           hasRequiredInfo: _hasRequiredInfo,
           isPreview: widget.isPreview,
           onExitPreview: widget.onExitPreview,
-          onSignOut: widget.onSignOut,
-          onDeleteAccount: widget.onDeleteAccount,
+          onSignOut: widget.onSignOut == null ? null : _handleSignOut,
+          onDeleteAccount:
+              widget.onDeleteAccount == null ? null : _handleDeleteAccount,
           notificationPermissionService: widget.notificationPermissionService,
           stepSyncService: widget.stepSyncService,
           initialProfile: _userProfile,

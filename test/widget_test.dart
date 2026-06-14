@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -6,6 +8,8 @@ import 'package:cancer_monitor/src/features/home_shell.dart';
 import 'package:cancer_monitor/src/features/medication/medication_screen.dart';
 import 'package:cancer_monitor/src/features/symptom/symptom_screen.dart';
 import 'package:cancer_monitor/src/features/weight/weight_screen.dart';
+import 'package:cancer_monitor/src/data/models/user_profile.dart';
+import 'package:cancer_monitor/src/data/repositories/user_data_repository.dart';
 import 'package:cancer_monitor/src/services/health/step_sync_service.dart';
 import 'package:cancer_monitor/src/services/notifications/notification_permission_service.dart';
 
@@ -71,7 +75,11 @@ void main() {
     await tester.pumpAndSettle();
 
     final signOutButton = find.widgetWithText(OutlinedButton, '로그아웃');
-    await tester.scrollUntilVisible(signOutButton, 350);
+    await tester.scrollUntilVisible(
+      signOutButton,
+      350,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(signOutButton);
     await tester.pumpAndSettle();
 
@@ -481,6 +489,49 @@ void main() {
     expect(find.text('켜짐'), findsOneWidget);
     expect(find.text('꺼짐'), findsNothing);
   });
+
+  testWidgets('sign out waits for pending user data save',
+      (WidgetTester tester) async {
+    final repository = _DelayedUserDataRepository();
+    var signedOut = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: true,
+          userId: 'user-1',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+          onSignOut: () async {
+            signedOut = true;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('마이페이지'));
+    await tester.pumpAndSettle();
+
+    await tester
+        .tap(find.byKey(const ValueKey('notification-permission-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('허용'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -800));
+    await tester.pumpAndSettle();
+    final signOutButton = find.widgetWithText(OutlinedButton, '로그아웃').last;
+    await tester.tap(signOutButton);
+    await tester.pump();
+
+    expect(signedOut, isFalse);
+    repository.completeSave();
+    await tester.pumpAndSettle();
+
+    expect(repository.savedSettings, isTrue);
+    expect(signedOut, isTrue);
+  });
 }
 
 class _FakeNotificationPermissionService
@@ -502,6 +553,40 @@ class _FakeStepSyncService implements StepSyncService {
 
   @override
   Future<int?> readTodaySteps() async => 2400;
+}
+
+class _DelayedUserDataRepository extends UserDataRepository {
+  Completer<void>? _saveCompleter;
+  var savedSettings = false;
+
+  @override
+  Future<UserDataSnapshot> load(String userId) async {
+    return UserDataSnapshot(
+      settings: const UserSettings(),
+      profile: UserProfile(
+        sex: '여성',
+        birthDate: DateTime(1974, 3, 12),
+        cancerType: '유방암',
+        stage: '2기',
+        diagnosisDate: DateTime(2026, 1, 15),
+        metastasis: '없음',
+        treatmentType: '항암치료',
+        treatmentStartDate: DateTime(2026, 4, 1),
+        heightCm: 162,
+      ),
+    );
+  }
+
+  @override
+  Future<void> saveSettings(String userId, UserSettings settings) {
+    savedSettings = true;
+    _saveCompleter = Completer<void>();
+    return _saveCompleter!.future;
+  }
+
+  void completeSave() {
+    _saveCompleter?.complete();
+  }
 }
 
 String _testFormatDate([DateTime? value]) {
