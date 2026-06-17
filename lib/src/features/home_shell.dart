@@ -49,6 +49,9 @@ class _HomeShellState extends State<HomeShell> {
 
   late final UserDataRepository _userDataRepository =
       widget.userDataRepository ?? UserDataRepository();
+  late final NotificationPermissionService _notificationPermissionService =
+      widget.notificationPermissionService ??
+          LocalNotificationPermissionService();
   late var _hasRequiredInfo = widget.hasRequiredInfo;
   late var _index = _hasRequiredInfo ? 3 : 0;
   var _notificationEnabled = false;
@@ -99,6 +102,7 @@ class _HomeShellState extends State<HomeShell> {
         _symptomRecords = snapshot.symptoms;
         if (_hasRequiredInfo && _index == 0) _index = 3;
       });
+      unawaited(_syncMedicationNotifications());
       if (cachedSnapshot == null) {
         unawaited(_userDataRepository.saveCachedSnapshot(userId, snapshot));
       }
@@ -118,9 +122,20 @@ class _HomeShellState extends State<HomeShell> {
           _symptomRecords = cachedSnapshot.symptoms;
           if (_hasRequiredInfo && _index == 0) _index = 3;
         });
+        unawaited(_syncMedicationNotifications());
         return;
       }
-      _showMessage('저장된 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setState(() {
+        _notificationEnabled = false;
+        _stepSyncEnabled = false;
+        _userProfile = null;
+        _heightCm = null;
+        _hasRequiredInfo = false;
+        _medications = const [];
+        _weightRecords = const [];
+        _symptomRecords = const [];
+        _index = 0;
+      });
     } finally {
       if (mounted && widget.userId == userId) {
         setState(() => _loadingUserData = false);
@@ -189,6 +204,17 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
+  Future<void> _syncMedicationNotifications() async {
+    if (widget.isPreview) return;
+    try {
+      final medications = _notificationEnabled ? _medications : <Medication>[];
+      await _notificationPermissionService.syncMedicationReminders(medications);
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('복약 알림 예약 중 문제가 발생했습니다.');
+    }
+  }
+
   List<Medication> _disableMedicationReminders(
     List<Medication> medications,
   ) {
@@ -233,9 +259,6 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _handleSignOut() async {
-    if (_canPersist) {
-      _showMessage('데이터를 저장 중입니다. 저장 완료 시 로그아웃됩니다.');
-    }
     await _flushPendingWrites();
     await widget.onSignOut?.call();
   }
@@ -383,7 +406,7 @@ class _HomeShellState extends State<HomeShell> {
           onSignOut: widget.onSignOut == null ? null : _handleSignOut,
           onDeleteAccount:
               widget.onDeleteAccount == null ? null : _handleDeleteAccount,
-          notificationPermissionService: widget.notificationPermissionService,
+          notificationPermissionService: _notificationPermissionService,
           stepSyncService: widget.stepSyncService,
           initialProfile: _userProfile,
           notificationEnabled: _notificationEnabled,
@@ -395,6 +418,7 @@ class _HomeShellState extends State<HomeShell> {
               _saveMedications(_medications);
             }
             _saveSettings();
+            unawaited(_syncMedicationNotifications());
           }),
           onStepSyncChanged: (value) => setState(() {
             _stepSyncEnabled = value;
@@ -414,14 +438,16 @@ class _HomeShellState extends State<HomeShell> {
           isPreview: widget.isPreview,
           notificationEnabled: _notificationEnabled,
           initialMedications: _medications,
-          notificationPermissionService: widget.notificationPermissionService,
+          notificationPermissionService: _notificationPermissionService,
           onNotificationPermissionChanged: (value) => setState(() {
             _notificationEnabled = value;
             _saveSettings();
+            unawaited(_syncMedicationNotifications());
           }),
           onMedicationsChanged: (medications) => setState(() {
             _medications = medications;
             _saveMedications(medications);
+            unawaited(_syncMedicationNotifications());
           }),
         ),
         WeightScreen(

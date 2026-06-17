@@ -88,6 +88,8 @@ class AppStartFlow extends StatefulWidget {
 }
 
 class _AppStartFlowState extends State<AppStartFlow> {
+  static const _deleteUserDataTimeout = Duration(seconds: 5);
+
   late final Future<AuthService> _authServiceFuture =
       const FirebaseBootstrap().buildAuthService();
   _StartStage _stage = _StartStage.entry;
@@ -126,7 +128,15 @@ class _AppStartFlowState extends State<AppStartFlow> {
   Future<void> _deleteAccount(AuthService authService) async {
     final userId = _session?.userId;
     if (userId != null) {
-      await UserDataRepository().deleteUserData(userId);
+      try {
+        await UserDataRepository()
+            .deleteUserData(userId)
+            .timeout(_deleteUserDataTimeout);
+      } catch (error, stackTrace) {
+        debugPrint('User data deletion before account removal failed.');
+        debugPrint('$error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
     }
     await authService.deleteAccount();
     if (!mounted) return;

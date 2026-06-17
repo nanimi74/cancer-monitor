@@ -606,6 +606,26 @@ void main() {
     expect(find.text('유방암 · 2기'), findsOneWidget);
   });
 
+  testWidgets(
+      'home shell starts empty without error toast when no cache exists',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'new-user',
+          userDataRepository: _FailingLoadUserDataRepository(),
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('저장된 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'), findsNothing);
+    expect(find.text('마이페이지'), findsWidgets);
+    expect(find.text('사용자 정보'), findsOneWidget);
+  });
+
   testWidgets('home shell restores cached medication records after sign in',
       (WidgetTester tester) async {
     final repository = _CachedMedicationUserDataRepository();
@@ -668,7 +688,7 @@ void main() {
     expect(signedOut, isFalse);
     expect(
       find.text('데이터를 저장 중입니다. 저장 완료 시 로그아웃됩니다.'),
-      findsOneWidget,
+      findsNothing,
     );
     repository.completeSave();
     await tester.pumpAndSettle();
@@ -773,11 +793,11 @@ class _FakeNotificationPermissionService
   Future<bool> requestPermission() async => true;
 
   @override
-  Future<void> scheduleMedicationReminder({
-    required String medicationId,
-    required String title,
-    required DateTime scheduledAt,
-  }) async {}
+  Future<void> syncMedicationReminders(
+      Iterable<Medication> medications) async {}
+
+  @override
+  Future<void> cancelMedicationReminders(int medicationId) async {}
 }
 
 class _FakeStepSyncService implements StepSyncService {
@@ -820,6 +840,16 @@ class _DelayedUserDataRepository extends UserDataRepository {
   void completeSave() {
     _saveCompleter?.complete();
   }
+}
+
+class _FailingLoadUserDataRepository extends UserDataRepository {
+  @override
+  Future<UserDataSnapshot> load(String userId) async {
+    throw Exception('network unavailable');
+  }
+
+  @override
+  Future<UserDataSnapshot?> loadCachedSnapshot(String userId) async => null;
 }
 
 class _DelayedMedicationSaveRepository extends UserDataRepository {

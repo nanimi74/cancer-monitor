@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
@@ -262,6 +263,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _accountActionInProgress = true);
     try {
       await action();
+      if (mounted) setState(() => _accountActionInProgress = false);
     } on AuthFailure catch (error) {
       if (!mounted) return;
       _showMessage(error.message);
@@ -276,6 +278,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _openContactEmail() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: AppConstants.privacyEmail,
+      queryParameters: const {
+        'subject': '[항암기록관리] 문의하기',
+        'body': '문의 내용을 입력해 주세요.\n\n',
+      },
+    );
+
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && mounted) {
+      _showMessage('메일 앱을 열 수 없습니다. 메일 앱 설정을 확인해 주세요.');
+    }
   }
 
   @override
@@ -315,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _MenuTile(
           title: '문의하기',
           subtitle: '서비스 이용 중 궁금한 점을 보냅니다.',
-          onTap: () => _showMessage('문의하기 화면은 다음 단계에서 연결됩니다.'),
+          onTap: _openContactEmail,
         ),
         _MenuTile(
           title: '서비스 이용약관',

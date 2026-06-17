@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -31,18 +33,29 @@ class SymptomScreen extends StatefulWidget {
   State<SymptomScreen> createState() => _SymptomScreenState();
 }
 
-class _SymptomScreenState extends State<SymptomScreen> {
+class _SymptomScreenState extends State<SymptomScreen>
+    with WidgetsBindingObserver {
   final _records = <DateTime, _SymptomRecord>{};
   late final StepSyncService _stepSyncService =
       widget.stepSyncService ?? PlatformStepSyncService();
   late var _stepSyncEnabled = widget.stepSyncEnabled;
   var _visibleMonth = _monthStart(DateTime.now());
   DateTime? _selectedDate;
+  var _refreshingTodaySteps = false;
+  var _refreshScheduled = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _syncInitialRecords();
+    _scheduleTodayLinkedStepsRefresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
@@ -50,10 +63,29 @@ class _SymptomScreenState extends State<SymptomScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.stepSyncEnabled != widget.stepSyncEnabled) {
       _stepSyncEnabled = widget.stepSyncEnabled;
+      _scheduleTodayLinkedStepsRefresh();
     }
     if (oldWidget.initialRecords != widget.initialRecords) {
       _syncInitialRecords();
+      _scheduleTodayLinkedStepsRefresh();
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _scheduleTodayLinkedStepsRefresh();
+    }
+  }
+
+  void _scheduleTodayLinkedStepsRefresh() {
+    if (_refreshScheduled) return;
+    _refreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshScheduled = false;
+      if (!mounted) return;
+      unawaited(_refreshTodayLinkedSteps());
+    });
   }
 
   void _syncInitialRecords() {
@@ -67,6 +99,35 @@ class _SymptomScreenState extends State<SymptomScreen> {
           ),
         ),
       );
+  }
+
+  Future<void> _refreshTodayLinkedSteps() async {
+    if (widget.isPreview || _refreshingTodaySteps) return;
+    final today = _dateOnly(DateTime.now());
+    final record = _records[today];
+    if (record == null || record.stepsSource != '연동') return;
+
+    _refreshingTodaySteps = true;
+    try {
+      final steps = await _stepSyncService.readTodaySteps();
+      if (!mounted || steps == null || steps == record.steps) return;
+      setState(() {
+        _stepSyncEnabled = true;
+        _records[today] = record.copyWith(
+          steps: steps,
+          stepsSource: '연동',
+        );
+        if (_selectedDate != null && _isSameDay(_selectedDate!, today)) {
+          _selectedDate = today;
+        }
+      });
+      widget.onStepSyncChanged?.call(true);
+      _notifyRecordsChanged();
+    } catch (_) {
+      // 걸음수 자동 갱신 실패는 기록 사용을 막지 않습니다.
+    } finally {
+      _refreshingTodaySteps = false;
+    }
   }
 
   Future<void> _openEditor(DateTime date, [_SymptomRecord? record]) async {
@@ -160,6 +221,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _scheduleTodayLinkedStepsRefresh();
     final selectedDate = _selectedDate;
     final selectedRecord =
         selectedDate == null ? null : _records[_dateOnly(selectedDate)];
@@ -1011,6 +1073,14 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   var _stepSyncInProgress = false;
   String? _validationMessage;
 
+  bool get _usingStepSync => _stepsSource == '연동';
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshLinkedStepsForEditor());
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -1023,6 +1093,24 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     _steps.dispose();
     _note.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshLinkedStepsForEditor() async {
+    if (widget.isPreview || !_usingStepSync) return;
+    if (!_isSameDay(widget.date, _dateOnly(DateTime.now()))) return;
+
+    try {
+      final steps = await widget.stepSyncService.readTodaySteps();
+      if (!mounted || steps == null || steps.toString() == _steps.text) return;
+      setState(() {
+        _stepSyncEnabled = true;
+        _stepsSource = '연동';
+        _steps.text = steps.toString();
+      });
+      widget.onStepSyncChanged(true);
+    } catch (_) {
+      // 편집창 자동 갱신 실패는 수동 입력과 저장을 막지 않습니다.
+    }
   }
 
   Future<void> _pickMealAmount() async {
@@ -1169,34 +1257,37 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   }
 
   Future<void> _enableStepSync() async {
-    if (_stepSyncInProgress || _stepSyncEnabled) return;
+    if (_stepSyncInProgress) return;
     if (widget.isPreview) {
       _showMessage('둘러보기에서는 권한 요청을 진행하지 않습니다.');
       return;
     }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('걸음수 연동 권한'),
-        content: const Text(
-          '휴대폰의 걸음수를 불러와 증상관리에 사용합니다. 걸음수 연동을 켜시겠습니까?',
+    if (!_stepSyncEnabled) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('걸음수 연동 권한'),
+          content: const Text(
+            '휴대폰의 걸음수를 불러와 증상관리에 사용합니다. 걸음수 연동을 켜시겠습니까?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('켜기'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('켜기'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || confirmed != true) return;
+      );
+      if (!mounted || confirmed != true) return;
+    }
     setState(() => _stepSyncInProgress = true);
     try {
-      final granted = await widget.stepSyncService.requestPermission();
+      final granted =
+          _stepSyncEnabled || await widget.stepSyncService.requestPermission();
       if (!mounted) return;
       setState(() {
         _stepSyncEnabled = granted;
@@ -1217,6 +1308,11 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     } finally {
       if (mounted) setState(() => _stepSyncInProgress = false);
     }
+  }
+
+  void _disableStepSyncForRecord() {
+    setState(() => _stepsSource = '수동');
+    _showMessage('이 기록은 수동 입력으로 변경되었습니다.');
   }
 
   void _selectBowel(String value) {
@@ -1453,16 +1549,16 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                         child: _StepsField(
                           controller: _steps,
                           source: _stepsSource,
-                          readOnly: _stepSyncEnabled,
+                          readOnly: _usingStepSync,
                         ),
                       ),
-                      if (!_stepSyncEnabled) ...[
-                        const SizedBox(height: 10),
-                        _StepSyncPanel(
-                          inProgress: _stepSyncInProgress,
-                          onTap: _enableStepSync,
-                        ),
-                      ],
+                      const SizedBox(height: 10),
+                      _StepSyncPanel(
+                        enabled: _usingStepSync,
+                        inProgress: _stepSyncInProgress,
+                        onEnable: _enableStepSync,
+                        onDisable: _disableStepSyncForRecord,
+                      ),
                       const SizedBox(height: 18),
                       KeyedSubtree(
                         key: _bowelKey,
@@ -1856,10 +1952,17 @@ class _StepsField extends StatelessWidget {
 }
 
 class _StepSyncPanel extends StatelessWidget {
-  const _StepSyncPanel({required this.inProgress, required this.onTap});
+  const _StepSyncPanel({
+    required this.enabled,
+    required this.inProgress,
+    required this.onEnable,
+    required this.onDisable,
+  });
 
+  final bool enabled;
   final bool inProgress;
-  final VoidCallback onTap;
+  final VoidCallback onEnable;
+  final VoidCallback onDisable;
 
   @override
   Widget build(BuildContext context) {
@@ -1873,25 +1976,32 @@ class _StepSyncPanel extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '걸음수 연동 꺼짐',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    enabled ? '걸음수 연동 켜짐' : '걸음수 연동 꺼짐',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  SizedBox(height: 3),
+                  const SizedBox(height: 3),
                   Text(
-                    '휴대폰의 걸음수를 불러오려면 연동을 활성화하세요.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                    enabled
+                        ? '직접 수정하려면 수동입력으로 바꾸세요.'
+                        : '연동하면 휴대폰 걸음수를 불러올 수 있습니다.',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
             ),
             TextButton(
-              onPressed: inProgress ? null : onTap,
-              child: Text(inProgress ? '요청 중' : '연동하기'),
+              onPressed: inProgress ? null : (enabled ? onDisable : onEnable),
+              child: Text(
+                inProgress ? '요청 중' : (enabled ? '수동입력' : '연동하기'),
+              ),
             ),
           ],
         ),
@@ -2083,6 +2193,28 @@ class _SymptomRecord {
 
   List<String> get visibleSideEffects =>
       sideEffects.where((effect) => effect != '없음').take(3).toList();
+
+  _SymptomRecord copyWith({
+    int? steps,
+    String? stepsSource,
+  }) {
+    return _SymptomRecord(
+      cycleNo: cycleNo,
+      cycleDay: cycleDay,
+      mealAmount: mealAmount,
+      breakfastMemo: breakfastMemo,
+      lunchMemo: lunchMemo,
+      dinnerMemo: dinnerMemo,
+      extraMealMemo: extraMealMemo,
+      waterAmount: waterAmount,
+      steps: steps ?? this.steps,
+      stepsSource: stepsSource ?? this.stepsSource,
+      bowel: bowel,
+      stoolStatus: stoolStatus,
+      sideEffects: sideEffects,
+      note: note,
+    );
+  }
 
   SymptomRecord toModel(DateTime date) {
     return SymptomRecord(
