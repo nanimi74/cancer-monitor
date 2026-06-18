@@ -204,15 +204,36 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  Future<void> _syncMedicationNotifications() async {
+  Future<void> _syncMedicationNotifications({bool announce = false}) async {
     if (widget.isPreview) return;
     try {
       final medications = _notificationEnabled ? _medications : <Medication>[];
       await _notificationPermissionService.syncMedicationReminders(medications);
+      if (!announce ||
+          !mounted ||
+          !_hasActiveMedicationReminders(medications)) {
+        return;
+      }
+      final pendingCount =
+          await _notificationPermissionService.pendingMedicationReminderCount();
+      if (!mounted) return;
+      _showMessage(
+        pendingCount > 0
+            ? '복약 알림 $pendingCount개가 예약되었습니다.'
+            : '예약된 복약 알림이 없습니다. 알림 시간과 기기 권한을 확인해 주세요.',
+      );
     } catch (_) {
       if (!mounted) return;
       _showMessage('복약 알림 예약 중 문제가 발생했습니다.');
     }
+  }
+
+  bool _hasActiveMedicationReminders(List<Medication> medications) {
+    return medications.any(
+      (medication) =>
+          medication.reminderEnabled &&
+          medication.reminders.any((reminder) => reminder.enabled),
+    );
   }
 
   List<Medication> _disableMedicationReminders(
@@ -418,7 +439,7 @@ class _HomeShellState extends State<HomeShell> {
               _saveMedications(_medications);
             }
             _saveSettings();
-            unawaited(_syncMedicationNotifications());
+            unawaited(_syncMedicationNotifications(announce: value));
           }),
           onStepSyncChanged: (value) => setState(() {
             _stepSyncEnabled = value;
@@ -442,12 +463,12 @@ class _HomeShellState extends State<HomeShell> {
           onNotificationPermissionChanged: (value) => setState(() {
             _notificationEnabled = value;
             _saveSettings();
-            unawaited(_syncMedicationNotifications());
+            unawaited(_syncMedicationNotifications(announce: value));
           }),
           onMedicationsChanged: (medications) => setState(() {
             _medications = medications;
             _saveMedications(medications);
-            unawaited(_syncMedicationNotifications());
+            unawaited(_syncMedicationNotifications(announce: true));
           }),
         ),
         WeightScreen(

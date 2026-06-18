@@ -866,6 +866,9 @@ class _FakeNotificationPermissionService
 
   @override
   Future<void> cancelMedicationReminders(int medicationId) async {}
+
+  @override
+  Future<int> pendingMedicationReminderCount() async => 1;
 }
 
 class _FakeStepSyncService implements StepSyncService {

@@ -11,6 +11,7 @@ abstract interface class NotificationPermissionService {
   Future<bool> requestPermission();
   Future<void> syncMedicationReminders(Iterable<Medication> medications);
   Future<void> cancelMedicationReminders(int medicationId);
+  Future<int> pendingMedicationReminderCount();
 }
 
 class LocalNotificationPermissionService
@@ -107,6 +108,15 @@ class LocalNotificationPermissionService
         id++) {
       await _notificationsPlugin.cancel(id: id);
     }
+  }
+
+  @override
+  Future<int> pendingMedicationReminderCount() async {
+    await _ensureInitialized();
+    final requests = await _notificationsPlugin.pendingNotificationRequests();
+    return requests
+        .where((request) => request.payload?.startsWith('medication:') ?? false)
+        .length;
   }
 
   Future<void> _scheduleMedication(Medication medication) async {
