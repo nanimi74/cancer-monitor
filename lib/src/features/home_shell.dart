@@ -46,6 +46,9 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   static const _signOutWriteTimeout = Duration(seconds: 2);
+  static const _profileTabIndex = 0;
+  static const _medicationTabIndex = 1;
+  static const _symptomTabIndex = 3;
 
   late final UserDataRepository _userDataRepository =
       widget.userDataRepository ?? UserDataRepository();
@@ -53,7 +56,7 @@ class _HomeShellState extends State<HomeShell> {
       widget.notificationPermissionService ??
           LocalNotificationPermissionService();
   late var _hasRequiredInfo = widget.hasRequiredInfo;
-  late var _index = _hasRequiredInfo ? 3 : 0;
+  late var _index = _hasRequiredInfo ? _symptomTabIndex : _profileTabIndex;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
   var _loadingUserData = false;
@@ -114,7 +117,9 @@ class _HomeShellState extends State<HomeShell> {
         _weightRecords = snapshot.weights;
         _symptomRecords = snapshot.symptoms;
         if (!_applyPendingNotificationDestination()) {
-          if (_hasRequiredInfo && _index == 0) _index = 3;
+          if (_hasRequiredInfo && _index == _profileTabIndex) {
+            _index = _symptomTabIndex;
+          }
         }
       });
       unawaited(_syncMedicationNotifications());
@@ -136,7 +141,9 @@ class _HomeShellState extends State<HomeShell> {
           _weightRecords = cachedSnapshot.weights;
           _symptomRecords = cachedSnapshot.symptoms;
           if (!_applyPendingNotificationDestination()) {
-            if (_hasRequiredInfo && _index == 0) _index = 3;
+            if (_hasRequiredInfo && _index == _profileTabIndex) {
+              _index = _symptomTabIndex;
+            }
           }
         });
         unawaited(_syncMedicationNotifications());
@@ -151,7 +158,7 @@ class _HomeShellState extends State<HomeShell> {
         _medications = const [];
         _weightRecords = const [];
         _symptomRecords = const [];
-        _index = 0;
+        _index = _profileTabIndex;
       });
     } finally {
       if (mounted && widget.userId == userId) {
@@ -247,7 +254,12 @@ class _HomeShellState extends State<HomeShell> {
 
   Future<void> _consumeLaunchNotificationPayload() async {
     if (widget.isPreview) return;
-    final payload = await _notificationPermissionService.takeLaunchPayload();
+    final String? payload;
+    try {
+      payload = await _notificationPermissionService.takeLaunchPayload();
+    } catch (_) {
+      return;
+    }
     if (!mounted || payload == null) return;
     _handleNotificationPayload(payload);
   }
@@ -258,14 +270,14 @@ class _HomeShellState extends State<HomeShell> {
       _pendingNotificationPayload = payload;
       return;
     }
-    setState(() => _index = 1);
+    setState(() => _index = _medicationTabIndex);
   }
 
   bool _applyPendingNotificationDestination() {
     final payload = _pendingNotificationPayload;
     if (payload == null || !payload.startsWith('medication:')) return false;
     _pendingNotificationPayload = null;
-    _index = 1;
+    _index = _medicationTabIndex;
     return true;
   }
 

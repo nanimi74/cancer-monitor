@@ -575,6 +575,63 @@ void main() {
     expect(find.text('항구토제'), findsOneWidget);
   });
 
+  testWidgets('medication notification opens medication tab',
+      (WidgetTester tester) async {
+    final notificationService = _FakeNotificationPermissionService();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: true,
+          notificationPermissionService: notificationService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('증상 관리'), findsOneWidget);
+
+    notificationService.emitPayload('medication:1');
+    await tester.pumpAndSettle();
+
+    expect(find.text('약물 관리'), findsOneWidget);
+    expect(find.text('증상 관리'), findsNothing);
+  });
+
+  testWidgets('medication save with reminder shows only reminder toast',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: true,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('마이페이지'));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(const ValueKey('notification-permission-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('허용'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), '항구토제');
+    await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약물 정보가 저장되었습니다.'), findsNothing);
+    expect(find.text('복약 알림이 등록되었습니다.'), findsOneWidget);
+  });
+
   testWidgets('profile notification toggle disables medication reminders',
       (WidgetTester tester) async {
     await tester.pumpWidget(
