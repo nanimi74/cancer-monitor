@@ -37,6 +37,11 @@ class LocalNotificationPermissionService
         requestAlertPermission: false,
         requestBadgePermission: false,
         requestSoundPermission: false,
+        defaultPresentAlert: true,
+        defaultPresentBadge: true,
+        defaultPresentSound: true,
+        defaultPresentBanner: true,
+        defaultPresentList: true,
       ),
     );
     await _notificationsPlugin.initialize(settings: initializationSettings);
@@ -118,7 +123,9 @@ class LocalNotificationPermissionService
       final weekdays = _weekdaysFor(medication);
       if (weekdays == null) {
         final id = _notificationIdBase(medication.id) + reminderIndex;
-        if (_isCurrentMinute(time.hour, time.minute)) {
+        final scheduledDate = _nextTime(time.hour, time.minute);
+        if (_isCurrentMinute(time.hour, time.minute) ||
+            _needsNearTermNotification(scheduledDate)) {
           await _scheduleNotification(
             id: _notificationIdBase(medication.id) + 900 + reminderIndex,
             medication: medication,
@@ -131,7 +138,7 @@ class LocalNotificationPermissionService
           id: id,
           medication: medication,
           reminderLabel: reminder.label,
-          scheduledDate: _nextTime(time.hour, time.minute),
+          scheduledDate: scheduledDate,
           repeat: DateTimeComponents.time,
         );
         continue;
@@ -142,9 +149,9 @@ class LocalNotificationPermissionService
             100 +
             reminderIndex * 10 +
             weekday;
-        final now = timezone.TZDateTime.now(timezone.local);
-        if (weekday == now.weekday &&
-            _isCurrentMinute(time.hour, time.minute)) {
+        final scheduledDate = _nextWeekdayTime(weekday, time.hour, time.minute);
+        if ((_isToday(weekday) && _isCurrentMinute(time.hour, time.minute)) ||
+            _needsNearTermNotification(scheduledDate)) {
           await _scheduleNotification(
             id: _notificationIdBase(medication.id) +
                 900 +
@@ -152,14 +159,15 @@ class LocalNotificationPermissionService
                 weekday,
             medication: medication,
             reminderLabel: reminder.label,
-            scheduledDate: now.add(const Duration(seconds: 10)),
+            scheduledDate: timezone.TZDateTime.now(timezone.local)
+                .add(const Duration(seconds: 10)),
           );
         }
         await _scheduleRepeatingNotification(
           id: id,
           medication: medication,
           reminderLabel: reminder.label,
-          scheduledDate: _nextWeekdayTime(weekday, time.hour, time.minute),
+          scheduledDate: scheduledDate,
           repeat: DateTimeComponents.dayOfWeekAndTime,
         );
       }
@@ -206,6 +214,9 @@ class LocalNotificationPermissionService
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
+          presentBanner: true,
+          presentList: true,
+          interruptionLevel: InterruptionLevel.active,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -234,6 +245,16 @@ class LocalNotificationPermissionService
     final next = _nextTime(hour, minute);
     final daysUntilWeekday = (weekday - next.weekday) % DateTime.daysPerWeek;
     return next.add(Duration(days: daysUntilWeekday));
+  }
+
+  bool _needsNearTermNotification(timezone.TZDateTime scheduledDate) {
+    final now = timezone.TZDateTime.now(timezone.local);
+    final leadTime = scheduledDate.difference(now);
+    return !leadTime.isNegative && leadTime <= const Duration(seconds: 15);
+  }
+
+  bool _isToday(int weekday) {
+    return timezone.TZDateTime.now(timezone.local).weekday == weekday;
   }
 
   bool _isCurrentMinute(int hour, int minute) {

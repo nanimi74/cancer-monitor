@@ -1339,7 +1339,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (widget.isPreview) {
       Navigator.of(context).pop(const _SymptomEditorResult.previewBlocked());
       return;
@@ -1357,6 +1357,9 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       return;
     }
 
+    final steps = await _stepsForSave();
+    if (!mounted) return;
+
     Navigator.of(context).pop(
       _SymptomEditorResult.save(
         _SymptomRecord(
@@ -1368,7 +1371,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
           dinnerMemo: _dinner.text.trim(),
           extraMealMemo: _extraMeal.text.trim(),
           waterAmount: _waterAmount!,
-          steps: int.parse(_steps.text),
+          steps: steps,
           stepsSource: _stepsSource,
           bowel: _bowel!,
           stoolStatus: _bowel == '있음' ? _stoolStatus : null,
@@ -1377,6 +1380,27 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
         ),
       ),
     );
+  }
+
+  Future<int> _stepsForSave() async {
+    final typedSteps = int.tryParse(_steps.text.trim());
+    if (!_usingStepSync) return typedSteps ?? 0;
+    if (!_isSameDay(widget.date, _dateOnly(DateTime.now()))) {
+      return typedSteps ?? 0;
+    }
+
+    setState(() => _stepSyncInProgress = true);
+    try {
+      final syncedSteps = await widget.stepSyncService.readTodaySteps();
+      if (!mounted) return typedSteps ?? syncedSteps ?? 0;
+      final steps = syncedSteps ?? typedSteps ?? 0;
+      _steps.text = steps.toString();
+      return steps;
+    } catch (_) {
+      return typedSteps ?? 0;
+    } finally {
+      if (mounted) setState(() => _stepSyncInProgress = false);
+    }
   }
 
   _ValidationMessage? _firstMissingRequiredMessage() {
@@ -1392,7 +1416,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     if (_waterAmount == null) {
       return _ValidationMessage('음수량을 입력해주세요.', _waterAmountKey);
     }
-    if (_steps.text.trim().isEmpty) {
+    if (!_usingStepSync && _steps.text.trim().isEmpty) {
       return _ValidationMessage('운동량을 입력해주세요.', _stepsKey);
     }
     if (_bowel == null) {
@@ -1550,6 +1574,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                           controller: _steps,
                           source: _stepsSource,
                           readOnly: _usingStepSync,
+                          allowEmpty: _usingStepSync,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -1912,11 +1937,13 @@ class _StepsField extends StatelessWidget {
     required this.controller,
     required this.source,
     required this.readOnly,
+    required this.allowEmpty,
   });
 
   final TextEditingController controller;
   final String source;
   final bool readOnly;
+  final bool allowEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -1940,6 +1967,7 @@ class _StepsField extends StatelessWidget {
             ),
           ),
           validator: (value) {
+            if (allowEmpty && (value == null || value.isEmpty)) return null;
             final number = int.tryParse(value ?? '');
             if (number == null) return '필수';
             if (number < 0) return '확인';

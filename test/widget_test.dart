@@ -421,6 +421,74 @@ void main() {
     expect(find.text('피로'), findsWidgets);
   });
 
+  testWidgets('linked symptom steps can be saved while empty',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SymptomScreen(
+            stepSyncEnabled: true,
+            stepSyncService: _NullStepSyncService(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(ValueKey('symptom-day-${_testFormatDate()}')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ElevatedButton, '증상기록하기'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    tester
+        .widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, '증상기록하기'),
+        )
+        .onPressed
+        ?.call();
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), '2');
+    await tester.enterText(find.byType(TextFormField).at(1), '2');
+    await tester.tap(find.text('선택').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('평소와 같음'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(_symptomEditorScrollable, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('선택').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1~1.5L'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(_symptomEditorScrollable, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('있음'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('딱딱한변'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(_symptomEditorScrollable, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('오심'),
+      220,
+      scrollable: _symptomEditorScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('오심'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2-2'), findsWidgets);
+    expect(find.text('0보'), findsOneWidget);
+    expect(find.text('운동량을 입력해주세요.'), findsNothing);
+  });
+
   testWidgets('medication can be added with multiple default reminders',
       (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -806,6 +874,14 @@ class _FakeStepSyncService implements StepSyncService {
 
   @override
   Future<int?> readTodaySteps() async => 2400;
+}
+
+class _NullStepSyncService implements StepSyncService {
+  @override
+  Future<bool> requestPermission() async => true;
+
+  @override
+  Future<int?> readTodaySteps() async => null;
 }
 
 class _DelayedUserDataRepository extends UserDataRepository {
