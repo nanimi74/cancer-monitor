@@ -102,19 +102,16 @@ class _HomeShellState extends State<HomeShell> {
     setState(() => _loadingUserData = true);
     try {
       final remoteSnapshot = await _userDataRepository.load(userId);
-      final cachedSnapshot =
-          await _userDataRepository.loadCachedSnapshot(userId);
-      final snapshot = cachedSnapshot ?? remoteSnapshot;
       if (!mounted || widget.userId != userId) return;
       setState(() {
-        _notificationEnabled = snapshot.settings.notificationEnabled;
-        _stepSyncEnabled = snapshot.settings.stepSyncEnabled;
-        _userProfile = snapshot.profile;
-        _heightCm = snapshot.profile?.heightCm;
-        _hasRequiredInfo = snapshot.profile != null;
-        _medications = snapshot.medications;
-        _weightRecords = snapshot.weights;
-        _symptomRecords = snapshot.symptoms;
+        _notificationEnabled = remoteSnapshot.settings.notificationEnabled;
+        _stepSyncEnabled = remoteSnapshot.settings.stepSyncEnabled;
+        _userProfile = remoteSnapshot.profile;
+        _heightCm = remoteSnapshot.profile?.heightCm;
+        _hasRequiredInfo = remoteSnapshot.profile != null;
+        _medications = remoteSnapshot.medications;
+        _weightRecords = remoteSnapshot.weights;
+        _symptomRecords = remoteSnapshot.symptoms;
         if (!_applyPendingNotificationDestination()) {
           if (_hasRequiredInfo && _index == _profileTabIndex) {
             _index = _symptomTabIndex;
@@ -122,9 +119,7 @@ class _HomeShellState extends State<HomeShell> {
         }
       });
       unawaited(_syncMedicationNotifications());
-      if (cachedSnapshot == null) {
-        unawaited(_userDataRepository.saveCachedSnapshot(userId, snapshot));
-      }
+      unawaited(_userDataRepository.saveCachedSnapshot(userId, remoteSnapshot));
     } catch (_) {
       final cachedSnapshot =
           await _userDataRepository.loadCachedSnapshot(userId);

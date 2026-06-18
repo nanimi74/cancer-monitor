@@ -777,7 +777,7 @@ void main() {
     expect(find.text('사용자 정보'), findsOneWidget);
   });
 
-  testWidgets('home shell restores cached medication records after sign in',
+  testWidgets('home shell restores cached medication records when remote fails',
       (WidgetTester tester) async {
     final repository = _CachedMedicationUserDataRepository();
 
@@ -798,6 +798,30 @@ void main() {
 
     expect(find.text('항구토제'), findsOneWidget);
     expect(find.text('등록된 약물이 없습니다.'), findsNothing);
+  });
+
+  testWidgets('home shell prefers remote records over stale cache',
+      (WidgetTester tester) async {
+    final repository = _RemoteMedicationWithStaleCacheRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('서버약'), findsOneWidget);
+    expect(find.text('캐시약'), findsNothing);
+    expect(repository.cachedSnapshotSaved, isTrue);
   });
 
   testWidgets('sign out waits for pending user data save',
@@ -1062,7 +1086,7 @@ class _DelayedMedicationSaveRepository extends UserDataRepository {
 class _CachedMedicationUserDataRepository extends UserDataRepository {
   @override
   Future<UserDataSnapshot> load(String userId) async {
-    return const UserDataSnapshot(settings: UserSettings());
+    throw Exception('network unavailable');
   }
 
   @override
@@ -1092,6 +1116,76 @@ class _CachedMedicationUserDataRepository extends UserDataRepository {
         ),
       ],
     );
+  }
+}
+
+class _RemoteMedicationWithStaleCacheRepository extends UserDataRepository {
+  var cachedSnapshotSaved = false;
+
+  @override
+  Future<UserDataSnapshot> load(String userId) async {
+    return UserDataSnapshot(
+      settings: const UserSettings(),
+      profile: UserProfile(
+        sex: '여성',
+        birthDate: DateTime(1974, 3, 12),
+        cancerType: '유방암',
+        stage: '2기',
+        diagnosisDate: DateTime(2026, 1, 15),
+        metastasis: '없음',
+        treatmentType: '항암치료',
+        treatmentStartDate: DateTime(2026, 4, 1),
+        heightCm: 162,
+      ),
+      medications: const [
+        Medication(
+          id: 1,
+          name: '서버약',
+          dose: '1정',
+          frequency: '',
+          weekdays: [],
+          reminderEnabled: false,
+          reminders: [],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<UserDataSnapshot?> loadCachedSnapshot(String userId) async {
+    return UserDataSnapshot(
+      settings: const UserSettings(),
+      profile: UserProfile(
+        sex: '여성',
+        birthDate: DateTime(1974, 3, 12),
+        cancerType: '유방암',
+        stage: '2기',
+        diagnosisDate: DateTime(2026, 1, 15),
+        metastasis: '없음',
+        treatmentType: '항암치료',
+        treatmentStartDate: DateTime(2026, 4, 1),
+        heightCm: 162,
+      ),
+      medications: const [
+        Medication(
+          id: 1,
+          name: '캐시약',
+          dose: '1정',
+          frequency: '',
+          weekdays: [],
+          reminderEnabled: false,
+          reminders: [],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<void> saveCachedSnapshot(
+    String userId,
+    UserDataSnapshot snapshot,
+  ) async {
+    cachedSnapshotSaved = true;
   }
 }
 
