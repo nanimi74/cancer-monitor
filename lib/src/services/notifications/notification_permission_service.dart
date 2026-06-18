@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -8,10 +9,13 @@ import 'package:timezone/timezone.dart' as timezone;
 import '../../data/models/medication.dart';
 
 abstract interface class NotificationPermissionService {
+  Stream<String> get notificationPayloads;
+
   Future<bool> requestPermission();
   Future<void> syncMedicationReminders(Iterable<Medication> medications);
   Future<void> cancelMedicationReminders(int medicationId);
   Future<int> pendingMedicationReminderCount();
+  Future<String?> takeLaunchPayload();
 }
 
 class LocalNotificationPermissionService
@@ -22,8 +26,10 @@ class LocalNotificationPermissionService
             notificationsPlugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin;
+  final _notificationPayloads = StreamController<String>.broadcast();
   var _initialized = false;
   var _timezoneInitialized = false;
+  String? _launchPayload;
 
   static const _androidChannelId = 'medication_reminders';
   static const _androidChannelName = '복약 알림';
@@ -45,7 +51,23 @@ class LocalNotificationPermissionService
         defaultPresentList: true,
       ),
     );
-    await _notificationsPlugin.initialize(settings: initializationSettings);
+    final launchDetails =
+        await _notificationsPlugin.getNotificationAppLaunchDetails();
+    final launchPayload = launchDetails?.notificationResponse?.payload;
+    if (launchDetails?.didNotificationLaunchApp == true &&
+        launchPayload != null &&
+        launchPayload.isNotEmpty) {
+      _launchPayload = launchPayload;
+    }
+
+    await _notificationsPlugin.initialize(
+      settings: initializationSettings,
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload == null || payload.isEmpty) return;
+        _notificationPayloads.add(payload);
+      },
+    );
     _initialized = true;
   }
 
@@ -89,6 +111,9 @@ class LocalNotificationPermissionService
   }
 
   @override
+  Stream<String> get notificationPayloads => _notificationPayloads.stream;
+
+  @override
   Future<void> syncMedicationReminders(Iterable<Medication> medications) async {
     await _ensureInitialized();
     await _ensureTimezoneInitialized();
@@ -117,6 +142,14 @@ class LocalNotificationPermissionService
     return requests
         .where((request) => request.payload?.startsWith('medication:') ?? false)
         .length;
+  }
+
+  @override
+  Future<String?> takeLaunchPayload() async {
+    await _ensureInitialized();
+    final payload = _launchPayload;
+    _launchPayload = null;
+    return payload;
   }
 
   Future<void> _scheduleMedication(Medication medication) async {

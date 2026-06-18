@@ -147,6 +147,28 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, '회원탈퇴'), findsNothing);
   });
 
+  testWidgets('medication notification opens medication tab',
+      (WidgetTester tester) async {
+    final notificationService = _FakeNotificationPermissionService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: true,
+          notificationPermissionService: notificationService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('증상 관리'), findsOneWidget);
+
+    notificationService.emitPayload('medication:123');
+    await tester.pumpAndSettle();
+
+    expect(find.text('약물 관리'), findsOneWidget);
+    expect(find.text('복용 약물을 등록하고 섭취 시간 알림을 설정합니다.'), findsOneWidget);
+  });
+
   testWidgets('medication add is disabled until required profile exists',
       (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -857,6 +879,15 @@ void main() {
 
 class _FakeNotificationPermissionService
     implements NotificationPermissionService {
+  final _payloadController = StreamController<String>.broadcast();
+
+  void emitPayload(String payload) {
+    _payloadController.add(payload);
+  }
+
+  @override
+  Stream<String> get notificationPayloads => _payloadController.stream;
+
   @override
   Future<bool> requestPermission() async => true;
 
@@ -869,6 +900,9 @@ class _FakeNotificationPermissionService
 
   @override
   Future<int> pendingMedicationReminderCount() async => 1;
+
+  @override
+  Future<String?> takeLaunchPayload() async => null;
 }
 
 class _FakeStepSyncService implements StepSyncService {

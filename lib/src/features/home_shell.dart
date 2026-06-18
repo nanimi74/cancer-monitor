@@ -63,13 +63,26 @@ class _HomeShellState extends State<HomeShell> {
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
   Future<void> _pendingWrite = Future<void>.value();
+  StreamSubscription<String>? _notificationPayloadSubscription;
+  String? _pendingNotificationPayload;
 
   bool get _canPersist => !widget.isPreview && widget.userId != null;
 
   @override
   void initState() {
     super.initState();
+    _notificationPayloadSubscription =
+        _notificationPermissionService.notificationPayloads.listen(
+      _handleNotificationPayload,
+    );
+    unawaited(_consumeLaunchNotificationPayload());
     unawaited(_loadUserData());
+  }
+
+  @override
+  void dispose() {
+    unawaited(_notificationPayloadSubscription?.cancel());
+    super.dispose();
   }
 
   @override
@@ -100,7 +113,9 @@ class _HomeShellState extends State<HomeShell> {
         _medications = snapshot.medications;
         _weightRecords = snapshot.weights;
         _symptomRecords = snapshot.symptoms;
-        if (_hasRequiredInfo && _index == 0) _index = 3;
+        if (!_applyPendingNotificationDestination()) {
+          if (_hasRequiredInfo && _index == 0) _index = 3;
+        }
       });
       unawaited(_syncMedicationNotifications());
       if (cachedSnapshot == null) {
@@ -120,7 +135,9 @@ class _HomeShellState extends State<HomeShell> {
           _medications = cachedSnapshot.medications;
           _weightRecords = cachedSnapshot.weights;
           _symptomRecords = cachedSnapshot.symptoms;
-          if (_hasRequiredInfo && _index == 0) _index = 3;
+          if (!_applyPendingNotificationDestination()) {
+            if (_hasRequiredInfo && _index == 0) _index = 3;
+          }
         });
         unawaited(_syncMedicationNotifications());
         return;
@@ -226,6 +243,30 @@ class _HomeShellState extends State<HomeShell> {
       if (!mounted) return;
       _showMessage('복약 알림 예약 중 문제가 발생했습니다.');
     }
+  }
+
+  Future<void> _consumeLaunchNotificationPayload() async {
+    if (widget.isPreview) return;
+    final payload = await _notificationPermissionService.takeLaunchPayload();
+    if (!mounted || payload == null) return;
+    _handleNotificationPayload(payload);
+  }
+
+  void _handleNotificationPayload(String payload) {
+    if (!payload.startsWith('medication:')) return;
+    if (_loadingUserData) {
+      _pendingNotificationPayload = payload;
+      return;
+    }
+    setState(() => _index = 1);
+  }
+
+  bool _applyPendingNotificationDestination() {
+    final payload = _pendingNotificationPayload;
+    if (payload == null || !payload.startsWith('medication:')) return false;
+    _pendingNotificationPayload = null;
+    _index = 1;
+    return true;
   }
 
   bool _hasActiveMedicationReminders(List<Medication> medications) {
