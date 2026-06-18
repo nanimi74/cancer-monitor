@@ -100,7 +100,9 @@ class _MedicationScreenState extends State<MedicationScreen> {
       }
     });
     _notifyMedicationsChanged();
-    _showMessage('약물 정보가 저장되었습니다.');
+    if (!saved.reminderEnabled) {
+      _showMessage('약물 정보가 저장되었습니다.');
+    }
   }
 
   void _syncInitialMedications() {
