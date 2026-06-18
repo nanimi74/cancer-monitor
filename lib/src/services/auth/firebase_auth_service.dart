@@ -18,6 +18,8 @@ class FirebaseAuthService implements AuthService {
   final FirebaseAuth _firebaseAuth;
   final GoogleSignIn _googleSignIn;
   var _googleInitialized = false;
+  static const _googleServerClientId =
+      '210055151747-2a166q7h53om9deb7ri5rtktqths62u4.apps.googleusercontent.com';
 
   @override
   Future<AuthSession?> currentSession() async {
@@ -157,7 +159,7 @@ class FirebaseAuthService implements AuthService {
     if (_googleInitialized) {
       return;
     }
-    await _googleSignIn.initialize();
+    await _googleSignIn.initialize(serverClientId: _googleServerClientId);
     _googleInitialized = true;
   }
 

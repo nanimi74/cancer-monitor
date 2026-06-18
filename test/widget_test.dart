@@ -205,7 +205,9 @@ void main() {
     expect(find.textContaining('사용자정보를 입력해 주세요'), findsOneWidget);
     expect(find.textContaining('현재 BMI'), findsNothing);
 
-    await tester.tap(find.byKey(ValueKey('weight-day-${_testFormatDate()}')));
+    final todayCell = find.byKey(ValueKey('weight-day-${_testFormatDate()}'));
+    await tester.ensureVisible(todayCell);
+    await tester.tap(todayCell);
     await tester.pumpAndSettle();
 
     expect(find.text('마이페이지의 사용자정보를 입력하세요.'), findsOneWidget);

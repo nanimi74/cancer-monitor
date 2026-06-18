@@ -1286,8 +1286,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     }
     setState(() => _stepSyncInProgress = true);
     try {
-      final granted =
-          _stepSyncEnabled || await widget.stepSyncService.requestPermission();
+      final granted = await widget.stepSyncService.requestPermission();
       if (!mounted) return;
       setState(() {
         _stepSyncEnabled = granted;
@@ -2025,12 +2024,20 @@ class _StepSyncPanel extends StatelessWidget {
                 ],
               ),
             ),
-            TextButton(
-              onPressed: inProgress ? null : (enabled ? onDisable : onEnable),
-              child: Text(
-                inProgress ? '요청 중' : (enabled ? '수동입력' : '연동하기'),
+            if (enabled) ...[
+              TextButton(
+                onPressed: inProgress ? null : onEnable,
+                child: Text(inProgress ? '요청 중' : '재연동'),
               ),
-            ),
+              TextButton(
+                onPressed: inProgress ? null : onDisable,
+                child: const Text('수동입력'),
+              ),
+            ] else
+              TextButton(
+                onPressed: inProgress ? null : onEnable,
+                child: Text(inProgress ? '요청 중' : '연동하기'),
+              ),
           ],
         ),
       ),

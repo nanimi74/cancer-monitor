@@ -57,25 +57,51 @@ class PlatformStepSyncService implements StepSyncService {
     final activityPermission = await Permission.activityRecognition.request();
     if (!activityPermission.isGranted) return false;
 
-    final isAvailable = await _health.isHealthConnectAvailable();
-    if (!isAvailable) {
-      await _health.installHealthConnect();
-      return false;
-    }
+    final isAvailable =
+        await _isHealthConnectAvailable(openInstallIfNeeded: true);
+    if (!isAvailable) return false;
 
     return _requestStepPermission();
   }
 
   Future<int?> _readHealthConnectSteps() async {
+    final isAvailable = await _isHealthConnectAvailable();
+    if (!isAvailable) return null;
+
+    await _ensureConfigured();
+    final hasPermission = await _health.hasPermissions(
+      _stepTypes,
+      permissions: _stepPermissions,
+    );
+    if (hasPermission != true) return null;
+
     return _readTodayStepCount();
   }
 
   Future<bool> _requestStepPermission() async {
     await _ensureConfigured();
+    final currentPermission = await _health.hasPermissions(
+      _stepTypes,
+      permissions: _stepPermissions,
+    );
+    if (currentPermission == true) return true;
+
     return _health.requestAuthorization(
       _stepTypes,
       permissions: _stepPermissions,
     );
+  }
+
+  Future<bool> _isHealthConnectAvailable({
+    bool openInstallIfNeeded = false,
+  }) async {
+    final status = await _health.getHealthConnectSdkStatus();
+    if (status == HealthConnectSdkStatus.sdkAvailable) return true;
+    if (openInstallIfNeeded &&
+        status == HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired) {
+      await _health.installHealthConnect();
+    }
+    return false;
   }
 
   Future<int?> _readTodayStepCount() async {
