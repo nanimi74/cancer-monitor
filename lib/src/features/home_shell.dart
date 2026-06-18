@@ -219,7 +219,7 @@ class _HomeShellState extends State<HomeShell> {
       if (!mounted) return;
       _showMessage(
         pendingCount > 0
-            ? '복약 알림 $pendingCount개가 예약되었습니다.'
+            ? '복약 알림이 등록되었습니다.'
             : '예약된 복약 알림이 없습니다. 알림 시간과 기기 권한을 확인해 주세요.',
       );
     } catch (_) {

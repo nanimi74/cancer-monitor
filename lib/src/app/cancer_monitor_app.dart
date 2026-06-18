@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
@@ -94,6 +96,17 @@ class _AppStartFlowState extends State<AppStartFlow> {
       const FirebaseBootstrap().buildAuthService();
   _StartStage _stage = _StartStage.entry;
   AuthSession? _session;
+  var _restoreRequested = false;
+
+  Future<void> _restoreSession(AuthService authService) async {
+    _restoreRequested = true;
+    final session = await authService.currentSession();
+    if (!mounted || session == null || _stage != _StartStage.entry) return;
+    setState(() {
+      _session = session;
+      _stage = _StartStage.shell;
+    });
+  }
 
   void _showLogin() {
     setState(() => _stage = _StartStage.login);
@@ -159,6 +172,12 @@ class _AppStartFlowState extends State<AppStartFlow> {
       future: _authServiceFuture,
       builder: (context, snapshot) {
         final authService = snapshot.data ?? const MockAuthService();
+        if (snapshot.hasData && !_restoreRequested) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || _restoreRequested) return;
+            unawaited(_restoreSession(authService));
+          });
+        }
         return switch (_stage) {
           _StartStage.entry => EntryScreen(
               onLogin: _showLogin,
