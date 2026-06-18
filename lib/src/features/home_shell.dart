@@ -47,7 +47,6 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   static const _signOutWriteTimeout = Duration(seconds: 2);
   static const _profileTabIndex = 0;
-  static const _medicationTabIndex = 1;
   static const _symptomTabIndex = 3;
 
   late final UserDataRepository _userDataRepository =
@@ -270,14 +269,14 @@ class _HomeShellState extends State<HomeShell> {
       _pendingNotificationPayload = payload;
       return;
     }
-    setState(() => _index = _medicationTabIndex);
+    setState(() => _index = _symptomTabIndex);
   }
 
   bool _applyPendingNotificationDestination() {
     final payload = _pendingNotificationPayload;
     if (payload == null || !payload.startsWith('medication:')) return false;
     _pendingNotificationPayload = null;
-    _index = _medicationTabIndex;
+    _index = _symptomTabIndex;
     return true;
   }
 

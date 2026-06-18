@@ -156,6 +156,7 @@ class LocalNotificationPermissionService
     final reminders = medication.reminders
         .where((reminder) => reminder.enabled)
         .toList(growable: false);
+    final scheduledKeys = <String>{};
     for (var reminderIndex = 0;
         reminderIndex < reminders.length;
         reminderIndex++) {
@@ -165,18 +166,10 @@ class LocalNotificationPermissionService
 
       final weekdays = _weekdaysFor(medication);
       if (weekdays == null) {
+        final scheduleKey = 'daily:${time.hour}:${time.minute}';
+        if (!scheduledKeys.add(scheduleKey)) continue;
         final id = _notificationIdBase(medication.id) + reminderIndex;
         final scheduledDate = _nextTime(time.hour, time.minute);
-        if (_isCurrentMinute(time.hour, time.minute) ||
-            _needsNearTermNotification(scheduledDate)) {
-          await _scheduleNotification(
-            id: _notificationIdBase(medication.id) + 900 + reminderIndex,
-            medication: medication,
-            reminderLabel: reminder.label,
-            scheduledDate: timezone.TZDateTime.now(timezone.local)
-                .add(const Duration(seconds: 10)),
-          );
-        }
         await _scheduleRepeatingNotification(
           id: id,
           medication: medication,
@@ -188,24 +181,13 @@ class LocalNotificationPermissionService
       }
 
       for (final weekday in weekdays) {
+        final scheduleKey = '$weekday:${time.hour}:${time.minute}';
+        if (!scheduledKeys.add(scheduleKey)) continue;
         final id = _notificationIdBase(medication.id) +
             100 +
             reminderIndex * 10 +
             weekday;
         final scheduledDate = _nextWeekdayTime(weekday, time.hour, time.minute);
-        if ((_isToday(weekday) && _isCurrentMinute(time.hour, time.minute)) ||
-            _needsNearTermNotification(scheduledDate)) {
-          await _scheduleNotification(
-            id: _notificationIdBase(medication.id) +
-                900 +
-                reminderIndex * 10 +
-                weekday,
-            medication: medication,
-            reminderLabel: reminder.label,
-            scheduledDate: timezone.TZDateTime.now(timezone.local)
-                .add(const Duration(seconds: 10)),
-          );
-        }
         await _scheduleRepeatingNotification(
           id: id,
           medication: medication,
@@ -288,21 +270,6 @@ class LocalNotificationPermissionService
     final next = _nextTime(hour, minute);
     final daysUntilWeekday = (weekday - next.weekday) % DateTime.daysPerWeek;
     return next.add(Duration(days: daysUntilWeekday));
-  }
-
-  bool _needsNearTermNotification(timezone.TZDateTime scheduledDate) {
-    final now = timezone.TZDateTime.now(timezone.local);
-    final leadTime = scheduledDate.difference(now);
-    return !leadTime.isNegative && leadTime <= const Duration(seconds: 15);
-  }
-
-  bool _isToday(int weekday) {
-    return timezone.TZDateTime.now(timezone.local).weekday == weekday;
-  }
-
-  bool _isCurrentMinute(int hour, int minute) {
-    final now = timezone.TZDateTime.now(timezone.local);
-    return now.hour == hour && now.minute == minute;
   }
 
   ({int hour, int minute})? _parseTime(String value) {

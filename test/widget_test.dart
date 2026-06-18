@@ -147,7 +147,7 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, '회원탈퇴'), findsNothing);
   });
 
-  testWidgets('medication notification opens medication tab',
+  testWidgets('medication notification opens symptom tab',
       (WidgetTester tester) async {
     final notificationService = _FakeNotificationPermissionService();
     await tester.pumpWidget(
@@ -160,13 +160,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('증상 관리'), findsOneWidget);
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약물 관리'), findsOneWidget);
 
     notificationService.emitPayload('medication:123');
     await tester.pumpAndSettle();
 
-    expect(find.text('약물 관리'), findsOneWidget);
-    expect(find.text('복용 약물을 등록하고 섭취 시간 알림을 설정합니다.'), findsOneWidget);
+    expect(find.text('증상 관리'), findsOneWidget);
   });
 
   testWidgets('medication add is disabled until required profile exists',
@@ -575,7 +577,7 @@ void main() {
     expect(find.text('항구토제'), findsOneWidget);
   });
 
-  testWidgets('medication notification opens medication tab',
+  testWidgets('medication notification opens symptom tab',
       (WidgetTester tester) async {
     final notificationService = _FakeNotificationPermissionService();
 
@@ -589,13 +591,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('증상 관리'), findsOneWidget);
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('약물 관리'), findsOneWidget);
 
     notificationService.emitPayload('medication:1');
     await tester.pumpAndSettle();
 
-    expect(find.text('약물 관리'), findsOneWidget);
-    expect(find.text('증상 관리'), findsNothing);
+    expect(find.text('증상 관리'), findsOneWidget);
   });
 
   testWidgets('medication save with reminder shows only reminder toast',
