@@ -105,80 +105,28 @@ class _EntryLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
+    return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(13),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF8B5CF6), AppColors.accent],
-        ),
+        borderRadius: BorderRadius.circular(size * .22),
         boxShadow: [
           BoxShadow(
-            color: AppColors.accent.withValues(alpha: .28),
+            color: AppColors.accent.withValues(alpha: .22),
             blurRadius: 14,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: const CustomPaint(painter: _ClipboardLogoPainter()),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * .22),
+        child: Image.asset(
+          'assets/app_icon.png',
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+        ),
+      ),
     );
   }
-}
-
-class _ClipboardLogoPainter extends CustomPainter {
-  const _ClipboardLogoPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final stroke = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final fill = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    final scale = size.width / 46;
-
-    RRect rrect(
-        double left, double top, double width, double height, double radius) {
-      return RRect.fromRectAndRadius(
-        Rect.fromLTWH(left * scale, top * scale, width * scale, height * scale),
-        Radius.circular(radius * scale),
-      );
-    }
-
-    canvas.drawRRect(rrect(12, 13, 22, 24, 5), stroke);
-    canvas.drawRRect(rrect(16, 8, 14, 8, 3), fill);
-    canvas.drawRRect(rrect(16, 8, 14, 8, 3), stroke);
-
-    for (final y in [20.0, 26.0, 32.0]) {
-      canvas.drawLine(
-        Offset(17 * scale, y * scale),
-        Offset(22 * scale, y * scale),
-        stroke,
-      );
-    }
-
-    void check(double y) {
-      final path = Path()
-        ..moveTo(25 * scale, (y + 1.5) * scale)
-        ..lineTo(27.2 * scale, (y + 3.7) * scale)
-        ..lineTo(31 * scale, (y - .8) * scale);
-      canvas.drawPath(path, stroke);
-    }
-
-    check(18.8);
-    check(24.8);
-    check(30.8);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ClipboardLogoPainter oldDelegate) => false;
 }
 
 class _FeatureList extends StatelessWidget {
