@@ -826,6 +826,94 @@ void main() {
     expect(repository.cachedSnapshotSaved, isTrue);
   });
 
+  testWidgets('home shell keeps notification setting scoped to device',
+      (WidgetTester tester) async {
+    final repository = _DeviceScopedSettingsRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'ios-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('마이페이지').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('notification-permission-switch')),
+        findsOneWidget);
+
+    await tester
+        .tap(find.byKey(const ValueKey('notification-permission-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('허용'));
+    await tester.pumpAndSettle();
+
+    expect(repository.savedDeviceId, 'ios-device');
+    expect(repository.savedSettings?.notificationEnabled, isTrue);
+  });
+
+  testWidgets('home shell reads different settings for each device',
+      (WidgetTester tester) async {
+    final repository = _DeviceScopedSettingsRepository(
+      settingsByDevice: const {
+        'ios-device': UserSettings(notificationEnabled: true),
+        'android-device': UserSettings(notificationEnabled: false),
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'ios-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).at(0), '아이폰약');
+    await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(repository.savedMedications.last.reminderEnabled, isTrue);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'android-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).at(0), '안드로이드약');
+    await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(repository.savedMedications.last.reminderEnabled, isFalse);
+  });
+
   testWidgets('sign out waits for pending user data save',
       (WidgetTester tester) async {
     final repository = _DelayedUserDataRepository();
@@ -1008,12 +1096,57 @@ class _NullStepSyncService implements StepSyncService {
   Future<int?> readTodaySteps() async => null;
 }
 
+class _DeviceScopedSettingsRepository extends UserDataRepository {
+  _DeviceScopedSettingsRepository({
+    this.settingsByDevice = const {},
+  });
+
+  final Map<String, UserSettings> settingsByDevice;
+  String? savedDeviceId;
+  UserSettings? savedSettings;
+  var savedMedications = <Medication>[];
+
+  @override
+  Future<UserDataSnapshot> load(String userId, {String? deviceId}) async {
+    return UserDataSnapshot(
+      settings: settingsByDevice[deviceId] ?? const UserSettings(),
+      profile: UserProfile(
+        sex: '여성',
+        birthDate: DateTime(1974, 3, 12),
+        cancerType: '유방암',
+        stage: '2기',
+        diagnosisDate: DateTime(2026, 1, 15),
+        metastasis: '없음',
+        treatmentType: '항암치료',
+        treatmentStartDate: DateTime(2026, 4, 1),
+        heightCm: 162,
+      ),
+    );
+  }
+
+  @override
+  Future<void> saveSettings(
+    String userId,
+    UserSettings settings, {
+    String? deviceId,
+  }) async {
+    savedDeviceId = deviceId;
+    savedSettings = settings;
+  }
+
+  @override
+  Future<void> saveMedications(
+      String userId, List<Medication> medications) async {
+    savedMedications = medications;
+  }
+}
+
 class _DelayedUserDataRepository extends UserDataRepository {
   Completer<void>? _saveCompleter;
   var savedSettings = false;
 
   @override
-  Future<UserDataSnapshot> load(String userId) async {
+  Future<UserDataSnapshot> load(String userId, {String? deviceId}) async {
     return UserDataSnapshot(
       settings: const UserSettings(),
       profile: UserProfile(
@@ -1031,7 +1164,11 @@ class _DelayedUserDataRepository extends UserDataRepository {
   }
 
   @override
-  Future<void> saveSettings(String userId, UserSettings settings) {
+  Future<void> saveSettings(
+    String userId,
+    UserSettings settings, {
+    String? deviceId,
+  }) {
     savedSettings = true;
     _saveCompleter = Completer<void>();
     return _saveCompleter!.future;
@@ -1044,12 +1181,16 @@ class _DelayedUserDataRepository extends UserDataRepository {
 
 class _FailingLoadUserDataRepository extends UserDataRepository {
   @override
-  Future<UserDataSnapshot> load(String userId) async {
+  Future<UserDataSnapshot> load(String userId, {String? deviceId}) async {
     throw Exception('network unavailable');
   }
 
   @override
-  Future<UserDataSnapshot?> loadCachedSnapshot(String userId) async => null;
+  Future<UserDataSnapshot?> loadCachedSnapshot(
+    String userId, {
+    String? deviceId,
+  }) async =>
+      null;
 }
 
 class _DelayedMedicationSaveRepository extends UserDataRepository {
@@ -1057,7 +1198,7 @@ class _DelayedMedicationSaveRepository extends UserDataRepository {
   var savedMedications = <Medication>[];
 
   @override
-  Future<UserDataSnapshot> load(String userId) async {
+  Future<UserDataSnapshot> load(String userId, {String? deviceId}) async {
     return UserDataSnapshot(
       settings: const UserSettings(),
       profile: UserProfile(
@@ -1087,12 +1228,15 @@ class _DelayedMedicationSaveRepository extends UserDataRepository {
 
 class _CachedMedicationUserDataRepository extends UserDataRepository {
   @override
-  Future<UserDataSnapshot> load(String userId) async {
+  Future<UserDataSnapshot> load(String userId, {String? deviceId}) async {
     throw Exception('network unavailable');
   }
 
   @override
-  Future<UserDataSnapshot?> loadCachedSnapshot(String userId) async {
+  Future<UserDataSnapshot?> loadCachedSnapshot(
+    String userId, {
+    String? deviceId,
+  }) async {
     return UserDataSnapshot(
       settings: const UserSettings(),
       profile: UserProfile(
@@ -1125,7 +1269,7 @@ class _RemoteMedicationWithStaleCacheRepository extends UserDataRepository {
   var cachedSnapshotSaved = false;
 
   @override
-  Future<UserDataSnapshot> load(String userId) async {
+  Future<UserDataSnapshot> load(String userId, {String? deviceId}) async {
     return UserDataSnapshot(
       settings: const UserSettings(),
       profile: UserProfile(
@@ -1154,7 +1298,10 @@ class _RemoteMedicationWithStaleCacheRepository extends UserDataRepository {
   }
 
   @override
-  Future<UserDataSnapshot?> loadCachedSnapshot(String userId) async {
+  Future<UserDataSnapshot?> loadCachedSnapshot(
+    String userId, {
+    String? deviceId,
+  }) async {
     return UserDataSnapshot(
       settings: const UserSettings(),
       profile: UserProfile(
@@ -1185,8 +1332,9 @@ class _RemoteMedicationWithStaleCacheRepository extends UserDataRepository {
   @override
   Future<void> saveCachedSnapshot(
     String userId,
-    UserDataSnapshot snapshot,
-  ) async {
+    UserDataSnapshot snapshot, {
+    String? deviceId,
+  }) async {
     cachedSnapshotSaved = true;
   }
 }
@@ -1195,7 +1343,8 @@ class _DelayedLoadUserDataRepository extends UserDataRepository {
   final _loadCompleter = Completer<UserDataSnapshot>();
 
   @override
-  Future<UserDataSnapshot> load(String userId) => _loadCompleter.future;
+  Future<UserDataSnapshot> load(String userId, {String? deviceId}) =>
+      _loadCompleter.future;
 
   void completeLoad() {
     _loadCompleter.complete(

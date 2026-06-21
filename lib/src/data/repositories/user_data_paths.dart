@@ -7,6 +7,8 @@ class UserDataPaths {
 
   String get profileDocument => '$userDocument/profile/main';
 
+  String deviceDocument(String deviceId) => '$userDocument/devices/$deviceId';
+
   String get medicationsCollection => '$userDocument/medications';
 
   String medicationDocument(String medicationId) =>

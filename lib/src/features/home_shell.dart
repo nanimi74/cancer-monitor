@@ -8,6 +8,7 @@ import '../data/models/symptom_record.dart';
 import '../data/models/user_profile.dart';
 import '../data/models/weight_record.dart';
 import '../data/repositories/user_data_repository.dart';
+import '../services/device/device_identity_service.dart';
 import '../services/health/step_sync_service.dart';
 import '../services/notifications/notification_permission_service.dart';
 import 'analysis/analysis_screen.dart';
@@ -26,6 +27,8 @@ class HomeShell extends StatefulWidget {
     this.onDeleteAccount,
     this.notificationPermissionService,
     this.stepSyncService,
+    this.deviceIdentityService = const DeviceIdentityService(),
+    this.deviceId,
     this.userId,
     this.userDataRepository,
   });
@@ -37,6 +40,8 @@ class HomeShell extends StatefulWidget {
   final Future<void> Function()? onDeleteAccount;
   final NotificationPermissionService? notificationPermissionService;
   final StepSyncService? stepSyncService;
+  final DeviceIdentityService deviceIdentityService;
+  final String? deviceId;
   final String? userId;
   final UserDataRepository? userDataRepository;
 
@@ -64,11 +69,18 @@ class _HomeShellState extends State<HomeShell> {
   var _medications = <Medication>[];
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
+  String? _deviceId;
   Future<void> _pendingWrite = Future<void>.value();
   StreamSubscription<String>? _notificationPayloadSubscription;
   String? _pendingNotificationPayload;
 
   bool get _canPersist => !widget.isPreview && widget.userId != null;
+
+  Future<String> _resolveDeviceId() async {
+    final provided = widget.deviceId;
+    if (provided != null && provided.isNotEmpty) return provided;
+    return widget.deviceIdentityService.deviceId();
+  }
 
   @override
   void initState() {
@@ -91,7 +103,8 @@ class _HomeShellState extends State<HomeShell> {
   void didUpdateWidget(covariant HomeShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userId != widget.userId ||
-        oldWidget.isPreview != widget.isPreview) {
+        oldWidget.isPreview != widget.isPreview ||
+        oldWidget.deviceId != widget.deviceId) {
       unawaited(_loadUserData());
     }
   }
@@ -99,9 +112,13 @@ class _HomeShellState extends State<HomeShell> {
   Future<void> _loadUserData() async {
     if (!_canPersist) return;
     final userId = widget.userId!;
+    final deviceId = await _resolveDeviceId();
+    if (!mounted || widget.userId != userId) return;
+    _deviceId = deviceId;
     setState(() => _loadingUserData = true);
     try {
-      final remoteSnapshot = await _userDataRepository.load(userId);
+      final remoteSnapshot =
+          await _userDataRepository.load(userId, deviceId: deviceId);
       if (!mounted || widget.userId != userId) return;
       setState(() {
         _notificationEnabled = remoteSnapshot.settings.notificationEnabled;
@@ -119,10 +136,18 @@ class _HomeShellState extends State<HomeShell> {
         }
       });
       unawaited(_syncMedicationNotifications());
-      unawaited(_userDataRepository.saveCachedSnapshot(userId, remoteSnapshot));
+      unawaited(
+        _userDataRepository.saveCachedSnapshot(
+          userId,
+          remoteSnapshot,
+          deviceId: deviceId,
+        ),
+      );
     } catch (_) {
-      final cachedSnapshot =
-          await _userDataRepository.loadCachedSnapshot(userId);
+      final cachedSnapshot = await _userDataRepository.loadCachedSnapshot(
+        userId,
+        deviceId: deviceId,
+      );
       if (!mounted || widget.userId != userId) return;
       if (cachedSnapshot != null) {
         setState(() {
@@ -163,6 +188,8 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveSettings() {
     if (!_canPersist) return;
+    final deviceId = _deviceId;
+    if (deviceId == null || deviceId.isEmpty) return;
     _cacheCurrentSnapshot();
     _queueWrite(
       () => _userDataRepository.saveSettings(
@@ -171,6 +198,7 @@ class _HomeShellState extends State<HomeShell> {
           notificationEnabled: _notificationEnabled,
           stepSyncEnabled: _stepSyncEnabled,
         ),
+        deviceId: deviceId,
       ),
     );
   }
@@ -205,6 +233,8 @@ class _HomeShellState extends State<HomeShell> {
 
   void _cacheCurrentSnapshot() {
     if (!_canPersist) return;
+    final deviceId = _deviceId;
+    if (deviceId == null || deviceId.isEmpty) return;
     unawaited(
       _userDataRepository.saveCachedSnapshot(
         widget.userId!,
@@ -218,6 +248,7 @@ class _HomeShellState extends State<HomeShell> {
           weights: _weightRecords,
           symptoms: _symptomRecords,
         ),
+        deviceId: deviceId,
       ),
     );
   }
