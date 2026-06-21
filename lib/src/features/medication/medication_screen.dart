@@ -1185,6 +1185,8 @@ class _Medication {
   });
 
   factory _Medication.fromModel(data.Medication medication) {
+    final shouldKeepReminders =
+        medication.reminderEnabled || medication.frequency != '필요시';
     return _Medication(
       id: medication.id,
       name: medication.name,
@@ -1192,8 +1194,9 @@ class _Medication {
       frequency: medication.frequency,
       weekdays: medication.weekdays,
       reminderEnabled: medication.reminderEnabled,
-      reminders:
-          medication.reminders.map(_MedicationReminder.fromModel).toList(),
+      reminders: shouldKeepReminders
+          ? medication.reminders.map(_MedicationReminder.fromModel).toList()
+          : const [],
       memo: medication.memo,
     );
   }

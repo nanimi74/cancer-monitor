@@ -798,6 +798,56 @@ void main() {
     expect(savedMedications.single.reminders, isEmpty);
   });
 
+  testWidgets('as-needed medication hides stale reminder times when disabled',
+      (WidgetTester tester) async {
+    var savedMedications = <Medication>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MedicationScreen(
+            notificationEnabled: false,
+            notificationPermissionService: _FakeNotificationPermissionService(),
+            initialMedications: const [
+              Medication(
+                id: 301,
+                name: '진통제',
+                dose: '1정',
+                frequency: '필요시',
+                weekdays: [],
+                reminderEnabled: false,
+                reminders: [
+                  MedicationReminder(
+                    label: '아침식후',
+                    time: '09:00',
+                    enabled: false,
+                  ),
+                ],
+              ),
+            ],
+            onMedicationsChanged: (medications) {
+              savedMedications = medications;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('진통제'), findsOneWidget);
+    expect(find.textContaining('아침식후 09:00'), findsNothing);
+    expect(find.textContaining('필요시'), findsOneWidget);
+
+    await tester.tap(find.text('진통제'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(savedMedications, hasLength(1));
+    expect(savedMedications.single.frequency, '필요시');
+    expect(savedMedications.single.reminderEnabled, isFalse);
+    expect(savedMedications.single.reminders, isEmpty);
+  });
+
   testWidgets('home shell shows loading message until user data is loaded',
       (WidgetTester tester) async {
     final repository = _DelayedLoadUserDataRepository();
