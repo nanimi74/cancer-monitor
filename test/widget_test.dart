@@ -12,6 +12,7 @@ import 'package:cancer_monitor/src/data/models/medication.dart';
 import 'package:cancer_monitor/src/data/models/user_profile.dart';
 import 'package:cancer_monitor/src/data/models/weight_record.dart';
 import 'package:cancer_monitor/src/data/repositories/user_data_repository.dart';
+import 'package:cancer_monitor/src/services/auth/auth_service.dart';
 import 'package:cancer_monitor/src/services/health/step_sync_service.dart';
 import 'package:cancer_monitor/src/services/notifications/notification_permission_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,9 +22,28 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  testWidgets('does not show entry screen while restoring session',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const CancerMonitorApp(authService: MockAuthService()),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('로그인하고 시작하기'), findsNothing);
+    expect(find.text('둘러보기'), findsNothing);
+
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('로그인하고 시작하기'), findsOneWidget);
+  });
+
   testWidgets('starts from entry screen and opens preview shell',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const CancerMonitorApp());
+    await tester.pumpWidget(
+      const CancerMonitorApp(authService: MockAuthService()),
+    );
+    await tester.pump();
+    await tester.pump();
 
     expect(find.text('항암 치료 기록을\n가볍게 남기고 정리해요.'), findsOneWidget);
     expect(find.text('로그인하고 시작하기'), findsOneWidget);
@@ -48,7 +68,11 @@ void main() {
 
   testWidgets('opens login screen and signs in with email',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const CancerMonitorApp());
+    await tester.pumpWidget(
+      const CancerMonitorApp(authService: MockAuthService()),
+    );
+    await tester.pump();
+    await tester.pump();
 
     await tester.tap(find.text('로그인하고 시작하기'));
     await tester.pumpAndSettle();
@@ -72,7 +96,11 @@ void main() {
 
   testWidgets('signs out from profile and returns to entry screen',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const CancerMonitorApp());
+    await tester.pumpWidget(
+      const CancerMonitorApp(authService: MockAuthService()),
+    );
+    await tester.pump();
+    await tester.pump();
 
     await tester.tap(find.text('로그인하고 시작하기'));
     await tester.pumpAndSettle();
@@ -96,7 +124,11 @@ void main() {
 
   testWidgets('deletes account from profile and returns to entry screen',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const CancerMonitorApp());
+    await tester.pumpWidget(
+      const CancerMonitorApp(authService: MockAuthService()),
+    );
+    await tester.pump();
+    await tester.pump();
 
     await tester.tap(find.text('로그인하고 시작하기'));
     await tester.pumpAndSettle();

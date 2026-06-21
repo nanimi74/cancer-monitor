@@ -11,7 +11,12 @@ import '../services/auth/auth_service.dart';
 import '../services/auth/firebase_bootstrap.dart';
 
 class CancerMonitorApp extends StatelessWidget {
-  const CancerMonitorApp({super.key});
+  const CancerMonitorApp({
+    super.key,
+    this.authService,
+  });
+
+  final AuthService? authService;
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +25,7 @@ class CancerMonitorApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       scrollBehavior: const _CancerMonitorScrollBehavior(),
-      home: const AppStartFlow(),
+      home: AppStartFlow(authService: authService),
     );
   }
 }
@@ -83,7 +88,12 @@ class _SmoothClampingScrollPhysics extends ClampingScrollPhysics {
 }
 
 class AppStartFlow extends StatefulWidget {
-  const AppStartFlow({super.key});
+  const AppStartFlow({
+    super.key,
+    this.authService,
+  });
+
+  final AuthService? authService;
 
   @override
   State<AppStartFlow> createState() => _AppStartFlowState();
@@ -92,19 +102,20 @@ class AppStartFlow extends StatefulWidget {
 class _AppStartFlowState extends State<AppStartFlow> {
   static const _deleteUserDataTimeout = Duration(seconds: 5);
 
-  late final Future<AuthService> _authServiceFuture =
-      const FirebaseBootstrap().buildAuthService();
-  _StartStage _stage = _StartStage.entry;
+  late final Future<AuthService> _authServiceFuture = widget.authService == null
+      ? const FirebaseBootstrap().buildAuthService()
+      : Future<AuthService>.value(widget.authService);
+  _StartStage _stage = _StartStage.restoring;
   AuthSession? _session;
   var _restoreRequested = false;
 
   Future<void> _restoreSession(AuthService authService) async {
     _restoreRequested = true;
     final session = await authService.currentSession();
-    if (!mounted || session == null || _stage != _StartStage.entry) return;
+    if (!mounted || _stage != _StartStage.restoring) return;
     setState(() {
       _session = session;
-      _stage = _StartStage.shell;
+      _stage = session == null ? _StartStage.entry : _StartStage.shell;
     });
   }
 
@@ -179,6 +190,7 @@ class _AppStartFlowState extends State<AppStartFlow> {
           });
         }
         return switch (_stage) {
+          _StartStage.restoring => const _AppRestoreLoadingView(),
           _StartStage.entry => EntryScreen(
               onLogin: _showLogin,
               onPreview: _startPreview,
@@ -203,7 +215,26 @@ class _AppStartFlowState extends State<AppStartFlow> {
 }
 
 enum _StartStage {
+  restoring,
   entry,
   login,
   shell,
+}
+
+class _AppRestoreLoadingView extends StatelessWidget {
+  const _AppRestoreLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: CircularProgressIndicator(strokeWidth: 3),
+        ),
+      ),
+    );
+  }
 }
