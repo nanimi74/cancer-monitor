@@ -63,7 +63,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   late var _index = _hasRequiredInfo ? _symptomTabIndex : _profileTabIndex;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
-  var _loadingUserData = false;
+  late var _loadingUserData = _canPersist;
   double? _heightCm;
   UserProfile? _userProfile;
   var _medications = <Medication>[];
@@ -122,7 +122,12 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   }
 
   Future<void> _loadUserData() async {
-    if (!_canPersist) return;
+    if (!_canPersist) {
+      if (mounted && _loadingUserData) {
+        setState(() => _loadingUserData = false);
+      }
+      return;
+    }
     final userId = widget.userId!;
     final deviceId = await _resolveDeviceId();
     if (!mounted || widget.userId != userId) return;
