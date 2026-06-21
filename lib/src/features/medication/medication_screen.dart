@@ -200,6 +200,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
               padding: const EdgeInsets.only(bottom: 10),
               child: _MedicationListCard(
                 medication: medication,
+                notificationEnabled: _notificationEnabled,
                 onTap: () => _openEditor(medication),
               ),
             ),
@@ -212,10 +213,12 @@ class _MedicationScreenState extends State<MedicationScreen> {
 class _MedicationListCard extends StatelessWidget {
   const _MedicationListCard({
     required this.medication,
+    required this.notificationEnabled,
     required this.onTap,
   });
 
   final _Medication medication;
+  final bool notificationEnabled;
   final VoidCallback onTap;
 
   @override
@@ -244,7 +247,10 @@ class _MedicationListCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      _ReminderBadge(enabled: medication.reminderEnabled),
+                      _ReminderBadge(
+                        enabled:
+                            medication.reminderEnabled && notificationEnabled,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),

@@ -680,7 +680,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
-    expect(find.text('켜짐'), findsOneWidget);
+    expect(find.text('꺼짐'), findsOneWidget);
+    expect(find.text('켜짐'), findsNothing);
     expect(notificationService.syncedMedicationBatches.last, isEmpty);
 
     await tester.tap(find.text('마이페이지'));
@@ -916,6 +917,72 @@ void main() {
     expect(repository.savedMedications.last.reminderEnabled, isFalse);
   });
 
+  testWidgets('home shell scopes medication reminder toggles to device',
+      (WidgetTester tester) async {
+    final repository = _DeviceScopedSettingsRepository(
+      settingsByDevice: const {
+        'ios-device': UserSettings(
+          notificationEnabled: true,
+          medicationReminderEnabled: {101: true},
+        ),
+        'android-device': UserSettings(
+          notificationEnabled: false,
+          medicationReminderEnabled: {101: false},
+        ),
+      },
+      medications: const [
+        Medication(
+          id: 101,
+          name: '공통약',
+          dose: '1정',
+          frequency: '매일',
+          weekdays: [],
+          reminderEnabled: true,
+          reminders: [
+            MedicationReminder(label: '아침식후', time: '09:00', enabled: true),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'android-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('공통약'), findsOneWidget);
+    expect(find.text('꺼짐'), findsOneWidget);
+    expect(find.text('켜짐'), findsNothing);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'ios-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('복약관리'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('공통약'), findsOneWidget);
+    expect(find.text('켜짐'), findsOneWidget);
+  });
+
   testWidgets('sign out waits for pending user data save',
       (WidgetTester tester) async {
     final repository = _DelayedUserDataRepository();
@@ -1103,9 +1170,11 @@ class _NullStepSyncService implements StepSyncService {
 class _DeviceScopedSettingsRepository extends UserDataRepository {
   _DeviceScopedSettingsRepository({
     this.settingsByDevice = const {},
+    this.medications = const [],
   });
 
   final Map<String, UserSettings> settingsByDevice;
+  final List<Medication> medications;
   String? savedDeviceId;
   UserSettings? savedSettings;
   var savedMedications = <Medication>[];
@@ -1125,6 +1194,7 @@ class _DeviceScopedSettingsRepository extends UserDataRepository {
         treatmentStartDate: DateTime(2026, 4, 1),
         heightCm: 162,
       ),
+      medications: medications,
     );
   }
 

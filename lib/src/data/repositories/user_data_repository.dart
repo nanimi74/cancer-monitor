@@ -13,10 +13,12 @@ class UserSettings {
   const UserSettings({
     this.notificationEnabled = false,
     this.stepSyncEnabled = false,
+    this.medicationReminderEnabled = const {},
   });
 
   final bool notificationEnabled;
   final bool stepSyncEnabled;
+  final Map<int, bool> medicationReminderEnabled;
 }
 
 class UserDataSnapshot {
@@ -93,6 +95,10 @@ class UserDataRepository {
       'schemaVersion': 1,
       'notificationEnabled': settings.notificationEnabled,
       'stepSyncEnabled': settings.stepSyncEnabled,
+      'medicationReminderEnabled': {
+        for (final entry in settings.medicationReminderEnabled.entries)
+          entry.key.toString(): entry.value,
+      },
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -267,6 +273,7 @@ class UserDataRepository {
     return UserSettings(
       notificationEnabled: data['notificationEnabled'] == true,
       stepSyncEnabled: data['stepSyncEnabled'] == true,
+      medicationReminderEnabled: _boolMap(data['medicationReminderEnabled']),
     );
   }
 
@@ -275,6 +282,11 @@ class UserDataRepository {
       'settings': {
         'notificationEnabled': snapshot.settings.notificationEnabled,
         'stepSyncEnabled': snapshot.settings.stepSyncEnabled,
+        'medicationReminderEnabled': {
+          for (final entry
+              in snapshot.settings.medicationReminderEnabled.entries)
+            entry.key.toString(): entry.value,
+        },
       },
       'profile': snapshot.profile == null
           ? null
@@ -490,6 +502,15 @@ class UserDataRepository {
     return (value as List<dynamic>? ?? const [])
         .whereType<String>()
         .toList(growable: false);
+  }
+
+  static Map<int, bool> _boolMap(Object? value) {
+    if (value is! Map) return const {};
+    return {
+      for (final entry in value.entries)
+        if (int.tryParse(entry.key.toString()) case final key?)
+          key: entry.value == true,
+    };
   }
 
   static Map<String, Object?> _objectMap(Object? value) {

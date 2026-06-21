@@ -67,6 +67,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   double? _heightCm;
   UserProfile? _userProfile;
   var _medications = <Medication>[];
+  var _medicationReminderEnabled = <int, bool>{};
+  var _sharedMedicationReminderEnabled = <int, bool>{};
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
   String? _deviceId;
@@ -129,14 +131,21 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     try {
       final remoteSnapshot =
           await _userDataRepository.load(userId, deviceId: deviceId);
+      final remoteMedications = _applyMedicationReminderSettings(
+        remoteSnapshot.medications,
+        remoteSnapshot.settings.medicationReminderEnabled,
+      );
       if (!mounted || widget.userId != userId) return;
       setState(() {
         _notificationEnabled = remoteSnapshot.settings.notificationEnabled;
         _stepSyncEnabled = remoteSnapshot.settings.stepSyncEnabled;
+        _medicationReminderEnabled = _medicationReminderMap(remoteMedications);
+        _sharedMedicationReminderEnabled =
+            _medicationReminderMap(remoteSnapshot.medications);
         _userProfile = remoteSnapshot.profile;
         _heightCm = remoteSnapshot.profile?.heightCm;
         _hasRequiredInfo = remoteSnapshot.profile != null;
-        _medications = remoteSnapshot.medications;
+        _medications = remoteMedications;
         _weightRecords = remoteSnapshot.weights;
         _symptomRecords = remoteSnapshot.symptoms;
         if (!_applyPendingNotificationDestination()) {
@@ -160,13 +169,21 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       );
       if (!mounted || widget.userId != userId) return;
       if (cachedSnapshot != null) {
+        final cachedMedications = _applyMedicationReminderSettings(
+          cachedSnapshot.medications,
+          cachedSnapshot.settings.medicationReminderEnabled,
+        );
         setState(() {
           _notificationEnabled = cachedSnapshot.settings.notificationEnabled;
           _stepSyncEnabled = cachedSnapshot.settings.stepSyncEnabled;
+          _medicationReminderEnabled =
+              _medicationReminderMap(cachedMedications);
+          _sharedMedicationReminderEnabled =
+              _medicationReminderMap(cachedSnapshot.medications);
           _userProfile = cachedSnapshot.profile;
           _heightCm = cachedSnapshot.profile?.heightCm;
           _hasRequiredInfo = cachedSnapshot.profile != null;
-          _medications = cachedSnapshot.medications;
+          _medications = cachedMedications;
           _weightRecords = cachedSnapshot.weights;
           _symptomRecords = cachedSnapshot.symptoms;
           if (!_applyPendingNotificationDestination()) {
@@ -185,6 +202,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         _heightCm = null;
         _hasRequiredInfo = false;
         _medications = const [];
+        _medicationReminderEnabled = const {};
+        _sharedMedicationReminderEnabled = const {};
         _weightRecords = const [];
         _symptomRecords = const [];
         _index = _profileTabIndex;
@@ -207,6 +226,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         UserSettings(
           notificationEnabled: _notificationEnabled,
           stepSyncEnabled: _stepSyncEnabled,
+          medicationReminderEnabled: _medicationReminderEnabled,
         ),
         deviceId: deviceId,
       ),
@@ -221,9 +241,18 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   void _saveMedications(List<Medication> medications) {
     if (!_canPersist) return;
-    _cacheCurrentSnapshot();
+    _medicationReminderEnabled = _medicationReminderMap(medications);
+    _sharedMedicationReminderEnabled = {
+      for (final medication in medications)
+        medication.id: _sharedMedicationReminderEnabled[medication.id] ??
+            medication.reminderEnabled,
+    };
+    _saveSettings();
     _queueWrite(
-      () => _userDataRepository.saveMedications(widget.userId!, medications),
+      () => _userDataRepository.saveMedications(
+        widget.userId!,
+        _medicationsForSharedStorage(medications),
+      ),
     );
   }
 
@@ -252,6 +281,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           settings: UserSettings(
             notificationEnabled: _notificationEnabled,
             stepSyncEnabled: _stepSyncEnabled,
+            medicationReminderEnabled: _medicationReminderEnabled,
           ),
           profile: _userProfile,
           medications: _medications,
@@ -321,6 +351,56 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       (medication) =>
           medication.reminderEnabled &&
           medication.reminders.any((reminder) => reminder.enabled),
+    );
+  }
+
+  List<Medication> _applyMedicationReminderSettings(
+    List<Medication> medications,
+    Map<int, bool> reminderSettings,
+  ) {
+    return [
+      for (final medication in medications)
+        _copyMedication(
+          medication,
+          reminderEnabled:
+              reminderSettings[medication.id] ?? medication.reminderEnabled,
+        ),
+    ];
+  }
+
+  Map<int, bool> _medicationReminderMap(List<Medication> medications) {
+    return {
+      for (final medication in medications)
+        medication.id: medication.reminderEnabled,
+    };
+  }
+
+  List<Medication> _medicationsForSharedStorage(
+    List<Medication> medications,
+  ) {
+    return [
+      for (final medication in medications)
+        _copyMedication(
+          medication,
+          reminderEnabled: _sharedMedicationReminderEnabled[medication.id] ??
+              medication.reminderEnabled,
+        ),
+    ];
+  }
+
+  Medication _copyMedication(
+    Medication medication, {
+    bool? reminderEnabled,
+  }) {
+    return Medication(
+      id: medication.id,
+      name: medication.name,
+      dose: medication.dose,
+      frequency: medication.frequency,
+      weekdays: medication.weekdays,
+      reminderEnabled: reminderEnabled ?? medication.reminderEnabled,
+      reminders: medication.reminders,
+      memo: medication.memo,
     );
   }
 
