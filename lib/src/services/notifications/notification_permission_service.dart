@@ -34,6 +34,7 @@ class LocalNotificationPermissionService
   static const _androidChannelId = 'medication_reminders';
   static const _androidChannelName = '복약 알림';
   static const _androidChannelDescription = '등록한 약물의 섭취 시간을 알려줍니다.';
+  static const _iosScheduleHorizonDays = 14;
 
   Future<void> _ensureInitialized() async {
     if (_initialized) return;
@@ -171,6 +172,11 @@ class LocalNotificationPermissionService
     final reminders = medication.reminders
         .where((reminder) => reminder.enabled)
         .toList(growable: false);
+    if (Platform.isIOS) {
+      await _scheduleUpcomingIosMedication(medication, reminders);
+      return;
+    }
+
     final scheduledKeys = <String>{};
     for (var reminderIndex = 0;
         reminderIndex < reminders.length;
@@ -209,6 +215,51 @@ class LocalNotificationPermissionService
           reminderLabel: reminder.label,
           scheduledDate: scheduledDate,
           repeat: DateTimeComponents.dayOfWeekAndTime,
+        );
+      }
+    }
+  }
+
+  Future<void> _scheduleUpcomingIosMedication(
+    Medication medication,
+    List<MedicationReminder> reminders,
+  ) async {
+    final now = timezone.TZDateTime.now(timezone.local);
+    final weekdays = _weekdaysFor(medication);
+    final scheduledKeys = <String>{};
+
+    for (var reminderIndex = 0;
+        reminderIndex < reminders.length;
+        reminderIndex++) {
+      final reminder = reminders[reminderIndex];
+      final time = _parseTime(reminder.time);
+      if (time == null) continue;
+
+      for (var dayOffset = 0;
+          dayOffset < _iosScheduleHorizonDays;
+          dayOffset++) {
+        final day = now.add(Duration(days: dayOffset));
+        if (weekdays != null && !weekdays.contains(day.weekday)) continue;
+        final scheduledDate = timezone.TZDateTime(
+          timezone.local,
+          day.year,
+          day.month,
+          day.day,
+          time.hour,
+          time.minute,
+        );
+        if (!scheduledDate.isAfter(now)) continue;
+        final scheduleKey =
+            '${scheduledDate.year}-${scheduledDate.month}-${scheduledDate.day}:${time.hour}:${time.minute}';
+        if (!scheduledKeys.add(scheduleKey)) continue;
+        final id = _notificationIdBase(medication.id) +
+            reminderIndex * _iosScheduleHorizonDays +
+            dayOffset;
+        await _scheduleNotification(
+          id: id,
+          medication: medication,
+          reminderLabel: reminder.label,
+          scheduledDate: scheduledDate,
         );
       }
     }
