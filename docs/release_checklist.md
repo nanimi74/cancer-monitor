@@ -1,5 +1,16 @@
 # 앱스토어 / 구글플레이 출시 체크리스트
 
+## 현재 출시 후보
+
+- 앱 버전: 1.0.0+1
+- 앱 이름: 항암기록관리
+- 번들 ID / 패키지명: com.nanimi74.cancermonitor
+- 개인정보처리방침 공개 파일: docs/privacy.html
+- 서비스 이용약관 공개 파일: docs/terms.html
+- GitHub Pages를 docs 폴더 기준으로 켜면 사용할 URL:
+  - https://nanimi74.github.io/cancer-monitor/privacy.html
+  - https://nanimi74.github.io/cancer-monitor/terms.html
+
 ## 공통
 
 - 서비스 이용약관 작성
@@ -17,10 +28,14 @@
 - 스토어 등록용 스크린샷
 - 앱 설명, 키워드, 카테고리, 연령 등급
 - QA: 권한 거부, 네트워크 오류, 탈퇴, 로그아웃, 둘러보기 모드
+- Firebase Console에서 Firestore App Check 적용 상태 확인
+- Firebase Console에서 Authentication 제공자별 운영 설정 확인
+- Firebase Console에서 Firestore Rules 배포 상태 확인
 
 ## App Store
 
 - App Privacy 항목 작성
+- Xcode Archive 생성 후 Privacy Report 확인
 - 건강/의료 데이터 수집 및 사용 목적 명시
 - HealthKit 사용 목적 명시
 - HealthKit 데이터는 광고, 마케팅, 사용자 추적에 사용하지 않음
@@ -37,6 +52,7 @@
 - 권한은 기능 사용 시점에 요청
 - 앱 내 개인정보처리방침 링크 제공
 - 계정 및 데이터 삭제 URL 또는 앱 내 삭제 플로우 제공
+- Play Console 업로드 전 Android release keystore 설정
 
 ## 법적 문서에 포함할 항목
 

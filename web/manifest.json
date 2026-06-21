@@ -1,11 +1,11 @@
 {
-    "name": "cancer_monitor_app",
-    "short_name": "cancer_monitor_app",
+    "name": "항암기록관리",
+    "short_name": "항암기록관리",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#7B45E9",
+    "theme_color": "#7B45E9",
+    "description": "항암치료 중 증상, 체중, 복약, 걸음수를 기록하고 외래 상담 준비를 돕는 앱입니다.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
