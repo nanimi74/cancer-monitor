@@ -798,6 +798,46 @@ void main() {
     expect(savedMedications.single.reminders, isEmpty);
   });
 
+  testWidgets('choosing as-needed turns medication reminder off',
+      (WidgetTester tester) async {
+    var savedMedications = <Medication>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MedicationScreen(
+            notificationEnabled: true,
+            notificationPermissionService: _FakeNotificationPermissionService(),
+            onMedicationsChanged: (medications) {
+              savedMedications = medications;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('medication-reminder-switch')),
+        findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField).at(0), '진통제');
+    await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.text('매일'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('필요시'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(savedMedications, hasLength(1));
+    expect(savedMedications.single.frequency, '필요시');
+    expect(savedMedications.single.reminderEnabled, isFalse);
+    expect(savedMedications.single.reminders, isEmpty);
+  });
+
   testWidgets('as-needed medication hides stale reminder times when disabled',
       (WidgetTester tester) async {
     var savedMedications = <Medication>[];

@@ -397,6 +397,9 @@ class _MedicationEditorSheetState extends State<_MedicationEditorSheet> {
       if (_frequency != '직접입력') {
         _weekdays.clear();
       }
+      if (_frequency == '필요시') {
+        _reminderEnabled = false;
+      }
     });
   }
 
