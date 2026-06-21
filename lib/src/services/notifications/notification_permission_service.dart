@@ -104,7 +104,13 @@ class LocalNotificationPermissionService
       final androidPlugin =
           _notificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
-      return await androidPlugin?.requestNotificationsPermission() ?? true;
+      final notificationsGranted =
+          await androidPlugin?.requestNotificationsPermission() ?? true;
+      if (!notificationsGranted) return false;
+      try {
+        await androidPlugin?.requestExactAlarmsPermission();
+      } catch (_) {}
+      return true;
     }
 
     return false;
@@ -221,8 +227,9 @@ class LocalNotificationPermissionService
     required String reminderLabel,
     required timezone.TZDateTime scheduledDate,
     DateTimeComponents? repeat,
-  }) {
-    return _notificationsPlugin.zonedSchedule(
+  }) async {
+    final androidScheduleMode = await _androidScheduleMode();
+    await _notificationsPlugin.zonedSchedule(
       id: id,
       title: '복약 시간입니다',
       body: '${medication.name} ${medication.dose} · $reminderLabel',
@@ -244,10 +251,22 @@ class LocalNotificationPermissionService
           interruptionLevel: InterruptionLevel.active,
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: androidScheduleMode,
       matchDateTimeComponents: repeat,
       payload: 'medication:${medication.id}',
     );
+  }
+
+  Future<AndroidScheduleMode> _androidScheduleMode() async {
+    if (!Platform.isAndroid) return AndroidScheduleMode.exactAllowWhileIdle;
+    final androidPlugin =
+        _notificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    final canScheduleExact =
+        await androidPlugin?.canScheduleExactNotifications() ?? false;
+    return canScheduleExact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
   }
 
   timezone.TZDateTime _nextTime(int hour, int minute) {
