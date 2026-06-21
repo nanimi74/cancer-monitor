@@ -8,6 +8,15 @@ abstract interface class StepSyncService {
   Future<int?> readTodaySteps();
 }
 
+class StepSyncPermissionException implements Exception {
+  const StepSyncPermissionException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class PlatformStepSyncService implements StepSyncService {
   PlatformStepSyncService({Health? health}) : _health = health ?? Health();
 
@@ -55,27 +64,67 @@ class PlatformStepSyncService implements StepSyncService {
 
   Future<bool> _requestHealthConnectPermission() async {
     final activityPermission = await Permission.activityRecognition.request();
-    if (!activityPermission.isGranted) return false;
+    if (!activityPermission.isGranted) {
+      throw const StepSyncPermissionException(
+        'Android 설정에서 항암기록관리의 신체 활동 권한을 허용해 주세요.',
+      );
+    }
 
-    final isAvailable = await _health.isHealthConnectAvailable();
+    final isAvailable =
+        await _isHealthConnectAvailable(openInstallIfNeeded: true);
     if (!isAvailable) {
-      await _health.installHealthConnect();
-      return false;
+      throw const StepSyncPermissionException(
+        'Health Connect를 설치/업데이트한 뒤, Health Connect에서 항암기록관리의 걸음수 읽기를 허용해 주세요.',
+      );
     }
 
     return _requestStepPermission();
   }
 
   Future<int?> _readHealthConnectSteps() async {
+    final isAvailable = await _isHealthConnectAvailable();
+    if (!isAvailable) return null;
+
+    await _ensureConfigured();
+    final hasPermission = await _health.hasPermissions(
+      _stepTypes,
+      permissions: _stepPermissions,
+    );
+    if (hasPermission != true) return null;
+
     return _readTodayStepCount();
   }
 
   Future<bool> _requestStepPermission() async {
     await _ensureConfigured();
-    return _health.requestAuthorization(
+    final currentPermission = await _health.hasPermissions(
       _stepTypes,
       permissions: _stepPermissions,
     );
+    if (currentPermission == true) return true;
+
+    final granted = await _health.requestAuthorization(
+      _stepTypes,
+      permissions: _stepPermissions,
+    );
+    if (!granted && Platform.isAndroid) {
+      throw const StepSyncPermissionException(
+        'Health Connect에서 항암기록관리의 걸음수 읽기 권한을 허용해 주세요.',
+      );
+    }
+    return granted;
+  }
+
+  Future<bool> _isHealthConnectAvailable({
+    bool openInstallIfNeeded = false,
+  }) async {
+    final status = await _health.getHealthConnectSdkStatus();
+    if (status == HealthConnectSdkStatus.sdkAvailable) return true;
+    if (openInstallIfNeeded &&
+        status == HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired) {
+      await _health.installHealthConnect();
+    }
+    return false;
   }
 
   Future<int?> _readTodayStepCount() async {

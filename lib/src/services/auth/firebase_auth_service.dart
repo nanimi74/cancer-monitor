@@ -18,6 +18,15 @@ class FirebaseAuthService implements AuthService {
   final FirebaseAuth _firebaseAuth;
   final GoogleSignIn _googleSignIn;
   var _googleInitialized = false;
+  static const _googleServerClientId =
+      '210055151747-2a166q7h53om9deb7ri5rtktqths62u4.apps.googleusercontent.com';
+
+  @override
+  Future<AuthSession?> currentSession() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return null;
+    return _sessionFromUser(user);
+  }
 
   @override
   Future<AuthSession> signInWithEmail({
@@ -150,7 +159,7 @@ class FirebaseAuthService implements AuthService {
     if (_googleInitialized) {
       return;
     }
-    await _googleSignIn.initialize();
+    await _googleSignIn.initialize(serverClientId: _googleServerClientId);
     _googleInitialized = true;
   }
 
@@ -163,12 +172,28 @@ class FirebaseAuthService implements AuthService {
     if (user == null) {
       throw const AuthFailure('로그인 사용자 정보를 확인할 수 없습니다.');
     }
+    return _sessionFromUser(user,
+        provider: provider, fallbackEmail: fallbackEmail);
+  }
+
+  AuthSession _sessionFromUser(
+    User user, {
+    AuthProvider? provider,
+    String? fallbackEmail,
+  }) {
     return AuthSession(
-      provider: provider,
+      provider: provider ?? _providerFromUser(user),
       isPreview: false,
       email: user.email ?? fallbackEmail,
       userId: user.uid,
     );
+  }
+
+  AuthProvider _providerFromUser(User user) {
+    final providerIds = user.providerData.map((info) => info.providerId);
+    if (providerIds.contains('apple.com')) return AuthProvider.apple;
+    if (providerIds.contains('google.com')) return AuthProvider.google;
+    return AuthProvider.email;
   }
 
   Future<UserCredential> _signInWithCredential(

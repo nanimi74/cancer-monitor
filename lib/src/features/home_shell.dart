@@ -8,6 +8,7 @@ import '../data/models/symptom_record.dart';
 import '../data/models/user_profile.dart';
 import '../data/models/weight_record.dart';
 import '../data/repositories/user_data_repository.dart';
+import '../services/device/device_identity_service.dart';
 import '../services/health/step_sync_service.dart';
 import '../services/notifications/notification_permission_service.dart';
 import 'analysis/analysis_screen.dart';
@@ -26,6 +27,8 @@ class HomeShell extends StatefulWidget {
     this.onDeleteAccount,
     this.notificationPermissionService,
     this.stepSyncService,
+    this.deviceIdentityService = const DeviceIdentityService(),
+    this.deviceId,
     this.userId,
     this.userDataRepository,
   });
@@ -37,6 +40,8 @@ class HomeShell extends StatefulWidget {
   final Future<void> Function()? onDeleteAccount;
   final NotificationPermissionService? notificationPermissionService;
   final StepSyncService? stepSyncService;
+  final DeviceIdentityService deviceIdentityService;
+  final String? deviceId;
   final String? userId;
   final UserDataRepository? userDataRepository;
 
@@ -44,83 +49,170 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   static const _signOutWriteTimeout = Duration(seconds: 2);
+  static const _profileTabIndex = 0;
+  static const _symptomTabIndex = 3;
 
   late final UserDataRepository _userDataRepository =
       widget.userDataRepository ?? UserDataRepository();
+  late final NotificationPermissionService _notificationPermissionService =
+      widget.notificationPermissionService ??
+          LocalNotificationPermissionService();
   late var _hasRequiredInfo = widget.hasRequiredInfo;
-  late var _index = _hasRequiredInfo ? 3 : 0;
+  late var _index = _hasRequiredInfo ? _symptomTabIndex : _profileTabIndex;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
-  var _loadingUserData = false;
+  late var _loadingUserData = _canPersist;
   double? _heightCm;
   UserProfile? _userProfile;
   var _medications = <Medication>[];
+  var _medicationReminderEnabled = <int, bool>{};
+  var _sharedMedicationReminderEnabled = <int, bool>{};
   var _weightRecords = <WeightRecord>[];
   var _symptomRecords = <SymptomRecord>[];
+  String? _deviceId;
   Future<void> _pendingWrite = Future<void>.value();
+  StreamSubscription<String>? _notificationPayloadSubscription;
+  String? _pendingNotificationPayload;
 
   bool get _canPersist => !widget.isPreview && widget.userId != null;
+
+  Future<String> _resolveDeviceId() async {
+    final provided = widget.deviceId;
+    if (provided != null && provided.isNotEmpty) return provided;
+    return widget.deviceIdentityService.deviceId();
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _notificationPayloadSubscription =
+        _notificationPermissionService.notificationPayloads.listen(
+      _handleNotificationPayload,
+    );
+    unawaited(_consumeLaunchNotificationPayload());
     unawaited(_loadUserData());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_notificationPayloadSubscription?.cancel());
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_loadUserData());
+    }
   }
 
   @override
   void didUpdateWidget(covariant HomeShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userId != widget.userId ||
-        oldWidget.isPreview != widget.isPreview) {
+        oldWidget.isPreview != widget.isPreview ||
+        oldWidget.deviceId != widget.deviceId) {
       unawaited(_loadUserData());
     }
   }
 
   Future<void> _loadUserData() async {
-    if (!_canPersist) return;
+    if (!_canPersist) {
+      if (mounted && _loadingUserData) {
+        setState(() => _loadingUserData = false);
+      }
+      return;
+    }
     final userId = widget.userId!;
+    final deviceId = await _resolveDeviceId();
+    if (!mounted || widget.userId != userId) return;
+    _deviceId = deviceId;
     setState(() => _loadingUserData = true);
     try {
-      final remoteSnapshot = await _userDataRepository.load(userId);
-      final cachedSnapshot =
-          await _userDataRepository.loadCachedSnapshot(userId);
-      final snapshot = cachedSnapshot ?? remoteSnapshot;
+      final remoteSnapshot =
+          await _userDataRepository.load(userId, deviceId: deviceId);
+      final remoteMedications = _applyMedicationReminderSettings(
+        remoteSnapshot.medications,
+        remoteSnapshot.settings.medicationReminderEnabled,
+      );
       if (!mounted || widget.userId != userId) return;
       setState(() {
-        _notificationEnabled = snapshot.settings.notificationEnabled;
-        _stepSyncEnabled = snapshot.settings.stepSyncEnabled;
-        _userProfile = snapshot.profile;
-        _heightCm = snapshot.profile?.heightCm;
-        _hasRequiredInfo = snapshot.profile != null;
-        _medications = snapshot.medications;
-        _weightRecords = snapshot.weights;
-        _symptomRecords = snapshot.symptoms;
-        if (_hasRequiredInfo && _index == 0) _index = 3;
+        _notificationEnabled = remoteSnapshot.settings.notificationEnabled;
+        _stepSyncEnabled = remoteSnapshot.settings.stepSyncEnabled;
+        _medicationReminderEnabled = _medicationReminderMap(remoteMedications);
+        _sharedMedicationReminderEnabled =
+            _medicationReminderMap(remoteSnapshot.medications);
+        _userProfile = remoteSnapshot.profile;
+        _heightCm = remoteSnapshot.profile?.heightCm;
+        _hasRequiredInfo = remoteSnapshot.profile != null;
+        _medications = remoteMedications;
+        _weightRecords = remoteSnapshot.weights;
+        _symptomRecords = remoteSnapshot.symptoms;
+        if (!_applyPendingNotificationDestination()) {
+          if (_hasRequiredInfo && _index == _profileTabIndex) {
+            _index = _symptomTabIndex;
+          }
+        }
       });
-      if (cachedSnapshot == null) {
-        unawaited(_userDataRepository.saveCachedSnapshot(userId, snapshot));
-      }
+      unawaited(_syncMedicationNotifications());
+      unawaited(
+        _userDataRepository.saveCachedSnapshot(
+          userId,
+          remoteSnapshot,
+          deviceId: deviceId,
+        ),
+      );
     } catch (_) {
-      final cachedSnapshot =
-          await _userDataRepository.loadCachedSnapshot(userId);
+      final cachedSnapshot = await _userDataRepository.loadCachedSnapshot(
+        userId,
+        deviceId: deviceId,
+      );
       if (!mounted || widget.userId != userId) return;
       if (cachedSnapshot != null) {
+        final cachedMedications = _applyMedicationReminderSettings(
+          cachedSnapshot.medications,
+          cachedSnapshot.settings.medicationReminderEnabled,
+        );
         setState(() {
           _notificationEnabled = cachedSnapshot.settings.notificationEnabled;
           _stepSyncEnabled = cachedSnapshot.settings.stepSyncEnabled;
+          _medicationReminderEnabled =
+              _medicationReminderMap(cachedMedications);
+          _sharedMedicationReminderEnabled =
+              _medicationReminderMap(cachedSnapshot.medications);
           _userProfile = cachedSnapshot.profile;
           _heightCm = cachedSnapshot.profile?.heightCm;
           _hasRequiredInfo = cachedSnapshot.profile != null;
-          _medications = cachedSnapshot.medications;
+          _medications = cachedMedications;
           _weightRecords = cachedSnapshot.weights;
           _symptomRecords = cachedSnapshot.symptoms;
-          if (_hasRequiredInfo && _index == 0) _index = 3;
+          if (!_applyPendingNotificationDestination()) {
+            if (_hasRequiredInfo && _index == _profileTabIndex) {
+              _index = _symptomTabIndex;
+            }
+          }
         });
+        unawaited(_syncMedicationNotifications());
         return;
       }
-      _showMessage('저장된 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setState(() {
+        _notificationEnabled = false;
+        _stepSyncEnabled = false;
+        _userProfile = null;
+        _heightCm = null;
+        _hasRequiredInfo = false;
+        _medications = const [];
+        _medicationReminderEnabled = const {};
+        _sharedMedicationReminderEnabled = const {};
+        _weightRecords = const [];
+        _symptomRecords = const [];
+        _index = _profileTabIndex;
+      });
     } finally {
       if (mounted && widget.userId == userId) {
         setState(() => _loadingUserData = false);
@@ -130,6 +222,8 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveSettings() {
     if (!_canPersist) return;
+    final deviceId = _deviceId;
+    if (deviceId == null || deviceId.isEmpty) return;
     _cacheCurrentSnapshot();
     _queueWrite(
       () => _userDataRepository.saveSettings(
@@ -137,7 +231,9 @@ class _HomeShellState extends State<HomeShell> {
         UserSettings(
           notificationEnabled: _notificationEnabled,
           stepSyncEnabled: _stepSyncEnabled,
+          medicationReminderEnabled: _medicationReminderEnabled,
         ),
+        deviceId: deviceId,
       ),
     );
   }
@@ -150,9 +246,18 @@ class _HomeShellState extends State<HomeShell> {
 
   void _saveMedications(List<Medication> medications) {
     if (!_canPersist) return;
-    _cacheCurrentSnapshot();
+    _medicationReminderEnabled = _medicationReminderMap(medications);
+    _sharedMedicationReminderEnabled = {
+      for (final medication in medications)
+        medication.id: _sharedMedicationReminderEnabled[medication.id] ??
+            medication.reminderEnabled,
+    };
+    _saveSettings();
     _queueWrite(
-      () => _userDataRepository.saveMedications(widget.userId!, medications),
+      () => _userDataRepository.saveMedications(
+        widget.userId!,
+        _medicationsForSharedStorage(medications),
+      ),
     );
   }
 
@@ -172,6 +277,8 @@ class _HomeShellState extends State<HomeShell> {
 
   void _cacheCurrentSnapshot() {
     if (!_canPersist) return;
+    final deviceId = _deviceId;
+    if (deviceId == null || deviceId.isEmpty) return;
     unawaited(
       _userDataRepository.saveCachedSnapshot(
         widget.userId!,
@@ -179,39 +286,127 @@ class _HomeShellState extends State<HomeShell> {
           settings: UserSettings(
             notificationEnabled: _notificationEnabled,
             stepSyncEnabled: _stepSyncEnabled,
+            medicationReminderEnabled: _medicationReminderEnabled,
           ),
           profile: _userProfile,
           medications: _medications,
           weights: _weightRecords,
           symptoms: _symptomRecords,
         ),
+        deviceId: deviceId,
       ),
     );
   }
 
-  List<Medication> _disableMedicationReminders(
+  Future<void> _syncMedicationNotifications({bool announce = false}) async {
+    if (widget.isPreview) return;
+    try {
+      final medications = _notificationEnabled ? _medications : <Medication>[];
+      await _notificationPermissionService.syncMedicationReminders(medications);
+      if (!announce ||
+          !mounted ||
+          !_hasActiveMedicationReminders(medications)) {
+        return;
+      }
+      final pendingCount =
+          await _notificationPermissionService.pendingMedicationReminderCount();
+      if (!mounted) return;
+      _showMessage(
+        pendingCount > 0
+            ? '복약 알림이 등록되었습니다.'
+            : '예약된 복약 알림이 없습니다. 알림 시간과 기기 권한을 확인해 주세요.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('복약 알림 예약 중 문제가 발생했습니다.');
+    }
+  }
+
+  Future<void> _consumeLaunchNotificationPayload() async {
+    if (widget.isPreview) return;
+    final String? payload;
+    try {
+      payload = await _notificationPermissionService.takeLaunchPayload();
+    } catch (_) {
+      return;
+    }
+    if (!mounted || payload == null) return;
+    _handleNotificationPayload(payload);
+  }
+
+  void _handleNotificationPayload(String payload) {
+    if (!payload.startsWith('medication:')) return;
+    if (_loadingUserData) {
+      _pendingNotificationPayload = payload;
+      return;
+    }
+    setState(() => _index = _symptomTabIndex);
+  }
+
+  bool _applyPendingNotificationDestination() {
+    final payload = _pendingNotificationPayload;
+    if (payload == null || !payload.startsWith('medication:')) return false;
+    _pendingNotificationPayload = null;
+    _index = _symptomTabIndex;
+    return true;
+  }
+
+  bool _hasActiveMedicationReminders(List<Medication> medications) {
+    return medications.any(
+      (medication) =>
+          medication.reminderEnabled &&
+          medication.reminders.any((reminder) => reminder.enabled),
+    );
+  }
+
+  List<Medication> _applyMedicationReminderSettings(
+    List<Medication> medications,
+    Map<int, bool> reminderSettings,
+  ) {
+    return [
+      for (final medication in medications)
+        _copyMedication(
+          medication,
+          reminderEnabled:
+              reminderSettings[medication.id] ?? medication.reminderEnabled,
+        ),
+    ];
+  }
+
+  Map<int, bool> _medicationReminderMap(List<Medication> medications) {
+    return {
+      for (final medication in medications)
+        medication.id: medication.reminderEnabled,
+    };
+  }
+
+  List<Medication> _medicationsForSharedStorage(
     List<Medication> medications,
   ) {
     return [
       for (final medication in medications)
-        Medication(
-          id: medication.id,
-          name: medication.name,
-          dose: medication.dose,
-          frequency: medication.frequency,
-          weekdays: medication.weekdays,
-          reminderEnabled: false,
-          reminders: [
-            for (final reminder in medication.reminders)
-              MedicationReminder(
-                label: reminder.label,
-                time: reminder.time,
-                enabled: false,
-              ),
-          ],
-          memo: medication.memo,
+        _copyMedication(
+          medication,
+          reminderEnabled: _sharedMedicationReminderEnabled[medication.id] ??
+              medication.reminderEnabled,
         ),
     ];
+  }
+
+  Medication _copyMedication(
+    Medication medication, {
+    bool? reminderEnabled,
+  }) {
+    return Medication(
+      id: medication.id,
+      name: medication.name,
+      dose: medication.dose,
+      frequency: medication.frequency,
+      weekdays: medication.weekdays,
+      reminderEnabled: reminderEnabled ?? medication.reminderEnabled,
+      reminders: medication.reminders,
+      memo: medication.memo,
+    );
   }
 
   Future<void> _queueWrite(Future<void> Function() operation) {
@@ -233,9 +428,6 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _handleSignOut() async {
-    if (_canPersist) {
-      _showMessage('데이터를 저장 중입니다. 저장 완료 시 로그아웃됩니다.');
-    }
     await _flushPendingWrites();
     await widget.onSignOut?.call();
   }
@@ -383,18 +575,15 @@ class _HomeShellState extends State<HomeShell> {
           onSignOut: widget.onSignOut == null ? null : _handleSignOut,
           onDeleteAccount:
               widget.onDeleteAccount == null ? null : _handleDeleteAccount,
-          notificationPermissionService: widget.notificationPermissionService,
+          notificationPermissionService: _notificationPermissionService,
           stepSyncService: widget.stepSyncService,
           initialProfile: _userProfile,
           notificationEnabled: _notificationEnabled,
           stepSyncEnabled: _stepSyncEnabled,
           onNotificationPermissionChanged: (value) => setState(() {
             _notificationEnabled = value;
-            if (!value && _medications.any((item) => item.reminderEnabled)) {
-              _medications = _disableMedicationReminders(_medications);
-              _saveMedications(_medications);
-            }
             _saveSettings();
+            unawaited(_syncMedicationNotifications(announce: value));
           }),
           onStepSyncChanged: (value) => setState(() {
             _stepSyncEnabled = value;
@@ -414,14 +603,16 @@ class _HomeShellState extends State<HomeShell> {
           isPreview: widget.isPreview,
           notificationEnabled: _notificationEnabled,
           initialMedications: _medications,
-          notificationPermissionService: widget.notificationPermissionService,
+          notificationPermissionService: _notificationPermissionService,
           onNotificationPermissionChanged: (value) => setState(() {
             _notificationEnabled = value;
             _saveSettings();
+            unawaited(_syncMedicationNotifications(announce: value));
           }),
           onMedicationsChanged: (medications) => setState(() {
             _medications = medications;
             _saveMedications(medications);
+            unawaited(_syncMedicationNotifications(announce: true));
           }),
         ),
         WeightScreen(

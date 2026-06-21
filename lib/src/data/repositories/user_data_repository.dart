@@ -13,10 +13,12 @@ class UserSettings {
   const UserSettings({
     this.notificationEnabled = false,
     this.stepSyncEnabled = false,
+    this.medicationReminderEnabled = const {},
   });
 
   final bool notificationEnabled;
   final bool stepSyncEnabled;
+  final Map<int, bool> medicationReminderEnabled;
 }
 
 class UserDataSnapshot {
@@ -42,11 +44,19 @@ class UserDataRepository {
 
   FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;
 
-  String _cacheKey(String userId) => 'user_data_snapshot_v1_$userId';
+  String _cacheKey(String userId, {String? deviceId}) {
+    if (deviceId == null || deviceId.isEmpty) {
+      return 'user_data_snapshot_v1_$userId';
+    }
+    return 'user_data_snapshot_v2_${userId}_$deviceId';
+  }
 
-  Future<UserDataSnapshot> load(String userId) async {
+  Future<UserDataSnapshot> load(String userId, {String? deviceId}) async {
     final paths = UserDataPaths(userId);
     final userDoc = await _db.doc(paths.userDocument).get();
+    final deviceDoc = deviceId == null || deviceId.isEmpty
+        ? null
+        : await _db.doc(paths.deviceDocument(deviceId)).get();
     final profileDoc = await _db.doc(paths.profileDocument).get();
     final medicationDocs =
         await _db.collection(paths.medicationsCollection).orderBy('id').get();
@@ -56,7 +66,9 @@ class UserDataRepository {
         await _db.collection(paths.symptomsCollection).orderBy('date').get();
 
     return UserDataSnapshot(
-      settings: _settingsFromMap(userDoc.data() ?? const {}),
+      settings: _settingsFromMap(
+        deviceDoc?.data() ?? userDoc.data() ?? const {},
+      ),
       profile: profileDoc.exists ? _profileFromMap(profileDoc.data()!) : null,
       medications: medicationDocs.docs
           .map((doc) => _medicationFromMap(doc.data()))
@@ -70,19 +82,34 @@ class UserDataRepository {
     );
   }
 
-  Future<void> saveSettings(String userId, UserSettings settings) async {
+  Future<void> saveSettings(
+    String userId,
+    UserSettings settings, {
+    String? deviceId,
+  }) async {
     final paths = UserDataPaths(userId);
-    await _db.doc(paths.userDocument).set({
+    final documentPath = deviceId == null || deviceId.isEmpty
+        ? paths.userDocument
+        : paths.deviceDocument(deviceId);
+    await _db.doc(documentPath).set({
       'schemaVersion': 1,
       'notificationEnabled': settings.notificationEnabled,
       'stepSyncEnabled': settings.stepSyncEnabled,
+      'medicationReminderEnabled': {
+        for (final entry in settings.medicationReminderEnabled.entries)
+          entry.key.toString(): entry.value,
+      },
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
-  Future<UserDataSnapshot?> loadCachedSnapshot(String userId) async {
+  Future<UserDataSnapshot?> loadCachedSnapshot(
+    String userId, {
+    String? deviceId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_cacheKey(userId));
+    final raw = prefs.getString(_cacheKey(userId, deviceId: deviceId)) ??
+        prefs.getString(_cacheKey(userId));
     if (raw == null || raw.isEmpty) return null;
     try {
       return _snapshotFromCacheMap(_objectMap(jsonDecode(raw)));
@@ -93,18 +120,23 @@ class UserDataRepository {
 
   Future<void> saveCachedSnapshot(
     String userId,
-    UserDataSnapshot snapshot,
-  ) async {
+    UserDataSnapshot snapshot, {
+    String? deviceId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      _cacheKey(userId),
+      _cacheKey(userId, deviceId: deviceId),
       jsonEncode(_snapshotToCacheMap(snapshot)),
     );
   }
 
-  Future<void> clearCachedSnapshot(String userId) async {
+  Future<void> clearCachedSnapshot(String userId, {String? deviceId}) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_cacheKey(userId));
+    if (deviceId == null || deviceId.isEmpty) {
+      await prefs.remove(_cacheKey(userId));
+      return;
+    }
+    await prefs.remove(_cacheKey(userId, deviceId: deviceId));
   }
 
   Future<void> saveProfile(String userId, UserProfile profile) async {
@@ -241,6 +273,7 @@ class UserDataRepository {
     return UserSettings(
       notificationEnabled: data['notificationEnabled'] == true,
       stepSyncEnabled: data['stepSyncEnabled'] == true,
+      medicationReminderEnabled: _boolMap(data['medicationReminderEnabled']),
     );
   }
 
@@ -249,6 +282,11 @@ class UserDataRepository {
       'settings': {
         'notificationEnabled': snapshot.settings.notificationEnabled,
         'stepSyncEnabled': snapshot.settings.stepSyncEnabled,
+        'medicationReminderEnabled': {
+          for (final entry
+              in snapshot.settings.medicationReminderEnabled.entries)
+            entry.key.toString(): entry.value,
+        },
       },
       'profile': snapshot.profile == null
           ? null
@@ -464,6 +502,15 @@ class UserDataRepository {
     return (value as List<dynamic>? ?? const [])
         .whereType<String>()
         .toList(growable: false);
+  }
+
+  static Map<int, bool> _boolMap(Object? value) {
+    if (value is! Map) return const {};
+    return {
+      for (final entry in value.entries)
+        if (int.tryParse(entry.key.toString()) case final key?)
+          key: entry.value == true,
+    };
   }
 
   static Map<String, Object?> _objectMap(Object? value) {
