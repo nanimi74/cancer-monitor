@@ -124,8 +124,8 @@ class LocalNotificationPermissionService
     await _ensureInitialized();
     await _ensureTimezoneInitialized();
 
+    await _cancelPendingMedicationReminders();
     for (final medication in medications) {
-      await cancelMedicationReminders(medication.id);
       if (!medication.reminderEnabled) continue;
       await _scheduleMedication(medication);
     }
@@ -148,6 +148,15 @@ class LocalNotificationPermissionService
     return requests
         .where((request) => request.payload?.startsWith('medication:') ?? false)
         .length;
+  }
+
+  Future<void> _cancelPendingMedicationReminders() async {
+    final requests = await _notificationsPlugin.pendingNotificationRequests();
+    for (final request in requests) {
+      if (request.payload?.startsWith('medication:') ?? false) {
+        await _notificationsPlugin.cancel(id: request.id);
+      }
+    }
   }
 
   @override

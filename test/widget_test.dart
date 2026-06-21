@@ -638,13 +638,14 @@ void main() {
     expect(find.text('복약 알림이 등록되었습니다.'), findsOneWidget);
   });
 
-  testWidgets('profile notification toggle disables medication reminders',
+  testWidgets('profile notification toggle only cancels this device reminders',
       (WidgetTester tester) async {
+    final notificationService = _FakeNotificationPermissionService();
     await tester.pumpWidget(
       MaterialApp(
         home: HomeShell(
           hasRequiredInfo: true,
-          notificationPermissionService: _FakeNotificationPermissionService(),
+          notificationPermissionService: notificationService,
         ),
       ),
     );
@@ -679,8 +680,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
-    expect(find.text('꺼짐'), findsOneWidget);
-    expect(find.text('켜짐'), findsNothing);
+    expect(find.text('켜짐'), findsOneWidget);
+    expect(notificationService.syncedMedicationBatches.last, isEmpty);
 
     await tester.tap(find.text('마이페이지'));
     await tester.pumpAndSettle();
@@ -695,8 +696,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
-    expect(find.text('꺼짐'), findsOneWidget);
-    expect(find.text('켜짐'), findsNothing);
+    expect(find.text('켜짐'), findsOneWidget);
+    expect(
+        notificationService.syncedMedicationBatches.last.single.name, '항구토제');
   });
 
   testWidgets('medication defaults to notification setting without enabling it',
@@ -1055,6 +1057,7 @@ void main() {
 class _FakeNotificationPermissionService
     implements NotificationPermissionService {
   final _payloadController = StreamController<String>.broadcast();
+  final syncedMedicationBatches = <List<Medication>>[];
 
   void emitPayload(String payload) {
     _payloadController.add(payload);
@@ -1067,8 +1070,9 @@ class _FakeNotificationPermissionService
   Future<bool> requestPermission() async => true;
 
   @override
-  Future<void> syncMedicationReminders(
-      Iterable<Medication> medications) async {}
+  Future<void> syncMedicationReminders(Iterable<Medication> medications) async {
+    syncedMedicationBatches.add(medications.toList(growable: false));
+  }
 
   @override
   Future<void> cancelMedicationReminders(int medicationId) async {}

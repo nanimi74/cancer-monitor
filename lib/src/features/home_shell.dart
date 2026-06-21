@@ -49,7 +49,7 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   static const _signOutWriteTimeout = Duration(seconds: 2);
   static const _profileTabIndex = 0;
   static const _symptomTabIndex = 3;
@@ -85,6 +85,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _notificationPayloadSubscription =
         _notificationPermissionService.notificationPayloads.listen(
       _handleNotificationPayload,
@@ -95,8 +96,17 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_notificationPayloadSubscription?.cancel());
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_loadUserData());
+    }
   }
 
   @override
@@ -314,31 +324,6 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  List<Medication> _disableMedicationReminders(
-    List<Medication> medications,
-  ) {
-    return [
-      for (final medication in medications)
-        Medication(
-          id: medication.id,
-          name: medication.name,
-          dose: medication.dose,
-          frequency: medication.frequency,
-          weekdays: medication.weekdays,
-          reminderEnabled: false,
-          reminders: [
-            for (final reminder in medication.reminders)
-              MedicationReminder(
-                label: reminder.label,
-                time: reminder.time,
-                enabled: false,
-              ),
-          ],
-          memo: medication.memo,
-        ),
-    ];
-  }
-
   Future<void> _queueWrite(Future<void> Function() operation) {
     final write = _pendingWrite
         .catchError((_) {})
@@ -512,10 +497,6 @@ class _HomeShellState extends State<HomeShell> {
           stepSyncEnabled: _stepSyncEnabled,
           onNotificationPermissionChanged: (value) => setState(() {
             _notificationEnabled = value;
-            if (!value && _medications.any((item) => item.reminderEnabled)) {
-              _medications = _disableMedicationReminders(_medications);
-              _saveMedications(_medications);
-            }
             _saveSettings();
             unawaited(_syncMedicationNotifications(announce: value));
           }),
