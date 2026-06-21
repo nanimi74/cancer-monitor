@@ -150,6 +150,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? '걸음수 연동 권한이 허용되었습니다.'
             : '걸음수 연동 권한이 허용되지 않았습니다. 직접 입력을 사용할 수 있습니다.',
       );
+    } on StepSyncPermissionException catch (error) {
+      if (!mounted) return;
+      setState(() => _stepSyncEnabled = false);
+      widget.onStepSyncChanged?.call(false);
+      _showMessage(error.message);
     } catch (_) {
       if (!mounted) return;
       setState(() => _stepSyncEnabled = false);

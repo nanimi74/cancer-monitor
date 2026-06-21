@@ -1301,6 +1301,14 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       } else {
         _showMessage('걸음수 연동 권한이 허용되지 않았습니다.');
       }
+    } on StepSyncPermissionException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _stepSyncEnabled = false;
+        _stepsSource = '수동';
+      });
+      widget.onStepSyncChanged(false);
+      _showMessage(error.message);
     } catch (_) {
       if (!mounted) return;
       _showMessage('걸음수 연동 중 문제가 발생했습니다.');
