@@ -762,6 +762,42 @@ void main() {
     expect(find.text('알림 권한'), findsNothing);
   });
 
+  testWidgets('as-needed medication without reminder saves no reminder times',
+      (WidgetTester tester) async {
+    var savedMedications = <Medication>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MedicationScreen(
+            notificationEnabled: false,
+            notificationPermissionService: _FakeNotificationPermissionService(),
+            onMedicationsChanged: (medications) {
+              savedMedications = medications;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), '진통제');
+    await tester.enterText(find.byType(TextFormField).at(1), '1정');
+    await tester.tap(find.text('매일'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('필요시'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(savedMedications, hasLength(1));
+    expect(savedMedications.single.frequency, '필요시');
+    expect(savedMedications.single.reminderEnabled, isFalse);
+    expect(savedMedications.single.reminders, isEmpty);
+  });
+
   testWidgets('home shell shows loading message until user data is loaded',
       (WidgetTester tester) async {
     final repository = _DelayedLoadUserDataRepository();

@@ -1238,6 +1238,7 @@ class _Medication {
   }
 
   data.Medication toModel() {
+    final shouldKeepReminders = reminderEnabled || frequency != '필요시';
     return data.Medication(
       id: id,
       name: name,
@@ -1245,9 +1246,11 @@ class _Medication {
       frequency: frequency,
       weekdays: weekdays,
       reminderEnabled: reminderEnabled,
-      reminders: reminders
-          .map((reminder) => reminder.toModel(enabled: reminderEnabled))
-          .toList(),
+      reminders: shouldKeepReminders
+          ? reminders
+              .map((reminder) => reminder.toModel(enabled: reminderEnabled))
+              .toList()
+          : const [],
       memo: memo,
     );
   }
