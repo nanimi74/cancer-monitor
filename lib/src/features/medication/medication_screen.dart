@@ -393,12 +393,15 @@ class _MedicationEditorSheetState extends State<_MedicationEditorSheet> {
     );
     if (selected == null) return;
     setState(() {
+      final wasAsNeeded = _frequency == '필요시';
       _frequency = selected;
       if (_frequency != '직접입력') {
         _weekdays.clear();
       }
       if (_frequency == '필요시') {
         _reminderEnabled = false;
+      } else if (wasAsNeeded) {
+        _reminderEnabled = true;
       }
     });
   }
