@@ -368,6 +368,9 @@ void main() {
 
   testWidgets('symptom input is blocked until required profile exists',
       (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -376,7 +379,14 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(ValueKey('symptom-day-${_testFormatDate()}')));
+    final todayCell =
+        find.byKey(ValueKey('symptom-day-${_testFormatDate()}'));
+    await tester.scrollUntilVisible(
+      todayCell,
+      350,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(todayCell);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.widgetWithText(ElevatedButton, '증상기록하기'),

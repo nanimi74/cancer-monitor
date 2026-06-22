@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -18,6 +19,8 @@ class FirebaseAuthService implements AuthService {
   final FirebaseAuth _firebaseAuth;
   final GoogleSignIn _googleSignIn;
   var _googleInitialized = false;
+  static const _googleIosClientId =
+      '210055151747-ap0ac39o8mjog7akg6vitfcse9sjvbtg.apps.googleusercontent.com';
   static const _googleServerClientId =
       '210055151747-2a166q7h53om9deb7ri5rtktqths62u4.apps.googleusercontent.com';
 
@@ -159,7 +162,12 @@ class FirebaseAuthService implements AuthService {
     if (_googleInitialized) {
       return;
     }
-    await _googleSignIn.initialize(serverClientId: _googleServerClientId);
+    await _googleSignIn.initialize(
+      clientId: defaultTargetPlatform == TargetPlatform.iOS
+          ? _googleIosClientId
+          : null,
+      serverClientId: _googleServerClientId,
+    );
     _googleInitialized = true;
   }
 
