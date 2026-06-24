@@ -725,11 +725,12 @@ class _AnalysisItemPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final title = _displayTitle(item.title);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _panelColor(item.title),
+        color: _panelColor(title),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _panelLine(item.title)),
+        border: Border.all(color: _panelLine(title)),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
@@ -738,11 +739,10 @@ class _AnalysisItemPanel extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(_itemIcon(item.title),
-                    style: const TextStyle(fontSize: 15)),
+                Text(_itemIcon(title), style: const TextStyle(fontSize: 15)),
                 const SizedBox(width: 6),
                 Text(
-                  item.title,
+                  title,
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -764,6 +764,10 @@ class _AnalysisItemPanel extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _displayTitle(String title) {
+    return title.replaceAll(' 및 부작용', '');
   }
 
   static Color _panelColor(String title) {
