@@ -213,7 +213,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       children: [
         const SectionHeader(
           title: 'AI분석',
-          subtitle: '동일 항암 회차의 기록을 요약하고 분석합니다.\n회차가 쌓일수록 이전 회차와의 비교 분석을 제공합니다.',
+          subtitle: '동일 회차의 기록을 요약하고 흐름을 정리합니다.\n회차가 쌓일수록 이전 회차와의 비교를 제공합니다.',
         ),
         if (!widget.hasRequiredInfo) ...[
           const RequiredInfoBanner(),
@@ -224,7 +224,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                '항암 회차 선택',
+                '회차 선택',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 10),
@@ -384,7 +384,7 @@ class _CyclePickerSheet extends StatelessWidget {
                         children: [
                           const Expanded(
                             child: Text(
-                              '항암 회차 선택',
+                              '회차 선택',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -601,7 +601,7 @@ class _ResultTitle extends StatelessWidget {
         const _SoftIcon(label: 'AI'),
         const SizedBox(width: 8),
         const Text(
-          'AI 분석 결과',
+          '기록 요약 결과',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         if (!kReleaseMode) ...[
@@ -621,7 +621,7 @@ class _AnalysisSourceBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = switch (source) {
-      AiAnalysisSource.claude => 'Claude 분석',
+      AiAnalysisSource.claude => 'AI 요약',
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -670,7 +670,7 @@ class _SelectedPeriodBox extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            _SummaryRow(label: '항암 회차', value: '$cycleNo회차'),
+            _SummaryRow(label: '회차', value: '$cycleNo회차'),
             const SizedBox(height: 10),
             _SummaryRow(label: '기록 기간', value: period),
             const SizedBox(height: 10),
@@ -895,7 +895,7 @@ class _MedicalDisclaimer extends StatelessWidget {
       child: const Padding(
         padding: EdgeInsets.all(12),
         child: Text(
-          '본 AI코멘트는 참고용 정보로, 의학적 진단이나 치료 결정을 대체할 수 없습니다. 모든 증상과 건강 관련 결정은 반드시 담당 의료진과 상의하시기 바랍니다.',
+          '기록 요약은 참고용 정보로, 의학적 진단이나 치료 결정을 대체할 수 없습니다. 모든 건강 관련 결정은 반드시 담당 의료진과 상의하시기 바랍니다.',
           style:
               TextStyle(color: Color(0xFF8A5A00), fontSize: 12, height: 1.55),
         ),

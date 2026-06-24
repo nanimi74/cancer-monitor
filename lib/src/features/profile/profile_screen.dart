@@ -290,7 +290,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       scheme: 'mailto',
       path: AppConstants.privacyEmail,
       queryParameters: const {
-        'subject': '[항암기록관리] 문의하기',
+        'subject': '[한결] 문의하기',
         'body': '문의 내용을 입력해 주세요.\n\n',
       },
     );
@@ -321,7 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _MenuTile(
           tileKey: const ValueKey('profile-info-menu'),
           title: '사용자 정보',
-          subtitle: '성별, 생년월일, 질병 및 치료 정보',
+          subtitle: '성별, 생년월일, 개인 관리 정보',
           requiredMark: true,
           onTap: _openProfileInfo,
         ),
@@ -427,15 +427,15 @@ class _ProfileSummaryCard extends StatelessWidget {
             mainAxisSpacing: 8,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 2.8,
+            childAspectRatio: 2.45,
             children: [
               _SummaryItem(
                   label: '성별/연령', value: '${profile.sex} · 만 ${profile.age}세'),
               _SummaryItem(
-                label: '암종/병기',
+                label: '관리항목/단계',
                 value: '${profile.cancerType} · ${profile.stage}',
               ),
-              _SummaryItem(label: '치료', value: profile.treatmentType),
+              _SummaryItem(label: '관리 방식', value: profile.treatmentType),
               _SummaryItem(
                   label: '키',
                   value: '${profile.heightCm.toStringAsFixed(0)}cm'),
@@ -469,6 +469,8 @@ class _SummaryItem extends StatelessWidget {
           children: [
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: AppColors.muted, fontSize: 11),
             ),
             const SizedBox(height: 2),
@@ -831,7 +833,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
     }
     if (_treatmentType.text.trim().isEmpty) {
       return _MissingProfileField(
-        '항암치료 종류를 입력해주세요.',
+        '관리 방식을 입력해주세요.',
         _treatmentTypeKey,
         _treatmentTypeFocus,
       );
@@ -968,7 +970,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                   children: [
                     _TextInput(
                       key: _treatmentTypeKey,
-                      label: '항암치료 종류',
+                      label: '관리 방식',
                       controller: _treatmentType,
                       focusNode: _treatmentTypeFocus,
                       keyboardType: TextInputType.text,

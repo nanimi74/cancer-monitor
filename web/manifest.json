@@ -1,11 +1,11 @@
 {
-    "name": "항암기록관리",
-    "short_name": "항암기록관리",
+    "name": "한결",
+    "short_name": "한결",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#7B45E9",
     "theme_color": "#7B45E9",
-    "description": "항암치료 중 증상, 체중, 복약, 걸음수를 기록하고 외래 상담 준비를 돕는 앱입니다.",
+    "description": "복약, 체중, 컨디션, 생활 기록을 부담 없이 남기고 정리하는 앱입니다.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

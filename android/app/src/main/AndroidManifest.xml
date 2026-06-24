@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.health.READ_STEPS"/>
 
     <application
-        android:label="항암기록관리"
+        android:label="한결"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

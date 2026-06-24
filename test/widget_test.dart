@@ -45,7 +45,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('항암 치료 기록을\n가볍게 남기고 정리해요.'), findsOneWidget);
+    expect(find.text('매일의 기록을\n부담 없이 정리해요.'), findsOneWidget);
     expect(find.text('로그인하고 시작하기'), findsOneWidget);
     expect(find.text('둘러보기'), findsOneWidget);
 
@@ -379,8 +379,7 @@ void main() {
       ),
     );
 
-    final todayCell =
-        find.byKey(ValueKey('symptom-day-${_testFormatDate()}'));
+    final todayCell = find.byKey(ValueKey('symptom-day-${_testFormatDate()}'));
     await tester.scrollUntilVisible(
       todayCell,
       350,
@@ -1057,11 +1056,15 @@ void main() {
 
     await tester.tap(find.text('마이페이지').last);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('notification-permission-switch')),
-        findsOneWidget);
+    final notificationSwitch =
+        find.byKey(const ValueKey('notification-permission-switch'));
+    expect(notificationSwitch, findsOneWidget);
 
-    await tester
-        .tap(find.byKey(const ValueKey('notification-permission-switch')));
+    await tester.ensureVisible(notificationSwitch);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -160));
+    await tester.pumpAndSettle();
+    await tester.tap(notificationSwitch);
     await tester.pumpAndSettle();
     await tester.tap(find.text('허용'));
     await tester.pumpAndSettle();
@@ -1215,8 +1218,13 @@ void main() {
     await tester.tap(find.text('마이페이지'));
     await tester.pumpAndSettle();
 
-    await tester
-        .tap(find.byKey(const ValueKey('notification-permission-switch')));
+    final notificationSwitch =
+        find.byKey(const ValueKey('notification-permission-switch'));
+    await tester.ensureVisible(notificationSwitch);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -160));
+    await tester.pumpAndSettle();
+    await tester.tap(notificationSwitch);
     await tester.pumpAndSettle();
     await tester.tap(find.text('허용'));
     await tester.pumpAndSettle();
@@ -1309,8 +1317,13 @@ void main() {
     await tester.tap(find.text('마이페이지'));
     await tester.pumpAndSettle();
 
-    await tester
-        .tap(find.byKey(const ValueKey('notification-permission-switch')));
+    final notificationSwitch =
+        find.byKey(const ValueKey('notification-permission-switch'));
+    await tester.ensureVisible(notificationSwitch);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -160));
+    await tester.pumpAndSettle();
+    await tester.tap(notificationSwitch);
     await tester.pumpAndSettle();
     await tester.tap(find.text('허용'));
     await tester.pumpAndSettle();
