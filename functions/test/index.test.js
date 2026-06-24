@@ -108,7 +108,7 @@ test("normalizes analysis schema and fills expected item order", () => {
 
   assert.deepEqual(
     result.items.map((item) => item.title),
-    ["식사량", "음수량", "운동량", "배변", "특이사항 및 부작용"],
+    ["식사량", "음수량", "운동량", "배변", "특이사항"],
   );
   assert.equal(result.items[2].current, "활동량 제한 신호");
   assert.match(result.encouragement, /기록/);
