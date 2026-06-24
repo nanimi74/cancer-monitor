@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/constants/app_constants.dart';
 import '../core/theme/app_theme.dart';
 import '../features/home/entry_screen.dart';
 import '../features/home/login_screen.dart';
@@ -21,7 +22,7 @@ class CancerMonitorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '항암기록관리',
+      title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       scrollBehavior: const _CancerMonitorScrollBehavior(),

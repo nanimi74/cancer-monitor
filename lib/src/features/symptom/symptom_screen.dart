@@ -231,7 +231,7 @@ class _SymptomScreenState extends State<SymptomScreen>
       children: [
         const SectionHeader(
           title: '증상 관리',
-          subtitle: '회차별 생활반응과 주요 부작용을 기록합니다.',
+          subtitle: '회차별 생활 반응과 컨디션 변화를 기록합니다.',
         ),
         if (!widget.hasRequiredInfo) ...[
           const RequiredInfoBanner(),
@@ -475,30 +475,35 @@ class _SymptomDayCell extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(2, 5, 2, 2),
                 child: Column(
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${date.day}일',
-                          style: TextStyle(
-                            color: isCurrentMonth
-                                ? (isSunday ? AppColors.danger : AppColors.text)
-                                : AppColors.muted.withValues(alpha: .6),
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (isToday) ...[
-                          const SizedBox(width: 4),
-                          const DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: AppColors.danger,
-                              shape: BoxShape.circle,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${date.day}일',
+                            style: TextStyle(
+                              color: isCurrentMonth
+                                  ? (isSunday
+                                      ? AppColors.danger
+                                      : AppColors.text)
+                                  : AppColors.muted.withValues(alpha: .6),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
                             ),
-                            child: SizedBox(width: 6, height: 6),
                           ),
+                          if (isToday) ...[
+                            const SizedBox(width: 4),
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: AppColors.danger,
+                                shape: BoxShape.circle,
+                              ),
+                              child: SizedBox(width: 6, height: 6),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                     if (record != null) ...[
                       const SizedBox(height: 4),
@@ -818,7 +823,7 @@ class _SymptomRecordSummary extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _SummaryRow(
-          label: '△ 주요 부작용',
+          label: '△ 컨디션 변화',
           trailing: Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -1412,7 +1417,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
 
   _ValidationMessage? _firstMissingRequiredMessage() {
     if (_cycleNo.text.trim().isEmpty) {
-      return _ValidationMessage('항암 회차를 입력해주세요.', _cycleNoKey);
+      return _ValidationMessage('회차를 입력해주세요.', _cycleNoKey);
     }
     if (_cycleDay.text.trim().isEmpty) {
       return _ValidationMessage('진행일차를 입력해주세요.', _cycleDayKey);
@@ -1433,7 +1438,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       return _ValidationMessage('배변 상태를 입력해주세요.', _stoolStatusKey);
     }
     if (_sideEffects.isEmpty) {
-      return _ValidationMessage('주요부작용을 입력해주세요.', _sideEffectsKey);
+      return _ValidationMessage('컨디션 변화를 입력해주세요.', _sideEffectsKey);
     }
     return null;
   }
@@ -1515,7 +1520,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                       KeyedSubtree(
                         key: _cycleNoKey,
                         child: _NumberField(
-                          label: '항암 회차',
+                          label: '회차',
                           controller: _cycleNo,
                           placeholder: '진행회차를 숫자로 입력하세요.',
                         ),
@@ -1640,7 +1645,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                       KeyedSubtree(
                         key: _sideEffectsKey,
                         child: const _FieldLabel.required(
-                          '주요부작용',
+                          '컨디션 변화',
                           key: ValueKey('symptom-label-side-effects'),
                         ),
                       ),

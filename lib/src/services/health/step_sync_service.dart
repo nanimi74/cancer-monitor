@@ -66,7 +66,7 @@ class PlatformStepSyncService implements StepSyncService {
     final activityPermission = await Permission.activityRecognition.request();
     if (!activityPermission.isGranted) {
       throw const StepSyncPermissionException(
-        'Android 설정에서 항암기록관리의 신체 활동 권한을 허용해 주세요.',
+        'Android 설정에서 한결의 신체 활동 권한을 허용해 주세요.',
       );
     }
 
@@ -74,7 +74,7 @@ class PlatformStepSyncService implements StepSyncService {
         await _isHealthConnectAvailable(openInstallIfNeeded: true);
     if (!isAvailable) {
       throw const StepSyncPermissionException(
-        'Health Connect를 설치/업데이트한 뒤, Health Connect에서 항암기록관리의 걸음수 읽기를 허용해 주세요.',
+        'Health Connect를 설치/업데이트한 뒤, Health Connect에서 한결의 걸음수 읽기를 허용해 주세요.',
       );
     }
 
@@ -109,7 +109,7 @@ class PlatformStepSyncService implements StepSyncService {
     );
     if (!granted && Platform.isAndroid) {
       throw const StepSyncPermissionException(
-        'Health Connect에서 항암기록관리의 걸음수 읽기 권한을 허용해 주세요.',
+        'Health Connect에서 한결의 걸음수 읽기 권한을 허용해 주세요.',
       );
     }
     return granted;

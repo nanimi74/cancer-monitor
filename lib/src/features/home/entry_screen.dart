@@ -25,11 +25,11 @@ class EntryScreen extends StatelessWidget {
                 const _EntryBrand(),
                 const SizedBox(height: 34),
                 Text(
-                  '항암 치료 기록을\n가볍게 남기고 정리해요.',
+                  '매일의 기록을\n부담 없이 정리해요.',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontSize: 28,
                         height: 1.2,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                       ),
                 ),
                 const SizedBox(height: 24),
@@ -83,12 +83,12 @@ class _EntryBrand extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '항암기록관리',
+              '한결',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
             ),
             SizedBox(height: 2),
             Text(
-              '치료 중 일상 기록을 한곳에',
+              '치료 중 일상 기록을 한 곳에',
               style: TextStyle(color: AppColors.muted, fontSize: 12),
             ),
           ],
@@ -147,12 +147,12 @@ class _FeatureList extends StatelessWidget {
       ),
       _FeatureItemData(
         title: '증상관리',
-        description: '식사, 배변, 운동량, 부작용을 기록해요.',
+        description: '식사, 배변, 운동량, 컨디션을 기록해요.',
         icon: _FeatureIconType.symptom,
       ),
       _FeatureItemData(
         title: 'AI요약',
-        description: '회차별 기록을 요약하고 추이를 분석해요.',
+        description: '회차별 기록을 요약하고 흐름을 정리해요.',
         icon: _FeatureIconType.analysis,
       ),
     ];
