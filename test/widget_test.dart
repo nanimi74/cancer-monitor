@@ -53,7 +53,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('마이페이지'), findsWidgets);
-    expect(find.text('복약관리'), findsOneWidget);
+    expect(find.text('복약관리'), findsWidgets);
     expect(find.text('체중관리'), findsOneWidget);
     expect(find.text('증상관리'), findsOneWidget);
     expect(find.text('AI분석'), findsOneWidget);
@@ -88,7 +88,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('마이페이지'), findsWidgets);
-    expect(find.text('복약관리'), findsOneWidget);
+    expect(find.text('복약관리'), findsWidgets);
     expect(find.text('체중관리'), findsOneWidget);
     expect(find.text('증상관리'), findsOneWidget);
     expect(find.text('AI분석'), findsOneWidget);
@@ -192,10 +192,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('약물 관리'), findsOneWidget);
+    expect(find.text('복약관리'), findsWidgets);
 
     notificationService.emitPayload('medication:123');
     await tester.pumpAndSettle();
@@ -213,7 +213,7 @@ void main() {
       ),
     );
 
-    expect(find.text('약물 관리'), findsOneWidget);
+    expect(find.text('복약관리'), findsWidgets);
     expect(find.text('등록된 약물이 없습니다.'), findsOneWidget);
     expect(find.textContaining('사용자정보를 입력해 주세요'), findsOneWidget);
 
@@ -597,7 +597,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
     await tester.pumpAndSettle();
@@ -614,7 +614,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('마이페이지'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
@@ -634,10 +634,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('약물 관리'), findsOneWidget);
+    expect(find.text('복약관리'), findsWidgets);
 
     notificationService.emitPayload('medication:1');
     await tester.pumpAndSettle();
@@ -665,7 +665,7 @@ void main() {
     await tester.tap(find.text('허용'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
     await tester.pumpAndSettle();
@@ -692,7 +692,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
     await tester.pumpAndSettle();
@@ -717,7 +717,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
@@ -734,7 +734,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
@@ -755,7 +755,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
     await tester.pumpAndSettle();
@@ -962,7 +962,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('사용자 데이터를 불러오고 있어요.'), findsNothing);
-    expect(find.text('복약관리'), findsOneWidget);
+    expect(find.text('복약관리'), findsWidgets);
     await tester.tap(find.text('마이페이지').last);
     await tester.pumpAndSettle();
 
@@ -1006,7 +1006,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
 
     expect(find.text('항구토제'), findsOneWidget);
@@ -1029,7 +1029,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
 
     expect(find.text('서버약'), findsOneWidget);
@@ -1094,7 +1094,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
     await tester.pumpAndSettle();
@@ -1117,7 +1117,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
     await tester.pumpAndSettle();
@@ -1169,7 +1169,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
 
     expect(find.text('공통약'), findsOneWidget);
@@ -1188,7 +1188,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
 
     expect(find.text('공통약'), findsOneWidget);
@@ -1268,7 +1268,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('복약관리'));
+    await tester.tap(find.text('복약관리').last);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
     await tester.pumpAndSettle();

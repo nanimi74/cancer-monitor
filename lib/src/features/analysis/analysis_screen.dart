@@ -213,7 +213,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       children: [
         const SectionHeader(
           title: 'AI분석',
-          subtitle: '동일 회차의 기록을 요약하고 흐름을 정리합니다.\n회차가 쌓일수록 이전 회차와의 비교를 제공합니다.',
+          subtitle: '동일 회차의 기록을 요약하고 흐름을 정리합니다.\n회차가 쌓이면 이전 회차와의 비교를 제공합니다.',
         ),
         if (!widget.hasRequiredInfo) ...[
           const RequiredInfoBanner(),
