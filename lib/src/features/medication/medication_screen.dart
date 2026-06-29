@@ -156,7 +156,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
       children: [
         const SectionHeader(
-          title: '약물 관리',
+          title: '복약관리',
           subtitle: '복용 약물을 등록하고 섭취 시간 알림을 설정합니다.',
         ),
         ElevatedButton(
