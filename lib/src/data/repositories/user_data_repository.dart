@@ -134,6 +134,12 @@ class UserDataRepository {
     final prefs = await SharedPreferences.getInstance();
     if (deviceId == null || deviceId.isEmpty) {
       await prefs.remove(_cacheKey(userId));
+      final keys = prefs.getKeys().where(
+            (key) => key.startsWith('user_data_snapshot_v2_${userId}_'),
+          );
+      for (final key in keys) {
+        await prefs.remove(key);
+      }
       return;
     }
     await prefs.remove(_cacheKey(userId, deviceId: deviceId));
@@ -230,6 +236,7 @@ class UserDataRepository {
     await _deleteCollection(paths.weightsCollection);
     await _deleteCollection(paths.symptomsCollection);
     await _deleteCollection(paths.analysisCollection);
+    await _deleteCollection('${paths.userDocument}/devices');
     await _deleteCollection('${paths.userDocument}/profile');
     await _db.doc(paths.userDocument).delete();
   }

@@ -1,24 +1,38 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:health/health.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 abstract interface class StepSyncService {
   Future<bool> requestPermission();
   Future<int?> readTodaySteps();
+  Future<bool> openPermissionSettings();
 }
 
 class StepSyncPermissionException implements Exception {
-  const StepSyncPermissionException(this.message);
+  const StepSyncPermissionException(
+    this.message, {
+    this.issue = StepSyncPermissionIssue.permissionRequired,
+  });
 
   final String message;
+  final StepSyncPermissionIssue issue;
 
   @override
   String toString() => message;
 }
 
+enum StepSyncPermissionIssue {
+  permissionRequired,
+  healthConnectRequired,
+}
+
 class PlatformStepSyncService implements StepSyncService {
   PlatformStepSyncService({Health? health}) : _health = health ?? Health();
+
+  static const _healthConnectChannel = MethodChannel(
+    'com.nanimi74.hangyeol/health_connect',
+  );
 
   final Health _health;
   var _configured = false;
@@ -54,6 +68,14 @@ class PlatformStepSyncService implements StepSyncService {
     return null;
   }
 
+  @override
+  Future<bool> openPermissionSettings() async {
+    if (Platform.isAndroid) {
+      return _openHealthConnectSettings();
+    }
+    return false;
+  }
+
   Future<bool> _requestHealthKitPermission() async {
     return _requestStepPermission();
   }
@@ -63,18 +85,11 @@ class PlatformStepSyncService implements StepSyncService {
   }
 
   Future<bool> _requestHealthConnectPermission() async {
-    final activityPermission = await Permission.activityRecognition.request();
-    if (!activityPermission.isGranted) {
-      throw const StepSyncPermissionException(
-        'Android 설정에서 한결의 신체 활동 권한을 허용해 주세요.',
-      );
-    }
-
-    final isAvailable =
-        await _isHealthConnectAvailable(openInstallIfNeeded: true);
+    final isAvailable = await _isHealthConnectAvailable();
     if (!isAvailable) {
       throw const StepSyncPermissionException(
-        'Health Connect를 설치/업데이트한 뒤, Health Connect에서 한결의 걸음수 읽기를 허용해 주세요.',
+        'Health Connect 설치 또는 업데이트가 필요합니다.',
+        issue: StepSyncPermissionIssue.healthConnectRequired,
       );
     }
 
@@ -95,6 +110,23 @@ class PlatformStepSyncService implements StepSyncService {
     return _readTodayStepCount();
   }
 
+  Future<bool> _openHealthConnectSettings() async {
+    final status = await _health.getHealthConnectSdkStatus();
+    if (status != HealthConnectSdkStatus.sdkAvailable) {
+      return _openNativeHealthConnectTarget('openInstall');
+    }
+
+    return _openNativeHealthConnectTarget('openSettings');
+  }
+
+  Future<bool> _openNativeHealthConnectTarget(String method) async {
+    try {
+      return await _healthConnectChannel.invokeMethod<bool>(method) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> _requestStepPermission() async {
     await _ensureConfigured();
     final currentPermission = await _health.hasPermissions(
@@ -103,27 +135,22 @@ class PlatformStepSyncService implements StepSyncService {
     );
     if (currentPermission == true) return true;
 
-    final granted = await _health.requestAuthorization(
-      _stepTypes,
-      permissions: _stepPermissions,
-    );
-    if (!granted && Platform.isAndroid) {
+    if (Platform.isAndroid) {
       throw const StepSyncPermissionException(
         'Health Connect에서 한결의 걸음수 읽기 권한을 허용해 주세요.',
       );
     }
+
+    final granted = await _health.requestAuthorization(
+      _stepTypes,
+      permissions: _stepPermissions,
+    );
     return granted;
   }
 
-  Future<bool> _isHealthConnectAvailable({
-    bool openInstallIfNeeded = false,
-  }) async {
+  Future<bool> _isHealthConnectAvailable() async {
     final status = await _health.getHealthConnectSdkStatus();
     if (status == HealthConnectSdkStatus.sdkAvailable) return true;
-    if (openInstallIfNeeded &&
-        status == HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired) {
-      await _health.installHealthConnect();
-    }
     return false;
   }
 

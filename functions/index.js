@@ -58,12 +58,25 @@ exports.analyzeCycle = onCall(
       throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     }
 
-    const payload = normalizePayload(request.data);
-    validatePayloadForAnalysis(payload);
+    const requestedCycle = normalizeAnalysisRequest(request.data);
+    validateCycleNo(requestedCycle.cycleNo);
+    await enforceRateLimit(request.auth.uid, request);
+    const payload = await buildPayloadFromStoredRecords(request.auth.uid, requestedCycle.cycleNo);
+    logAnalysisPayload("AI analysis payload loaded", payload, request);
+    try {
+      validatePayloadForAnalysis(payload);
+    } catch (error) {
+      logAnalysisPayload("AI analysis payload rejected", payload, request, {
+        errorCode: error && error.details && error.details.errorCode,
+      });
+      throw error;
+    }
     if (!payload.records.length) {
+      logAnalysisPayload("AI analysis payload rejected", payload, request, {
+        errorCode: ERROR_CODES.NO_RECORDS,
+      });
       throw aiFailedPrecondition(ERROR_CODES.NO_RECORDS, "분석할 기록이 없습니다.");
     }
-    await enforceRateLimit(request.auth.uid, request);
 
     const body = await requestClaudeAnalysis(payload);
     const text = extractClaudeText(body);
@@ -83,6 +96,71 @@ exports.analyzeCycle = onCall(
     }
   },
 );
+
+function normalizeAnalysisRequest(data) {
+  const source = data && typeof data === "object" ? data : {};
+  return {
+    cycleNo: toNumber(source.cycleNo),
+  };
+}
+
+async function buildPayloadFromStoredRecords(uid, cycleNo) {
+  const profileSnapshot = await db.doc(`users/${uid}/profile/main`).get();
+  const currentRecordsSnapshot = await db
+    .collection(`users/${uid}/symptoms`)
+    .where("cycleNo", "==", cycleNo)
+    .get();
+  const previousRecordsSnapshot =
+    cycleNo <= 1
+      ? null
+      : await db
+          .collection(`users/${uid}/symptoms`)
+          .where("cycleNo", "==", cycleNo - 1)
+          .get();
+  const weightsSnapshot = await db
+    .collection(`users/${uid}/weights`)
+    .orderBy("date")
+    .limitToLast(MAX_WEIGHT_RECORDS)
+    .get();
+
+  const records = currentRecordsSnapshot.docs
+    .map((doc) => sanitizeRecord(doc.data()))
+    .sort(compareRecordsByDate)
+    .slice(0, MAX_RECORDS_PER_REQUEST);
+  const previousRecords = previousRecordsSnapshot
+    ? previousRecordsSnapshot.docs
+        .map((doc) => sanitizeRecord(doc.data()))
+        .sort(compareRecordsByDate)
+        .slice(0, MAX_RECORDS_PER_REQUEST)
+    : [];
+
+  return {
+    cycleNo,
+    profile: profileSnapshot.exists
+      ? sanitizeStoredProfile(profileSnapshot.data())
+      : null,
+    weights: weightsSnapshot.docs.map((doc) => sanitizeWeight(doc.data())),
+    records,
+    previousRecords,
+  };
+}
+
+function compareRecordsByDate(left, right) {
+  return String(left.date || "").localeCompare(String(right.date || ""));
+}
+
+function logAnalysisPayload(message, payload, request, extra = {}) {
+  logger.info(message, {
+    requestId: requestIdFromCallable(request),
+    cycleNo: payload && payload.cycleNo,
+    hasProfile: Boolean(payload && payload.profile),
+    recordCount: payload && payload.records ? payload.records.length : 0,
+    previousRecordCount:
+      payload && payload.previousRecords ? payload.previousRecords.length : 0,
+    weightCount: payload && payload.weights ? payload.weights.length : 0,
+    ...extra,
+  });
+}
 
 async function enforceRateLimit(uid, request) {
   const now = new Date();
@@ -240,13 +318,17 @@ function normalizePayload(data) {
 }
 
 function validatePayloadForAnalysis(payload) {
-  if (!Number.isInteger(payload.cycleNo) || payload.cycleNo < 1 || payload.cycleNo > 100) {
-    throw aiFailedPrecondition(ERROR_CODES.INVALID_CYCLE, "항암 회차 정보를 확인해 주세요.");
-  }
+  validateCycleNo(payload.cycleNo);
   if (payload.profile) validateProfile(payload.profile);
   for (const weight of payload.weights) validateWeight(weight);
   for (const record of payload.records) validateRecord(record);
   for (const record of payload.previousRecords) validateRecord(record);
+}
+
+function validateCycleNo(cycleNo) {
+  if (!Number.isInteger(cycleNo) || cycleNo < 1 || cycleNo > 100) {
+    throw aiFailedPrecondition(ERROR_CODES.INVALID_CYCLE, "항암 회차 정보를 확인해 주세요.");
+  }
 }
 
 function validateProfile(profile) {
@@ -294,16 +376,26 @@ function sanitizeProfile(profile) {
   };
 }
 
+function sanitizeStoredProfile(profile) {
+  if (!profile || typeof profile !== "object") return null;
+  return sanitizeProfile({
+    ...profile,
+    age: ageFromDate(profile.birthDate),
+    diagnosisDate: toIsoDateString(profile.diagnosisDate),
+    treatmentStartDate: toIsoDateString(profile.treatmentStartDate),
+  });
+}
+
 function sanitizeWeight(weight) {
   return {
-    date: toShortText(weight && weight.date, 20),
+    date: toShortText(toIsoDateString(weight && weight.date), 20),
     weightKg: toNumber(weight && weight.weightKg),
   };
 }
 
 function sanitizeRecord(record) {
   return {
-    date: toShortText(record && record.date, 20),
+    date: toShortText(toIsoDateString(record && record.date), 20),
     cycleNo: toNumber(record && record.cycleNo),
     cycleDay: toNumber(record && record.cycleDay),
     mealAmount: toShortText(record && record.mealAmount, 40),
@@ -530,6 +622,40 @@ function isIsoDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+function toIsoDateString(value) {
+  if (!value) return "";
+  if (typeof value === "string") {
+    const dateOnly = value.slice(0, 10);
+    return isIsoDate(dateOnly) ? dateOnly : "";
+  }
+  if (typeof value.toDate === "function") {
+    return dateToIsoString(value.toDate());
+  }
+  if (value instanceof Date) {
+    return dateToIsoString(value);
+  }
+  return "";
+}
+
+function dateToIsoString(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function ageFromDate(value) {
+  const birthDateString = toIsoDateString(value);
+  if (!birthDateString) return 0;
+  const birthDate = new Date(`${birthDateString}T00:00:00.000Z`);
+  const today = new Date();
+  let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+  const birthdayPassed =
+    today.getUTCMonth() > birthDate.getUTCMonth() ||
+    (today.getUTCMonth() === birthDate.getUTCMonth() &&
+      today.getUTCDate() >= birthDate.getUTCDate());
+  if (!birthdayPassed) age -= 1;
+  return age;
+}
+
 function numberInRange(value, min, max) {
   return Number.isFinite(value) && value >= min && value <= max;
 }
@@ -555,6 +681,7 @@ function limitText(value, maxLength) {
 if (process.env.NODE_ENV === "test") {
   exports._test = {
     ERROR_CODES,
+    normalizeAnalysisRequest,
     normalizePayload,
     validatePayloadForAnalysis,
     parseJson,

@@ -45,6 +45,12 @@ test("validates accepted AI analysis payload ranges", () => {
   assert.doesNotThrow(() => _test.validatePayloadForAnalysis(validPayload()));
 });
 
+test("normalizes AI analysis requests to cycle number only", () => {
+  assert.deepEqual(_test.normalizeAnalysisRequest({ cycleNo: "3" }), {
+    cycleNo: 3,
+  });
+});
+
 test("rejects invalid cycle, profile, weight, and symptom values", () => {
   assert.throws(
     () => _test.validatePayloadForAnalysis(validPayload({ cycleNo: 101 })),

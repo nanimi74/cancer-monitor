@@ -427,6 +427,31 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  Future<void> _prepareAnalysisData() async {
+    if (!_canPersist) return;
+    await _pendingWrite.catchError((_) {});
+    if (!mounted || !_canPersist) return;
+
+    final userId = widget.userId!;
+    final profile = _userProfile;
+    final weights = List<WeightRecord>.of(_weightRecords);
+    final symptoms = List<SymptomRecord>.of(_symptomRecords);
+    _cacheCurrentSnapshot();
+
+    final write = Future.wait<void>([
+      if (profile != null) _userDataRepository.saveProfile(userId, profile),
+      _userDataRepository.saveWeights(userId, weights),
+      _userDataRepository.saveSymptoms(userId, symptoms),
+    ]).then((_) {});
+    _pendingWrite = write;
+    try {
+      await write;
+    } catch (_) {
+      _showSaveError();
+      rethrow;
+    }
+  }
+
   Future<void> _handleSignOut() async {
     await _flushPendingWrites();
     await widget.onSignOut?.call();
@@ -646,6 +671,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           profile: _userProfile,
           records: _symptomRecords,
           weights: _weightRecords,
+          onPrepareAnalysis: _prepareAnalysisData,
         ),
       ];
 }

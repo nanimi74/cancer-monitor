@@ -183,6 +183,9 @@ class _AppStartFlowState extends State<AppStartFlow> {
     return FutureBuilder<AuthService>(
       future: _authServiceFuture,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const _AppStartupErrorView();
+        }
         final authService = snapshot.data ?? const MockAuthService();
         if (snapshot.hasData && !_restoreRequested) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -211,6 +214,34 @@ class _AppStartFlowState extends State<AppStartFlow> {
             ),
         };
       },
+    );
+  }
+}
+
+class _AppStartupErrorView extends StatelessWidget {
+  const _AppStartupErrorView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              '서비스 연결을 준비하지 못했습니다.\n잠시 후 다시 실행해 주세요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 16,
+                height: 1.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
