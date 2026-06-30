@@ -18,6 +18,7 @@ class AnalysisScreen extends StatefulWidget {
     this.profile,
     this.records = const [],
     this.weights = const [],
+    this.onPrepareAnalysis,
   });
 
   final bool hasRequiredInfo;
@@ -25,6 +26,7 @@ class AnalysisScreen extends StatefulWidget {
   final UserProfile? profile;
   final List<SymptomRecord> records;
   final List<WeightRecord> weights;
+  final Future<void> Function()? onPrepareAnalysis;
 
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
@@ -82,6 +84,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         : grouped[selectedCycleNo - 1] ?? const <SymptomRecord>[];
     AiAnalysisResult result;
     try {
+      await widget.onPrepareAnalysis?.call();
       result = await const AiAnalysisService().analyze(
         cycleNo: selectedCycleNo,
         profile: widget.profile,
@@ -96,6 +99,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         _result = null;
       });
       await _showAnalysisErrorDialog(error);
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _status = _AnalysisStatus.idle;
+        _result = null;
+      });
+      await _showAnalysisErrorDialog(
+        const AiAnalysisException(
+          title: 'AI 분석을 시작하지 못했어요',
+          message: '기록 저장이 완료되지 않았습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+          code: 'save-before-analysis-failed',
+        ),
+      );
       return;
     }
 

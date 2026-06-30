@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:cancer_monitor/src/app/cancer_monitor_app.dart';
 import 'package:cancer_monitor/src/features/home_shell.dart';
@@ -20,6 +21,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    PackageInfo.setMockInitialValues(
+      appName: '한결',
+      packageName: 'com.nanimi74.hangyeol',
+      version: '1.0.3',
+      buildNumber: '4',
+      buildSignature: '',
+    );
   });
 
   testWidgets('does not show entry screen while restoring session',
@@ -364,6 +372,48 @@ void main() {
     expect(find.text('🚨 체중 변화 상담 권고'), findsOneWidget);
     expect(find.textContaining('증가가 확인됩니다'), findsOneWidget);
     expect(find.textContaining('부종, 복부팽만, 숨참'), findsOneWidget);
+  });
+
+  testWidgets('loaded weight gain records show consultation advice',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WeightScreen(
+            heightCm: 162,
+            initialRecords: [
+              WeightRecord(date: DateTime(2026, 6, 21), weightKg: 75.0),
+              WeightRecord(date: DateTime(2026, 6, 24), weightKg: 77.0),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('🚨 체중 변화 상담 권고'), findsOneWidget);
+    expect(find.textContaining('증가가 확인됩니다'), findsOneWidget);
+  });
+
+  testWidgets('loaded weight loss records show consultation advice',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WeightScreen(
+            heightCm: 162,
+            initialRecords: [
+              WeightRecord(date: DateTime(2026, 6, 1), weightKg: 60.0),
+              WeightRecord(date: DateTime(2026, 6, 24), weightKg: 56.8),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('🚨 체중 변화 상담 권고'), findsOneWidget);
+    expect(find.textContaining('감소가 확인됩니다'), findsOneWidget);
   });
 
   testWidgets('symptom input is blocked until required profile exists',
@@ -1378,12 +1428,18 @@ class _FakeStepSyncService implements StepSyncService {
   Future<bool> requestPermission() async => true;
 
   @override
+  Future<bool> openPermissionSettings() async => true;
+
+  @override
   Future<int?> readTodaySteps() async => 2400;
 }
 
 class _NullStepSyncService implements StepSyncService {
   @override
   Future<bool> requestPermission() async => true;
+
+  @override
+  Future<bool> openPermissionSettings() async => true;
 
   @override
   Future<int?> readTodaySteps() async => null;

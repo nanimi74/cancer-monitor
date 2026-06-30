@@ -1,4 +1,5 @@
 import java.io.FileInputStream
+import org.gradle.api.GradleException
 import java.util.Properties
 
 plugins {
@@ -51,7 +52,10 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
+                ?: throw GradleException(
+                    "Release signing requires android/key.properties. " +
+                        "Create it before building a release artifact."
+                )
         }
     }
 }

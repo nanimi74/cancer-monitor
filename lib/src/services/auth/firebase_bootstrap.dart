@@ -24,9 +24,12 @@ class FirebaseBootstrap {
       );
       return FirebaseAuthService();
     } catch (error, stackTrace) {
-      debugPrint('Firebase is not configured yet. Using MockAuthService.');
       debugPrint('$error');
       debugPrintStack(stackTrace: stackTrace);
+      if (!kDebugMode) {
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+      debugPrint('Firebase is not configured yet. Using MockAuthService.');
       return const MockAuthService();
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -154,15 +155,111 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       setState(() => _stepSyncEnabled = false);
       widget.onStepSyncChanged?.call(false);
-      _showMessage(error.message);
+      await _showStepSyncSettingsSheet(error);
     } catch (_) {
       if (!mounted) return;
       setState(() => _stepSyncEnabled = false);
       widget.onStepSyncChanged?.call(false);
-      _showMessage('걸음수 연동 권한 요청 중 문제가 발생했습니다.');
+      await _showStepSyncSettingsSheet(
+        const StepSyncPermissionException(
+          'Health Connect에서 한결의 걸음수 읽기를 허용해 주세요.',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _stepSyncPermissionInProgress = false);
     }
+  }
+
+  Future<void> _showStepSyncSettingsSheet(
+    StepSyncPermissionException error,
+  ) async {
+    if (!mounted) return;
+    final needsInstall =
+        error.issue == StepSyncPermissionIssue.healthConnectRequired;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: AppColors.line),
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1F1F2937),
+                      blurRadius: 36,
+                      offset: Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.line,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      needsInstall ? 'Health Connect가 필요해요' : '걸음수 권한이 필요해요',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      needsInstall
+                          ? '설치 또는 업데이트 후 다시 시도해 주세요.'
+                          : 'Health Connect에서 한결의 걸음수 읽기를 허용해 주세요.',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 14,
+                        height: 1.55,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        final opened =
+                            await _stepSyncService.openPermissionSettings();
+                        if (!mounted || opened) return;
+                        _showMessage('걸음수 연동을 활성화할 수 없습니다. 수동 입력을 사용해 주세요.');
+                      },
+                      child: Text(needsInstall ? '설치/업데이트' : '설정 열기'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('나중에 하기'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _setNotificationPermission(bool value) async {
@@ -390,15 +487,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         const SizedBox(height: 18),
-        Text(
-          '앱 버전 ${AppConstants.appVersion}',
+        const _AppVersionLabel(),
+      ],
+    );
+  }
+}
+
+class _AppVersionLabel extends StatelessWidget {
+  const _AppVersionLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final packageInfo = snapshot.data;
+        final version = packageInfo == null ? '-' : packageInfo.version;
+        return Text(
+          '앱 버전 $version',
           textAlign: TextAlign.center,
           style: Theme.of(context)
               .textTheme
               .bodySmall
               ?.copyWith(color: AppColors.muted),
-        ),
-      ],
+        );
+      },
     );
   }
 }
