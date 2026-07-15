@@ -1273,7 +1273,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
         builder: (context) => AlertDialog(
           title: const Text('걸음수 연동 권한'),
           content: const Text(
-            '휴대폰의 걸음수를 불러와 증상관리에 사용합니다. 걸음수 연동을 켜시겠습니까?',
+            'Health Connect의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
           ),
           actions: [
             TextButton(
@@ -1323,7 +1323,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       widget.onStepSyncChanged(false);
       await _showStepSyncSettingsSheet(
         const StepSyncPermissionException(
-          'Health Connect에서 한결의 걸음수 읽기를 허용해 주세요.',
+          'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
         ),
       );
     } finally {
@@ -1395,7 +1395,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                     Text(
                       needsInstall
                           ? '설치 또는 업데이트 후 다시 시도해 주세요.'
-                          : 'Health Connect에서 한결의 걸음수 읽기를 허용해 주세요.',
+                          : 'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
                       style: const TextStyle(
                         color: AppColors.muted,
                         fontSize: 14,
@@ -2129,7 +2129,7 @@ class _StepSyncPanel extends StatelessWidget {
                   Text(
                     enabled
                         ? '직접 수정하려면 수동입력으로 바꾸세요.'
-                        : '연동하면 휴대폰 걸음수를 불러올 수 있습니다.',
+                        : '연동하면 걸음수를 운동량에 자동 입력합니다.',
                     style: const TextStyle(
                       color: AppColors.muted,
                       fontSize: 12,
