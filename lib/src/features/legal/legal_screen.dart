@@ -88,7 +88,7 @@ class LegalScreen extends StatelessWidget {
       LegalSection(
         title: '4. 걸음수 연동',
         body:
-            '걸음수 연동은 사용자가 마이페이지에서 직접 켤 때만 권한을 요청합니다. iOS에서는 HealthKit, Android에서는 Health Connect를 통해 휴대폰의 걸음수를 불러와 기록의 운동량 입력에 사용합니다. 걸음수 데이터는 광고, 마케팅, 사용자 추적 목적으로 사용하지 않으며, 사용자는 언제든 설정에서 연동을 끌 수 있습니다.',
+            '걸음수 연동은 사용자가 마이페이지에서 직접 켤 때만 권한을 요청합니다. iOS에서는 HealthKit, Android에서는 Health Connect를 통해 걸음수만 불러와 기록의 운동량 자동 입력에 사용합니다. 걸음 빈도, 케이던스, 운동 세션 등 다른 Health Connect 데이터는 수집하지 않습니다. 걸음수 데이터는 광고, 마케팅, 사용자 추적 목적으로 사용하지 않으며, 사용자는 언제든 설정에서 연동을 끌 수 있습니다.',
       ),
       LegalSection(
         title: '5. AI 분석 및 기록 요약',

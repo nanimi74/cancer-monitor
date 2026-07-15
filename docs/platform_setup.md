@@ -58,6 +58,12 @@ Health Connect 권한 예시:
 
 - 사용자가 마이페이지에서 걸음수 연동을 켤 때만 Health Connect 권한을 요청한다.
 - Health Connect 권한은 걸음수 읽기에만 사용한다.
+- `android.permission.ACTIVITY_RECOGNITION`은 요청하지 않는다.
+- Play Console Health Connect 선언에서는 `Steps`만 선택하고 `StepsCadence`/케이던스/걸음 빈도 데이터 유형은 선택하지 않는다.
+- Health Connect 걸음수는 증상 기록의 운동량 자동 입력과 회차별 기록 요약 보조에만 사용한다.
+- Health Connect 권한이 부족한 경우 앱은 Health Connect 설정 화면으로 안내한다.
+- Health Connect 앱 설치 또는 업데이트가 필요한 경우 앱은 Play Store의 Health Connect 페이지로 안내한다.
+- 설정/설치 화면을 열 수 없는 경우 앱은 걸음수 연동을 켜지 않고 수동입력을 유지한다.
 - Play Console의 Health Connect 권한 신청과 Data safety 양식에 사용 목적을 일치시킨다.
 
 ## 공통

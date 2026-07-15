@@ -120,7 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context) => AlertDialog(
         title: const Text('걸음수 연동 권한'),
         content: const Text(
-          '휴대폰의 걸음수를 불러와 증상관리에 사용합니다. 걸음수 연동을 켜시겠습니까?',
+          'Health Connect의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
         ),
         actions: [
           TextButton(
@@ -162,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       widget.onStepSyncChanged?.call(false);
       await _showStepSyncSettingsSheet(
         const StepSyncPermissionException(
-          'Health Connect에서 한결의 걸음수 읽기를 허용해 주세요.',
+          'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
         ),
       );
     } finally {
@@ -229,7 +229,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       needsInstall
                           ? '설치 또는 업데이트 후 다시 시도해 주세요.'
-                          : 'Health Connect에서 한결의 걸음수 읽기를 허용해 주세요.',
+                          : 'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
                       style: const TextStyle(
                         color: AppColors.muted,
                         fontSize: 14,
@@ -431,7 +431,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         _ToggleCard(
           title: '걸음수 연동 권한',
-          subtitle: '휴대폰의 걸음수를 불러와 증상관리에 사용합니다.',
+          subtitle: 'Health Connect 걸음수로 운동량을 자동 입력합니다.',
           value: _stepSyncEnabled,
           onChanged: _setStepSync,
         ),
