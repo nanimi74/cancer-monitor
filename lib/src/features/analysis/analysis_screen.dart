@@ -200,7 +200,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   @override
   Widget build(BuildContext context) {
     final grouped = _recordsByCycle;
-    final cycleNos = grouped.keys.toList()..sort();
+    final cycleNos = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
     final selectedCycleNo =
         _selectedCycleNo ?? (cycleNos.isEmpty ? null : cycleNos.first);
     final canAnalyze = widget.hasRequiredInfo &&
