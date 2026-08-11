@@ -759,6 +759,43 @@ void main() {
     expect(find.text('켜짐'), findsOneWidget);
   });
 
+  testWidgets('medication reminder options scroll to custom setting',
+      (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MedicationScreen(
+            notificationEnabled: true,
+            notificationPermissionService: _FakeNotificationPermissionService(),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.widgetWithText(ElevatedButton, '약물 등록'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('아침식후').first,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('아침식후').first);
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('직접설정'),
+      180,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('직접설정'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('직접설정'), findsOneWidget);
+  });
+
   testWidgets('medication list is kept after switching bottom tabs',
       (WidgetTester tester) async {
     await tester.pumpWidget(
