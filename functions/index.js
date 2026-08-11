@@ -1,6 +1,10 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+const db = admin.firestore();
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 
@@ -11,12 +15,32 @@ const DEFAULT_CLAUDE_MODELS = [
 ];
 const CLAUDE_MODELS = buildClaudeModelList();
 const ANTHROPIC_VERSION = "2023-06-01";
+const MAX_MODEL_CANDIDATES = 5;
+const MAX_RECORDS_PER_REQUEST = 100;
+const MAX_WEIGHT_RECORDS = 30;
+const MAX_REQUESTS_PER_MINUTE = 3;
+const MAX_REQUESTS_PER_DAY = 20;
+const ERROR_CODES = {
+  INVALID_CYCLE: "INVALID_CYCLE",
+  INVALID_PROFILE: "INVALID_PROFILE",
+  INVALID_RECORDS: "INVALID_RECORDS",
+  NO_RECORDS: "NO_RECORDS",
+  AI_RATE_LIMITED: "AI_RATE_LIMITED",
+  CLAUDE_API_FAILED: "CLAUDE_API_FAILED",
+  CLAUDE_AUTH_FAILED: "CLAUDE_AUTH_FAILED",
+  CLAUDE_RATE_LIMITED: "CLAUDE_RATE_LIMITED",
+  CLAUDE_MODEL_UNAVAILABLE: "CLAUDE_MODEL_UNAVAILABLE",
+  CLAUDE_SERVER_ERROR: "CLAUDE_SERVER_ERROR",
+  CLAUDE_MODELS_EXHAUSTED: "CLAUDE_MODELS_EXHAUSTED",
+  CLAUDE_RESPONSE_PARSE_FAILED: "CLAUDE_RESPONSE_PARSE_FAILED",
+  CLAUDE_RESPONSE_SCHEMA_INVALID: "CLAUDE_RESPONSE_SCHEMA_INVALID",
+};
 const ANALYSIS_TITLES = [
   "식사량",
   "음수량",
   "운동량",
   "배변",
-  "특이사항 및 부작용",
+  "특이사항",
 ];
 
 exports.analyzeCycle = onCall(
@@ -26,25 +50,162 @@ exports.analyzeCycle = onCall(
     secrets: [anthropicApiKey],
     timeoutSeconds: 60,
     memory: "256MiB",
+    enforceAppCheck: true,
+    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     }
 
-    const payload = normalizePayload(request.data);
+    const requestedCycle = normalizeAnalysisRequest(request.data);
+    validateCycleNo(requestedCycle.cycleNo);
+    await enforceRateLimit(request.auth.uid, request);
+    const payload = await buildPayloadFromStoredRecords(request.auth.uid, requestedCycle.cycleNo);
+    logAnalysisPayload("AI analysis payload loaded", payload, request);
+    try {
+      validatePayloadForAnalysis(payload);
+    } catch (error) {
+      logAnalysisPayload("AI analysis payload rejected", payload, request, {
+        errorCode: error && error.details && error.details.errorCode,
+      });
+      throw error;
+    }
     if (!payload.records.length) {
-      throw new HttpsError("failed-precondition", "분석할 기록이 없습니다.");
+      logAnalysisPayload("AI analysis payload rejected", payload, request, {
+        errorCode: ERROR_CODES.NO_RECORDS,
+      });
+      throw aiFailedPrecondition(ERROR_CODES.NO_RECORDS, "분석할 기록이 없습니다.");
     }
 
     const body = await requestClaudeAnalysis(payload);
     const text = extractClaudeText(body);
-    const parsed = parseJson(text);
-    return validateAnalysis(parsed, payload.previousRecords.length > 0);
+    try {
+      const parsed = parseJson(text);
+      return validateAnalysis(parsed, payload.previousRecords.length > 0);
+    } catch (error) {
+      if (!isClaudeResponseError(error)) throw error;
+      logger.warn("Claude response invalid, retrying JSON repair", {
+        errorCode: error.details && error.details.errorCode,
+        requestId: requestIdFromCallable(request),
+      });
+      const retryBody = await requestClaudeAnalysis(payload, text);
+      const retryText = extractClaudeText(retryBody);
+      const retryParsed = parseJson(retryText);
+      return validateAnalysis(retryParsed, payload.previousRecords.length > 0);
+    }
   },
 );
 
-async function requestClaudeAnalysis(payload) {
+function normalizeAnalysisRequest(data) {
+  const source = data && typeof data === "object" ? data : {};
+  return {
+    cycleNo: toNumber(source.cycleNo),
+  };
+}
+
+async function buildPayloadFromStoredRecords(uid, cycleNo) {
+  const profileSnapshot = await db.doc(`users/${uid}/profile/main`).get();
+  const currentRecordsSnapshot = await db
+    .collection(`users/${uid}/symptoms`)
+    .where("cycleNo", "==", cycleNo)
+    .get();
+  const previousRecordsSnapshot =
+    cycleNo <= 1
+      ? null
+      : await db
+          .collection(`users/${uid}/symptoms`)
+          .where("cycleNo", "==", cycleNo - 1)
+          .get();
+  const weightsSnapshot = await db
+    .collection(`users/${uid}/weights`)
+    .orderBy("date")
+    .limitToLast(MAX_WEIGHT_RECORDS)
+    .get();
+
+  const records = currentRecordsSnapshot.docs
+    .map((doc) => sanitizeRecord(doc.data()))
+    .sort(compareRecordsByDate)
+    .slice(0, MAX_RECORDS_PER_REQUEST);
+  const previousRecords = previousRecordsSnapshot
+    ? previousRecordsSnapshot.docs
+        .map((doc) => sanitizeRecord(doc.data()))
+        .sort(compareRecordsByDate)
+        .slice(0, MAX_RECORDS_PER_REQUEST)
+    : [];
+
+  return {
+    cycleNo,
+    profile: profileSnapshot.exists
+      ? sanitizeStoredProfile(profileSnapshot.data())
+      : null,
+    weights: weightsSnapshot.docs.map((doc) => sanitizeWeight(doc.data())),
+    records,
+    previousRecords,
+  };
+}
+
+function compareRecordsByDate(left, right) {
+  return String(left.date || "").localeCompare(String(right.date || ""));
+}
+
+function logAnalysisPayload(message, payload, request, extra = {}) {
+  logger.info(message, {
+    requestId: requestIdFromCallable(request),
+    cycleNo: payload && payload.cycleNo,
+    hasProfile: Boolean(payload && payload.profile),
+    recordCount: payload && payload.records ? payload.records.length : 0,
+    previousRecordCount:
+      payload && payload.previousRecords ? payload.previousRecords.length : 0,
+    weightCount: payload && payload.weights ? payload.weights.length : 0,
+    ...extra,
+  });
+}
+
+async function enforceRateLimit(uid, request) {
+  const now = new Date();
+  const dayKey = now.toISOString().slice(0, 10);
+  const minuteKey = now.toISOString().slice(0, 16);
+  const usageRef = db.collection("aiAnalysisUsage").doc(uid);
+  const requestId = requestIdFromCallable(request);
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(usageRef);
+    const data = snapshot.exists ? snapshot.data() : {};
+    const dayCount = data.dayKey === dayKey ? Number(data.dayCount || 0) : 0;
+    const minuteCount =
+      data.minuteKey === minuteKey ? Number(data.minuteCount || 0) : 0;
+
+    if (dayCount >= MAX_REQUESTS_PER_DAY || minuteCount >= MAX_REQUESTS_PER_MINUTE) {
+      logger.warn("AI analysis rate limit exceeded", {
+        uid,
+        dayKey,
+        minuteKey,
+        dayCount,
+        minuteCount,
+        requestId,
+      });
+      throw new HttpsError("resource-exhausted", "AI 분석 요청이 많습니다.", {
+        errorCode: ERROR_CODES.AI_RATE_LIMITED,
+      });
+    }
+
+    transaction.set(
+      usageRef,
+      {
+        dayKey,
+        dayCount: dayCount + 1,
+        minuteKey,
+        minuteCount: minuteCount + 1,
+        lastRequestAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastRequestId: requestId,
+      },
+      { merge: true },
+    );
+  });
+}
+
+async function requestClaudeAnalysis(payload, repairText) {
   const errors = [];
 
   for (const model of CLAUDE_MODELS) {
@@ -59,11 +220,17 @@ async function requestClaudeAnalysis(payload) {
         model,
         max_tokens: 3400,
         temperature: 0.35,
-        system: buildSystemPrompt(),
+        system: repairText ? buildJsonRepairPrompt() : buildSystemPrompt(),
         messages: [
           {
             role: "user",
-            content: JSON.stringify(payload),
+            content: repairText
+              ? JSON.stringify({
+                  invalidResponse: limitText(repairText, 6000),
+                  expectedSchema:
+                    "{\"items\":[{\"title\":\"식사량\",\"current\":\"...\",\"previous\":\"...\"}],\"comment\":\"...\",\"encouragement\":\"...\"}",
+                })
+              : JSON.stringify(payload),
           },
         ],
       }),
@@ -74,26 +241,24 @@ async function requestClaudeAnalysis(payload) {
       return response.json();
     }
 
-    const errorText = await response.text();
-    errors.push({ model, status: response.status, errorText });
+    const errorMeta = await buildClaudeErrorMeta(response, model);
+    errors.push(errorMeta);
 
     if (!isRetryableClaudeError(response.status)) {
-      logger.error("Claude API request failed", {
-        model,
-        status: response.status,
-        errorText,
-      });
-      throw new HttpsError("internal", "AI 분석 요청에 실패했습니다.");
+      logger.error("Claude API request failed", errorMeta);
+      throw aiInternalError(errorMeta.errorCode, "AI 분석 요청에 실패했습니다.");
     }
 
     logger.warn("Claude model failed, trying next candidate", {
       model,
       status: response.status,
+      errorCode: errorMeta.errorCode,
+      type: errorMeta.type,
     });
   }
 
   logger.error("All Claude model candidates failed", { errors });
-  throw new HttpsError("internal", "AI 분석 요청에 실패했습니다.");
+  throw aiInternalError(ERROR_CODES.CLAUDE_MODELS_EXHAUSTED, "AI 분석 요청에 실패했습니다.");
 }
 
 function buildClaudeModelList() {
@@ -103,7 +268,8 @@ function buildClaudeModelList() {
   const models = configured
     .split(",")
     .map((model) => model.trim())
-    .filter(Boolean);
+    .filter((model) => /^[a-zA-Z0-9._:-]+$/.test(model))
+    .slice(0, MAX_MODEL_CANDIDATES);
   return models.length ? models : DEFAULT_CLAUDE_MODELS;
 }
 
@@ -111,17 +277,87 @@ function isRetryableClaudeError(status) {
   return [400, 404, 429, 500, 502, 503, 504].includes(status);
 }
 
+async function buildClaudeErrorMeta(response, model) {
+  let type = "";
+  try {
+    const errorText = await response.text();
+    const parsed = JSON.parse(errorText);
+    type = limitText(parsed && parsed.error && parsed.error.type, 80);
+  } catch (error) {
+    type = "";
+  }
+
+  return {
+    model,
+    status: response.status,
+    errorCode: toClaudeErrorCode(response.status),
+    requestId: limitText(response.headers.get("request-id"), 120),
+    type,
+  };
+}
+
+function toClaudeErrorCode(status) {
+  if (status === 401 || status === 403) return ERROR_CODES.CLAUDE_AUTH_FAILED;
+  if (status === 400 || status === 404) return ERROR_CODES.CLAUDE_MODEL_UNAVAILABLE;
+  if (status === 429) return ERROR_CODES.CLAUDE_RATE_LIMITED;
+  if (status >= 500) return ERROR_CODES.CLAUDE_SERVER_ERROR;
+  return ERROR_CODES.CLAUDE_API_FAILED;
+}
+
 function normalizePayload(data) {
   const source = data && typeof data === "object" ? data : {};
   return {
     cycleNo: toNumber(source.cycleNo),
     profile: sanitizeProfile(source.profile),
-    weights: toArray(source.weights).map(sanitizeWeight).slice(-30),
-    records: toArray(source.records).map(sanitizeRecord).slice(0, 100),
+    weights: toArray(source.weights).map(sanitizeWeight).slice(-MAX_WEIGHT_RECORDS),
+    records: toArray(source.records).map(sanitizeRecord).slice(0, MAX_RECORDS_PER_REQUEST),
     previousRecords: toArray(source.previousRecords)
       .map(sanitizeRecord)
-      .slice(0, 100),
+      .slice(0, MAX_RECORDS_PER_REQUEST),
   };
+}
+
+function validatePayloadForAnalysis(payload) {
+  validateCycleNo(payload.cycleNo);
+  if (payload.profile) validateProfile(payload.profile);
+  for (const weight of payload.weights) validateWeight(weight);
+  for (const record of payload.records) validateRecord(record);
+  for (const record of payload.previousRecords) validateRecord(record);
+}
+
+function validateCycleNo(cycleNo) {
+  if (!Number.isInteger(cycleNo) || cycleNo < 1 || cycleNo > 100) {
+    throw aiFailedPrecondition(ERROR_CODES.INVALID_CYCLE, "항암 회차 정보를 확인해 주세요.");
+  }
+}
+
+function validateProfile(profile) {
+  if (!numberInRange(profile.age, 0, 120) || !numberInRange(profile.heightCm, 80, 250)) {
+    throw aiFailedPrecondition(ERROR_CODES.INVALID_PROFILE, "사용자 정보를 확인해 주세요.");
+  }
+  validateOptionalIsoDate(profile.diagnosisDate, ERROR_CODES.INVALID_PROFILE);
+  validateOptionalIsoDate(profile.treatmentStartDate, ERROR_CODES.INVALID_PROFILE);
+}
+
+function validateWeight(weight) {
+  validateRequiredIsoDate(weight.date, ERROR_CODES.INVALID_RECORDS);
+  if (!numberInRange(weight.weightKg, 20, 300)) {
+    throw aiFailedPrecondition(ERROR_CODES.INVALID_RECORDS, "체중 기록을 확인해 주세요.");
+  }
+}
+
+function validateRecord(record) {
+  validateRequiredIsoDate(record.date, ERROR_CODES.INVALID_RECORDS);
+  if (
+    !Number.isInteger(record.cycleNo) ||
+    !numberInRange(record.cycleNo, 1, 100) ||
+    !Number.isInteger(record.cycleDay) ||
+    !numberInRange(record.cycleDay, 1, 100) ||
+    !Number.isInteger(record.steps) ||
+    !numberInRange(record.steps, 0, 100000)
+  ) {
+    throw aiFailedPrecondition(ERROR_CODES.INVALID_RECORDS, "증상 기록을 확인해 주세요.");
+  }
 }
 
 function sanitizeProfile(profile) {
@@ -140,16 +376,26 @@ function sanitizeProfile(profile) {
   };
 }
 
+function sanitizeStoredProfile(profile) {
+  if (!profile || typeof profile !== "object") return null;
+  return sanitizeProfile({
+    ...profile,
+    age: ageFromDate(profile.birthDate),
+    diagnosisDate: toIsoDateString(profile.diagnosisDate),
+    treatmentStartDate: toIsoDateString(profile.treatmentStartDate),
+  });
+}
+
 function sanitizeWeight(weight) {
   return {
-    date: toShortText(weight && weight.date, 20),
+    date: toShortText(toIsoDateString(weight && weight.date), 20),
     weightKg: toNumber(weight && weight.weightKg),
   };
 }
 
 function sanitizeRecord(record) {
   return {
-    date: toShortText(record && record.date, 20),
+    date: toShortText(toIsoDateString(record && record.date), 20),
     cycleNo: toNumber(record && record.cycleNo),
     cycleDay: toNumber(record && record.cycleDay),
     mealAmount: toShortText(record && record.mealAmount, 40),
@@ -235,7 +481,7 @@ function buildSystemPrompt() {
     "운동량은 걸음수 범위, 평균, 초반/중반/후반 변화와 피로/어지러움/통증 기록을 함께 본다.",
     "운동량은 '정상 범위', '비정상', '정상화' 같은 의학적 정상/비정상 표현을 피한다. 대신 '평소 활동 수준', '활동량 회복 흐름', '활동량 제한 신호', '저활동 패턴'처럼 사용자가 이해하기 쉬운 생활패턴 표현을 쓴다.",
     "배변은 있음/없음의 반복성, 정상/설사/딱딱한변/혈변 등 변 상태와 소화기 부작용을 함께 본다.",
-    "특이사항 및 부작용은 체크한 부작용과 자유 입력 주요증상을 함께 보고 호전, 지속, 새로 발생한 증상, 의료진에게 공유할 만한 내용을 구분한다.",
+    "특이사항은 체크한 기록과 자유 입력 주요증상을 함께 보고 호전, 지속, 새로 발생한 불편감, 공유할 만한 내용을 구분한다.",
     "이전 비교는 이전 회차의 같은 항목과 비교해 좋아진 점, 유지되는 점, 새로 주의할 점을 짧게 쓴다. 이전 비교도 날짜 나열이 아니라 '비슷한 패턴 반복', '더 빠른 저하', '회복 속도 개선', '새로운 변화' 중심으로 작성한다.",
     "이전 비교는 '이전 회차에도 무엇이 있었는지'보다 '이번 회차에서 같은 패턴이 반복되는지, 더 빨라졌는지, 덜 심한지, 새로 생겼는지'를 우선한다.",
     "profile과 weights가 제공되면 연령, 암종/병기, 치료 방법, 체중 추이를 AI 코멘트와 필요한 항목에 반영한다.",
@@ -262,6 +508,17 @@ function buildSystemPrompt() {
   ].join("\n");
 }
 
+function buildJsonRepairPrompt() {
+  return [
+    "너는 JSON 응답 형식을 고치는 보정기이다.",
+    "입력으로 받은 invalidResponse의 의미를 유지하되, 반드시 JSON 객체만 반환한다.",
+    "코드블록, 설명, 마크다운 문장, 앞뒤 텍스트는 절대 쓰지 않는다.",
+    "반환 형식은 {\"items\":[{\"title\":\"식사량\",\"current\":\"...\",\"previous\":\"...\"}],\"comment\":\"...\",\"encouragement\":\"...\"} 이다.",
+    `items는 ${ANALYSIS_TITLES.join(", ")} 5개 항목을 이 순서로 제공한다.`,
+    "값이 누락된 항목은 빈 문자열이 아니라 현재 응답에서 가장 가까운 내용을 짧게 보정한다.",
+  ].join("\n");
+}
+
 function extractClaudeText(body) {
   const content = Array.isArray(body && body.content) ? body.content : [];
   return content
@@ -277,15 +534,28 @@ function parseJson(text) {
   } catch (error) {
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) {
-      throw new HttpsError("internal", "AI 분석 응답을 해석하지 못했습니다.");
+      throw aiInternalError(
+        ERROR_CODES.CLAUDE_RESPONSE_PARSE_FAILED,
+        "AI 분석 응답을 해석하지 못했습니다.",
+      );
     }
-    return JSON.parse(match[0]);
+    try {
+      return JSON.parse(match[0]);
+    } catch (parseError) {
+      throw aiInternalError(
+        ERROR_CODES.CLAUDE_RESPONSE_PARSE_FAILED,
+        "AI 분석 응답을 해석하지 못했습니다.",
+      );
+    }
   }
 }
 
 function validateAnalysis(data, hasPrevious) {
   if (!data || typeof data !== "object") {
-    throw new HttpsError("internal", "AI 분석 응답 형식이 올바르지 않습니다.");
+    throw aiInternalError(
+      ERROR_CODES.CLAUDE_RESPONSE_SCHEMA_INVALID,
+      "AI 분석 응답 형식이 올바르지 않습니다.",
+    );
   }
 
   const sourceItems = Array.isArray(data.items) ? data.items : [];
@@ -307,6 +577,89 @@ function validateAnalysis(data, hasPrevious) {
   };
 }
 
+function aiInternalError(errorCode, message) {
+  return new HttpsError("internal", message, { errorCode });
+}
+
+function aiFailedPrecondition(errorCode, message) {
+  return new HttpsError("failed-precondition", message, { errorCode });
+}
+
+function isClaudeResponseError(error) {
+  return (
+    error instanceof HttpsError &&
+    error.details &&
+    [
+      ERROR_CODES.CLAUDE_RESPONSE_PARSE_FAILED,
+      ERROR_CODES.CLAUDE_RESPONSE_SCHEMA_INVALID,
+    ].includes(error.details.errorCode)
+  );
+}
+
+function requestIdFromCallable(request) {
+  const headers = request.rawRequest && request.rawRequest.headers;
+  return limitText(
+    (headers && (headers["x-request-id"] || headers["x-cloud-trace-context"])) || "",
+    120,
+  );
+}
+
+function validateRequiredIsoDate(value, errorCode) {
+  if (!isIsoDate(value)) {
+    throw aiFailedPrecondition(errorCode, "기록 날짜를 확인해 주세요.");
+  }
+}
+
+function validateOptionalIsoDate(value, errorCode) {
+  if (value && !isIsoDate(value)) {
+    throw aiFailedPrecondition(errorCode, "날짜 정보를 확인해 주세요.");
+  }
+}
+
+function isIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function toIsoDateString(value) {
+  if (!value) return "";
+  if (typeof value === "string") {
+    const dateOnly = value.slice(0, 10);
+    return isIsoDate(dateOnly) ? dateOnly : "";
+  }
+  if (typeof value.toDate === "function") {
+    return dateToIsoString(value.toDate());
+  }
+  if (value instanceof Date) {
+    return dateToIsoString(value);
+  }
+  return "";
+}
+
+function dateToIsoString(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function ageFromDate(value) {
+  const birthDateString = toIsoDateString(value);
+  if (!birthDateString) return 0;
+  const birthDate = new Date(`${birthDateString}T00:00:00.000Z`);
+  const today = new Date();
+  let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+  const birthdayPassed =
+    today.getUTCMonth() > birthDate.getUTCMonth() ||
+    (today.getUTCMonth() === birthDate.getUTCMonth() &&
+      today.getUTCDate() >= birthDate.getUTCDate());
+  if (!birthdayPassed) age -= 1;
+  return age;
+}
+
+function numberInRange(value, min, max) {
+  return Number.isFinite(value) && value >= min && value <= max;
+}
+
 function toArray(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -323,4 +676,15 @@ function toShortText(value, maxLength) {
 function limitText(value, maxLength) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.length > maxLength ? text.slice(0, maxLength - 1) + "…" : text;
+}
+
+if (process.env.NODE_ENV === "test") {
+  exports._test = {
+    ERROR_CODES,
+    normalizeAnalysisRequest,
+    normalizePayload,
+    validatePayloadForAnalysis,
+    parseJson,
+    validateAnalysis,
+  };
 }

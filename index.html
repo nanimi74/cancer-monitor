@@ -3114,6 +3114,7 @@
                 <div class="policy-section">
                   <h4>2. 이용 목적</h4>
                   <p>수집한 정보는 회원 인증, 기록 저장과 조회, 복약 알림, 체중 변화 확인, 증상 기록 관리, 회차별 AI 분석, 외래 상담 준비, 문의 응대와 서비스 안정성 개선을 위해 사용합니다. 광고, 마케팅, 사용자 추적, 정보 판매 목적으로 사용하지 않습니다.</p>
+                  <p>회원별 기록은 로그인 계정 기준으로 분리 저장하며, 다른 사용자가 접근할 수 없도록 서버 보안 규칙을 적용합니다. 둘러보기 모드에서는 실제 건강정보와 기록을 저장하지 않습니다.</p>
                 </div>
                 <div class="policy-section">
                   <h4>3. 알림 권한</h4>
@@ -4741,7 +4742,7 @@
           { key: "water", icon: "💧", title: "음수량", tone: "water", current: waterSummary, previous: previousComparisonText("water", records, previous) },
           { key: "activity", icon: "🚶", title: "운동량", tone: "activity", current: activitySummary, previous: previousComparisonText("activity", records, previous) },
           { key: "bowel", icon: "🚽", title: "배변", tone: "bowel", current: bowelSummary, previous: previousComparisonText("bowel", records, previous) },
-          { key: "effects", icon: "⚠️", title: "특이사항 및 부작용", tone: "effects", current: sideEffectSummary, previous: previousComparisonText("effects", records, previous) }
+          { key: "effects", icon: "⚠️", title: "특이사항", tone: "effects", current: sideEffectSummary, previous: previousComparisonText("effects", records, previous) }
         ],
         aiComment,
         encouragement,

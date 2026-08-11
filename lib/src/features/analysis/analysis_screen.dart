@@ -18,6 +18,7 @@ class AnalysisScreen extends StatefulWidget {
     this.profile,
     this.records = const [],
     this.weights = const [],
+    this.onPrepareAnalysis,
   });
 
   final bool hasRequiredInfo;
@@ -25,6 +26,7 @@ class AnalysisScreen extends StatefulWidget {
   final UserProfile? profile;
   final List<SymptomRecord> records;
   final List<WeightRecord> weights;
+  final Future<void> Function()? onPrepareAnalysis;
 
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
@@ -82,6 +84,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         : grouped[selectedCycleNo - 1] ?? const <SymptomRecord>[];
     AiAnalysisResult result;
     try {
+      await widget.onPrepareAnalysis?.call();
       result = await const AiAnalysisService().analyze(
         cycleNo: selectedCycleNo,
         profile: widget.profile,
@@ -96,6 +99,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         _result = null;
       });
       await _showAnalysisErrorDialog(error);
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _status = _AnalysisStatus.idle;
+        _result = null;
+      });
+      await _showAnalysisErrorDialog(
+        const AiAnalysisException(
+          title: 'AI 분석을 시작하지 못했어요',
+          message: '기록 저장이 완료되지 않았습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+          code: 'save-before-analysis-failed',
+        ),
+      );
       return;
     }
 
@@ -213,7 +230,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       children: [
         const SectionHeader(
           title: 'AI분석',
-          subtitle: '동일 항암 회차의 기록을 요약하고 분석합니다.\n회차가 쌓일수록 이전 회차와의 비교 분석을 제공합니다.',
+          subtitle: '동일 회차의 기록을 요약하고 흐름을 정리합니다.\n회차가 쌓이면 이전 회차와의 비교를 제공합니다.',
         ),
         if (!widget.hasRequiredInfo) ...[
           const RequiredInfoBanner(),
@@ -224,7 +241,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                '항암 회차 선택',
+                '회차 선택',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 10),
@@ -384,7 +401,7 @@ class _CyclePickerSheet extends StatelessWidget {
                         children: [
                           const Expanded(
                             child: Text(
-                              '항암 회차 선택',
+                              '회차 선택',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -601,7 +618,7 @@ class _ResultTitle extends StatelessWidget {
         const _SoftIcon(label: 'AI'),
         const SizedBox(width: 8),
         const Text(
-          'AI 분석 결과',
+          '기록 요약 결과',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         if (!kReleaseMode) ...[
@@ -621,7 +638,7 @@ class _AnalysisSourceBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = switch (source) {
-      AiAnalysisSource.claude => 'Claude 분석',
+      AiAnalysisSource.claude => 'AI 요약',
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -670,7 +687,7 @@ class _SelectedPeriodBox extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            _SummaryRow(label: '항암 회차', value: '$cycleNo회차'),
+            _SummaryRow(label: '회차', value: '$cycleNo회차'),
             const SizedBox(height: 10),
             _SummaryRow(label: '기록 기간', value: period),
             const SizedBox(height: 10),
@@ -725,11 +742,12 @@ class _AnalysisItemPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final title = _displayTitle(item.title);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _panelColor(item.title),
+        color: _panelColor(title),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _panelLine(item.title)),
+        border: Border.all(color: _panelLine(title)),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
@@ -738,11 +756,10 @@ class _AnalysisItemPanel extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(_itemIcon(item.title),
-                    style: const TextStyle(fontSize: 15)),
+                Text(_itemIcon(title), style: const TextStyle(fontSize: 15)),
                 const SizedBox(width: 6),
                 Text(
-                  item.title,
+                  title,
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -764,6 +781,10 @@ class _AnalysisItemPanel extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _displayTitle(String title) {
+    return title.replaceAll(' 및 부작용', '');
   }
 
   static Color _panelColor(String title) {
@@ -895,7 +916,7 @@ class _MedicalDisclaimer extends StatelessWidget {
       child: const Padding(
         padding: EdgeInsets.all(12),
         child: Text(
-          '본 AI코멘트는 참고용 정보로, 의학적 진단이나 치료 결정을 대체할 수 없습니다. 모든 증상과 건강 관련 결정은 반드시 담당 의료진과 상의하시기 바랍니다.',
+          '기록 요약은 참고용 정보로, 의학적 진단이나 치료 결정을 대체할 수 없습니다. 모든 건강 관련 결정은 반드시 담당 의료진과 상의하시기 바랍니다.',
           style:
               TextStyle(color: Color(0xFF8A5A00), fontSize: 12, height: 1.55),
         ),

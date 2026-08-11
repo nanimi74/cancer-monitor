@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -31,22 +33,100 @@ class SymptomScreen extends StatefulWidget {
   State<SymptomScreen> createState() => _SymptomScreenState();
 }
 
-class _SymptomScreenState extends State<SymptomScreen> {
-  late final _records = {
-    for (final record in widget.initialRecords)
-      _dateOnly(record.date): _SymptomRecord.fromModel(record),
-  };
+class _SymptomScreenState extends State<SymptomScreen>
+    with WidgetsBindingObserver {
+  final _records = <DateTime, _SymptomRecord>{};
   late final StepSyncService _stepSyncService =
       widget.stepSyncService ?? PlatformStepSyncService();
   late var _stepSyncEnabled = widget.stepSyncEnabled;
   var _visibleMonth = _monthStart(DateTime.now());
   DateTime? _selectedDate;
+  var _refreshingTodaySteps = false;
+  var _refreshScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _syncInitialRecords();
+    _scheduleTodayLinkedStepsRefresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(covariant SymptomScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.stepSyncEnabled != widget.stepSyncEnabled) {
       _stepSyncEnabled = widget.stepSyncEnabled;
+      _scheduleTodayLinkedStepsRefresh();
+    }
+    if (oldWidget.initialRecords != widget.initialRecords) {
+      _syncInitialRecords();
+      _scheduleTodayLinkedStepsRefresh();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _scheduleTodayLinkedStepsRefresh();
+    }
+  }
+
+  void _scheduleTodayLinkedStepsRefresh() {
+    if (_refreshScheduled) return;
+    _refreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshScheduled = false;
+      if (!mounted) return;
+      unawaited(_refreshTodayLinkedSteps());
+    });
+  }
+
+  void _syncInitialRecords() {
+    _records
+      ..clear()
+      ..addEntries(
+        widget.initialRecords.map(
+          (record) => MapEntry(
+            _dateOnly(record.date),
+            _SymptomRecord.fromModel(record),
+          ),
+        ),
+      );
+  }
+
+  Future<void> _refreshTodayLinkedSteps() async {
+    if (widget.isPreview || _refreshingTodaySteps) return;
+    final today = _dateOnly(DateTime.now());
+    final record = _records[today];
+    if (record == null || record.stepsSource != '연동') return;
+
+    _refreshingTodaySteps = true;
+    try {
+      final steps = await _stepSyncService.readTodaySteps();
+      if (!mounted || steps == null || steps == record.steps) return;
+      setState(() {
+        _stepSyncEnabled = true;
+        _records[today] = record.copyWith(
+          steps: steps,
+          stepsSource: '연동',
+        );
+        if (_selectedDate != null && _isSameDay(_selectedDate!, today)) {
+          _selectedDate = today;
+        }
+      });
+      widget.onStepSyncChanged?.call(true);
+      _notifyRecordsChanged();
+    } catch (_) {
+      // 걸음수 자동 갱신 실패는 기록 사용을 막지 않습니다.
+    } finally {
+      _refreshingTodaySteps = false;
     }
   }
 
@@ -141,6 +221,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _scheduleTodayLinkedStepsRefresh();
     final selectedDate = _selectedDate;
     final selectedRecord =
         selectedDate == null ? null : _records[_dateOnly(selectedDate)];
@@ -150,7 +231,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
       children: [
         const SectionHeader(
           title: '증상 관리',
-          subtitle: '회차별 생활반응과 주요 부작용을 기록합니다.',
+          subtitle: '회차별 생활 반응과 컨디션 변화를 기록합니다.',
         ),
         if (!widget.hasRequiredInfo) ...[
           const RequiredInfoBanner(),
@@ -394,30 +475,35 @@ class _SymptomDayCell extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(2, 5, 2, 2),
                 child: Column(
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${date.day}일',
-                          style: TextStyle(
-                            color: isCurrentMonth
-                                ? (isSunday ? AppColors.danger : AppColors.text)
-                                : AppColors.muted.withValues(alpha: .6),
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (isToday) ...[
-                          const SizedBox(width: 4),
-                          const DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: AppColors.danger,
-                              shape: BoxShape.circle,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${date.day}일',
+                            style: TextStyle(
+                              color: isCurrentMonth
+                                  ? (isSunday
+                                      ? AppColors.danger
+                                      : AppColors.text)
+                                  : AppColors.muted.withValues(alpha: .6),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
                             ),
-                            child: SizedBox(width: 6, height: 6),
                           ),
+                          if (isToday) ...[
+                            const SizedBox(width: 4),
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: AppColors.danger,
+                                shape: BoxShape.circle,
+                              ),
+                              child: SizedBox(width: 6, height: 6),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                     if (record != null) ...[
                       const SizedBox(height: 4),
@@ -737,7 +823,7 @@ class _SymptomRecordSummary extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _SummaryRow(
-          label: '△ 주요 부작용',
+          label: '△ 컨디션 변화',
           trailing: Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -840,7 +926,12 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
           if (trailing != null)
-            Flexible(child: trailing!)
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: trailing!,
+              ),
+            )
           else
             Text(
               value ?? '',
@@ -987,6 +1078,14 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   var _stepSyncInProgress = false;
   String? _validationMessage;
 
+  bool get _usingStepSync => _stepsSource == '연동';
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshLinkedStepsForEditor());
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -999,6 +1098,24 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     _steps.dispose();
     _note.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshLinkedStepsForEditor() async {
+    if (widget.isPreview || !_usingStepSync) return;
+    if (!_isSameDay(widget.date, _dateOnly(DateTime.now()))) return;
+
+    try {
+      final steps = await widget.stepSyncService.readTodaySteps();
+      if (!mounted || steps == null || steps.toString() == _steps.text) return;
+      setState(() {
+        _stepSyncEnabled = true;
+        _stepsSource = '연동';
+        _steps.text = steps.toString();
+      });
+      widget.onStepSyncChanged(true);
+    } catch (_) {
+      // 편집창 자동 갱신 실패는 수동 입력과 저장을 막지 않습니다.
+    }
   }
 
   Future<void> _pickMealAmount() async {
@@ -1145,31 +1262,33 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   }
 
   Future<void> _enableStepSync() async {
-    if (_stepSyncInProgress || _stepSyncEnabled) return;
+    if (_stepSyncInProgress) return;
     if (widget.isPreview) {
       _showMessage('둘러보기에서는 권한 요청을 진행하지 않습니다.');
       return;
     }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('걸음수 연동 권한'),
-        content: const Text(
-          '휴대폰의 걸음수를 불러와 증상관리에 사용합니다. 걸음수 연동을 켜시겠습니까?',
+    if (!_stepSyncEnabled) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('걸음수 연동 권한'),
+          content: const Text(
+            'Health Connect의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('켜기'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('켜기'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || confirmed != true) return;
+      );
+      if (!mounted || confirmed != true) return;
+    }
     setState(() => _stepSyncInProgress = true);
     try {
       final granted = await widget.stepSyncService.requestPermission();
@@ -1187,12 +1306,126 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       } else {
         _showMessage('걸음수 연동 권한이 허용되지 않았습니다.');
       }
+    } on StepSyncPermissionException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _stepSyncEnabled = false;
+        _stepsSource = '수동';
+      });
+      widget.onStepSyncChanged(false);
+      await _showStepSyncSettingsSheet(error);
     } catch (_) {
       if (!mounted) return;
-      _showMessage('걸음수 연동 중 문제가 발생했습니다.');
+      setState(() {
+        _stepSyncEnabled = false;
+        _stepsSource = '수동';
+      });
+      widget.onStepSyncChanged(false);
+      await _showStepSyncSettingsSheet(
+        const StepSyncPermissionException(
+          'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _stepSyncInProgress = false);
     }
+  }
+
+  void _disableStepSyncForRecord() {
+    setState(() => _stepsSource = '수동');
+    _showMessage('이 기록은 수동 입력으로 변경되었습니다.');
+  }
+
+  Future<void> _showStepSyncSettingsSheet(
+    StepSyncPermissionException error,
+  ) async {
+    if (!mounted) return;
+    final needsInstall =
+        error.issue == StepSyncPermissionIssue.healthConnectRequired;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: AppColors.line),
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1F1F2937),
+                      blurRadius: 36,
+                      offset: Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.line,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      needsInstall ? 'Health Connect가 필요해요' : '걸음수 권한이 필요해요',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      needsInstall
+                          ? '설치 또는 업데이트 후 다시 시도해 주세요.'
+                          : 'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 14,
+                        height: 1.55,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        final opened = await widget.stepSyncService
+                            .openPermissionSettings();
+                        if (!mounted || opened) return;
+                        _showMessage('걸음수 연동을 활성화할 수 없습니다. 수동 입력을 사용해 주세요.');
+                      },
+                      child: Text(needsInstall ? '설치/업데이트' : '설정 열기'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('나중에 하기'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _selectBowel(String value) {
@@ -1219,7 +1452,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (widget.isPreview) {
       Navigator.of(context).pop(const _SymptomEditorResult.previewBlocked());
       return;
@@ -1237,6 +1470,9 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       return;
     }
 
+    final steps = await _stepsForSave();
+    if (!mounted) return;
+
     Navigator.of(context).pop(
       _SymptomEditorResult.save(
         _SymptomRecord(
@@ -1248,7 +1484,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
           dinnerMemo: _dinner.text.trim(),
           extraMealMemo: _extraMeal.text.trim(),
           waterAmount: _waterAmount!,
-          steps: int.parse(_steps.text),
+          steps: steps,
           stepsSource: _stepsSource,
           bowel: _bowel!,
           stoolStatus: _bowel == '있음' ? _stoolStatus : null,
@@ -1259,9 +1495,30 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     );
   }
 
+  Future<int> _stepsForSave() async {
+    final typedSteps = int.tryParse(_steps.text.trim());
+    if (!_usingStepSync) return typedSteps ?? 0;
+    if (!_isSameDay(widget.date, _dateOnly(DateTime.now()))) {
+      return typedSteps ?? 0;
+    }
+
+    setState(() => _stepSyncInProgress = true);
+    try {
+      final syncedSteps = await widget.stepSyncService.readTodaySteps();
+      if (!mounted) return typedSteps ?? syncedSteps ?? 0;
+      final steps = syncedSteps ?? typedSteps ?? 0;
+      _steps.text = steps.toString();
+      return steps;
+    } catch (_) {
+      return typedSteps ?? 0;
+    } finally {
+      if (mounted) setState(() => _stepSyncInProgress = false);
+    }
+  }
+
   _ValidationMessage? _firstMissingRequiredMessage() {
     if (_cycleNo.text.trim().isEmpty) {
-      return _ValidationMessage('항암 회차를 입력해주세요.', _cycleNoKey);
+      return _ValidationMessage('회차를 입력해주세요.', _cycleNoKey);
     }
     if (_cycleDay.text.trim().isEmpty) {
       return _ValidationMessage('진행일차를 입력해주세요.', _cycleDayKey);
@@ -1272,7 +1529,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     if (_waterAmount == null) {
       return _ValidationMessage('음수량을 입력해주세요.', _waterAmountKey);
     }
-    if (_steps.text.trim().isEmpty) {
+    if (!_usingStepSync && _steps.text.trim().isEmpty) {
       return _ValidationMessage('운동량을 입력해주세요.', _stepsKey);
     }
     if (_bowel == null) {
@@ -1282,7 +1539,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       return _ValidationMessage('배변 상태를 입력해주세요.', _stoolStatusKey);
     }
     if (_sideEffects.isEmpty) {
-      return _ValidationMessage('주요부작용을 입력해주세요.', _sideEffectsKey);
+      return _ValidationMessage('컨디션 변화를 입력해주세요.', _sideEffectsKey);
     }
     return null;
   }
@@ -1356,7 +1613,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                 child: Form(
                   key: _formKey,
                   child: ListView(
-                    key: const PageStorageKey('symptom-editor-scroll'),
+                    key: const ValueKey('symptom-editor-scroll'),
                     controller: _scrollController,
                     scrollCacheExtent: const ScrollCacheExtent.pixels(2400),
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -1364,7 +1621,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                       KeyedSubtree(
                         key: _cycleNoKey,
                         child: _NumberField(
-                          label: '항암 회차',
+                          label: '회차',
                           controller: _cycleNo,
                           placeholder: '진행회차를 숫자로 입력하세요.',
                         ),
@@ -1429,16 +1686,17 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                         child: _StepsField(
                           controller: _steps,
                           source: _stepsSource,
-                          readOnly: _stepSyncEnabled,
+                          readOnly: _usingStepSync,
+                          allowEmpty: _usingStepSync,
                         ),
                       ),
-                      if (!_stepSyncEnabled) ...[
-                        const SizedBox(height: 10),
-                        _StepSyncPanel(
-                          inProgress: _stepSyncInProgress,
-                          onTap: _enableStepSync,
-                        ),
-                      ],
+                      const SizedBox(height: 10),
+                      _StepSyncPanel(
+                        enabled: _usingStepSync,
+                        inProgress: _stepSyncInProgress,
+                        onEnable: _enableStepSync,
+                        onDisable: _disableStepSyncForRecord,
+                      ),
                       const SizedBox(height: 18),
                       KeyedSubtree(
                         key: _bowelKey,
@@ -1488,7 +1746,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                       KeyedSubtree(
                         key: _sideEffectsKey,
                         child: const _FieldLabel.required(
-                          '주요부작용',
+                          '컨디션 변화',
                           key: ValueKey('symptom-label-side-effects'),
                         ),
                       ),
@@ -1792,11 +2050,13 @@ class _StepsField extends StatelessWidget {
     required this.controller,
     required this.source,
     required this.readOnly,
+    required this.allowEmpty,
   });
 
   final TextEditingController controller;
   final String source;
   final bool readOnly;
+  final bool allowEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -1820,6 +2080,7 @@ class _StepsField extends StatelessWidget {
             ),
           ),
           validator: (value) {
+            if (allowEmpty && (value == null || value.isEmpty)) return null;
             final number = int.tryParse(value ?? '');
             if (number == null) return '필수';
             if (number < 0) return '확인';
@@ -1832,10 +2093,17 @@ class _StepsField extends StatelessWidget {
 }
 
 class _StepSyncPanel extends StatelessWidget {
-  const _StepSyncPanel({required this.inProgress, required this.onTap});
+  const _StepSyncPanel({
+    required this.enabled,
+    required this.inProgress,
+    required this.onEnable,
+    required this.onDisable,
+  });
 
+  final bool enabled;
   final bool inProgress;
-  final VoidCallback onTap;
+  final VoidCallback onEnable;
+  final VoidCallback onDisable;
 
   @override
   Widget build(BuildContext context) {
@@ -1849,26 +2117,41 @@ class _StepSyncPanel extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '걸음수 연동 꺼짐',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    enabled ? '걸음수 연동 켜짐' : '걸음수 연동 꺼짐',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  SizedBox(height: 3),
+                  const SizedBox(height: 3),
                   Text(
-                    '휴대폰의 걸음수를 불러오려면 연동을 활성화하세요.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                    enabled
+                        ? '직접 수정하려면 수동입력으로 바꾸세요.'
+                        : '연동하면 걸음수를 운동량에 자동 입력합니다.',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
             ),
-            TextButton(
-              onPressed: inProgress ? null : onTap,
-              child: Text(inProgress ? '요청 중' : '연동하기'),
-            ),
+            if (enabled) ...[
+              TextButton(
+                onPressed: inProgress ? null : onEnable,
+                child: Text(inProgress ? '요청 중' : '재연동'),
+              ),
+              TextButton(
+                onPressed: inProgress ? null : onDisable,
+                child: const Text('수동입력'),
+              ),
+            ] else
+              TextButton(
+                onPressed: inProgress ? null : onEnable,
+                child: Text(inProgress ? '요청 중' : '연동하기'),
+              ),
           ],
         ),
       ),
@@ -2059,6 +2342,28 @@ class _SymptomRecord {
 
   List<String> get visibleSideEffects =>
       sideEffects.where((effect) => effect != '없음').take(3).toList();
+
+  _SymptomRecord copyWith({
+    int? steps,
+    String? stepsSource,
+  }) {
+    return _SymptomRecord(
+      cycleNo: cycleNo,
+      cycleDay: cycleDay,
+      mealAmount: mealAmount,
+      breakfastMemo: breakfastMemo,
+      lunchMemo: lunchMemo,
+      dinnerMemo: dinnerMemo,
+      extraMealMemo: extraMealMemo,
+      waterAmount: waterAmount,
+      steps: steps ?? this.steps,
+      stepsSource: stepsSource ?? this.stepsSource,
+      bowel: bowel,
+      stoolStatus: stoolStatus,
+      sideEffects: sideEffects,
+      note: note,
+    );
+  }
 
   SymptomRecord toModel(DateTime date) {
     return SymptomRecord(

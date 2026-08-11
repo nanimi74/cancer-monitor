@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
@@ -22,6 +24,7 @@ class ProfileScreen extends StatefulWidget {
     this.stepSyncService,
     this.notificationEnabled = false,
     this.stepSyncEnabled = false,
+    this.initialProfile,
     this.onNotificationPermissionChanged,
     this.onStepSyncChanged,
     this.onRequiredInfoChanged,
@@ -38,6 +41,7 @@ class ProfileScreen extends StatefulWidget {
   final StepSyncService? stepSyncService;
   final bool notificationEnabled;
   final bool stepSyncEnabled;
+  final UserProfile? initialProfile;
   final ValueChanged<bool>? onNotificationPermissionChanged;
   final ValueChanged<bool>? onStepSyncChanged;
   final ValueChanged<bool>? onRequiredInfoChanged;
@@ -49,7 +53,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  _ProfileInfo? _profileInfo;
+  late _ProfileInfo? _profileInfo = widget.initialProfile == null
+      ? null
+      : _ProfileInfo.fromUserProfile(widget.initialProfile!);
   late var _notificationEnabled = widget.notificationEnabled;
   late var _stepSyncEnabled = widget.stepSyncEnabled;
   var _accountActionInProgress = false;
@@ -71,6 +77,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     if (oldWidget.stepSyncEnabled != widget.stepSyncEnabled) {
       _stepSyncEnabled = widget.stepSyncEnabled;
+    }
+    if (oldWidget.initialProfile != widget.initialProfile) {
+      _profileInfo = widget.initialProfile == null
+          ? null
+          : _ProfileInfo.fromUserProfile(widget.initialProfile!);
     }
   }
 
@@ -109,7 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context) => AlertDialog(
         title: const Text('걸음수 연동 권한'),
         content: const Text(
-          '휴대폰의 걸음수를 불러와 증상관리에 사용합니다. 걸음수 연동을 켜시겠습니까?',
+          'Health Connect의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
         ),
         actions: [
           TextButton(
@@ -140,14 +151,115 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? '걸음수 연동 권한이 허용되었습니다.'
             : '걸음수 연동 권한이 허용되지 않았습니다. 직접 입력을 사용할 수 있습니다.',
       );
+    } on StepSyncPermissionException catch (error) {
+      if (!mounted) return;
+      setState(() => _stepSyncEnabled = false);
+      widget.onStepSyncChanged?.call(false);
+      await _showStepSyncSettingsSheet(error);
     } catch (_) {
       if (!mounted) return;
       setState(() => _stepSyncEnabled = false);
       widget.onStepSyncChanged?.call(false);
-      _showMessage('걸음수 연동 권한 요청 중 문제가 발생했습니다.');
+      await _showStepSyncSettingsSheet(
+        const StepSyncPermissionException(
+          'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _stepSyncPermissionInProgress = false);
     }
+  }
+
+  Future<void> _showStepSyncSettingsSheet(
+    StepSyncPermissionException error,
+  ) async {
+    if (!mounted) return;
+    final needsInstall =
+        error.issue == StepSyncPermissionIssue.healthConnectRequired;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: AppColors.line),
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1F1F2937),
+                      blurRadius: 36,
+                      offset: Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.line,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      needsInstall ? 'Health Connect가 필요해요' : '걸음수 권한이 필요해요',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      needsInstall
+                          ? '설치 또는 업데이트 후 다시 시도해 주세요.'
+                          : 'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 14,
+                        height: 1.55,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        final opened =
+                            await _stepSyncService.openPermissionSettings();
+                        if (!mounted || opened) return;
+                        _showMessage('걸음수 연동을 활성화할 수 없습니다. 수동 입력을 사용해 주세요.');
+                      },
+                      child: Text(needsInstall ? '설치/업데이트' : '설정 열기'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('나중에 하기'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _setNotificationPermission(bool value) async {
@@ -253,6 +365,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _accountActionInProgress = true);
     try {
       await action();
+      if (mounted) setState(() => _accountActionInProgress = false);
     } on AuthFailure catch (error) {
       if (!mounted) return;
       _showMessage(error.message);
@@ -267,6 +380,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _openContactEmail() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: AppConstants.privacyEmail,
+      queryParameters: const {
+        'subject': '[한결] 문의하기',
+        'body': '문의 내용을 입력해 주세요.\n\n',
+      },
+    );
+
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && mounted) {
+      _showMessage('메일 앱을 열 수 없습니다. 메일 앱 설정을 확인해 주세요.');
+    }
   }
 
   @override
@@ -286,7 +418,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _MenuTile(
           tileKey: const ValueKey('profile-info-menu'),
           title: '사용자 정보',
-          subtitle: '성별, 생년월일, 질병 및 치료 정보',
+          subtitle: '성별, 생년월일, 개인 관리 정보',
           requiredMark: true,
           onTap: _openProfileInfo,
         ),
@@ -299,14 +431,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         _ToggleCard(
           title: '걸음수 연동 권한',
-          subtitle: '휴대폰의 걸음수를 불러와 증상관리에 사용합니다.',
+          subtitle: 'Health Connect 걸음수로 운동량을 자동 입력합니다.',
           value: _stepSyncEnabled,
           onChanged: _setStepSync,
         ),
         _MenuTile(
           title: '문의하기',
           subtitle: '서비스 이용 중 궁금한 점을 보냅니다.',
-          onTap: () => _showMessage('문의하기 화면은 다음 단계에서 연결됩니다.'),
+          onTap: _openContactEmail,
         ),
         _MenuTile(
           title: '서비스 이용약관',
@@ -355,15 +487,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         const SizedBox(height: 18),
-        Text(
-          '앱 버전 ${AppConstants.appVersion}',
+        const _AppVersionLabel(),
+      ],
+    );
+  }
+}
+
+class _AppVersionLabel extends StatelessWidget {
+  const _AppVersionLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final packageInfo = snapshot.data;
+        final version = packageInfo == null ? '-' : packageInfo.version;
+        return Text(
+          '앱 버전 $version',
           textAlign: TextAlign.center,
           style: Theme.of(context)
               .textTheme
               .bodySmall
               ?.copyWith(color: AppColors.muted),
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -392,15 +540,15 @@ class _ProfileSummaryCard extends StatelessWidget {
             mainAxisSpacing: 8,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 2.8,
+            childAspectRatio: 2.45,
             children: [
               _SummaryItem(
                   label: '성별/연령', value: '${profile.sex} · 만 ${profile.age}세'),
               _SummaryItem(
-                label: '암종/병기',
+                label: '관리항목/단계',
                 value: '${profile.cancerType} · ${profile.stage}',
               ),
-              _SummaryItem(label: '치료', value: profile.treatmentType),
+              _SummaryItem(label: '관리 방식', value: profile.treatmentType),
               _SummaryItem(
                   label: '키',
                   value: '${profile.heightCm.toStringAsFixed(0)}cm'),
@@ -434,6 +582,8 @@ class _SummaryItem extends StatelessWidget {
           children: [
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: AppColors.muted, fontSize: 11),
             ),
             const SizedBox(height: 2),
@@ -796,7 +946,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
     }
     if (_treatmentType.text.trim().isEmpty) {
       return _MissingProfileField(
-        '항암치료 종류를 입력해주세요.',
+        '관리 방식을 입력해주세요.',
         _treatmentTypeKey,
         _treatmentTypeFocus,
       );
@@ -933,7 +1083,7 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
                   children: [
                     _TextInput(
                       key: _treatmentTypeKey,
-                      label: '항암치료 종류',
+                      label: '관리 방식',
                       controller: _treatmentType,
                       focusNode: _treatmentTypeFocus,
                       keyboardType: TextInputType.text,
@@ -1907,6 +2057,21 @@ class _ProfileInfo {
     required this.heightCm,
     this.extra = '',
   });
+
+  factory _ProfileInfo.fromUserProfile(UserProfile profile) {
+    return _ProfileInfo(
+      sex: profile.sex,
+      birthDate: profile.birthDate,
+      cancerType: profile.cancerType,
+      stage: profile.stage,
+      diagnosisDate: profile.diagnosisDate,
+      metastasis: profile.metastasis,
+      treatmentType: profile.treatmentType,
+      treatmentStartDate: profile.treatmentStartDate,
+      heightCm: profile.heightCm,
+      extra: profile.extra,
+    );
+  }
 
   final String sex;
   final DateTime birthDate;

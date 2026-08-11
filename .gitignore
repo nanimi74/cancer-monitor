@@ -26,6 +26,7 @@ firebase-debug.*.log
 # Local secrets and environment files
 .env
 .env.*
+android/key.properties
 *.keystore
 *.jks
 *.p8
