@@ -65,9 +65,12 @@ class UserDataRepository {
     final symptomDocs =
         await _db.collection(paths.symptomsCollection).orderBy('date').get();
 
+    final usesDeviceSettings = deviceId != null && deviceId.isNotEmpty;
     return UserDataSnapshot(
       settings: _settingsFromMap(
-        deviceDoc?.data() ?? userDoc.data() ?? const {},
+        usesDeviceSettings
+            ? deviceDoc?.data() ?? const {}
+            : userDoc.data() ?? const {},
       ),
       profile: profileDoc.exists ? _profileFromMap(profileDoc.data()!) : null,
       medications: medicationDocs.docs
@@ -108,11 +111,27 @@ class UserDataRepository {
     String? deviceId,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_cacheKey(userId, deviceId: deviceId)) ??
-        prefs.getString(_cacheKey(userId));
-    if (raw == null || raw.isEmpty) return null;
+    final raw = prefs.getString(_cacheKey(userId, deviceId: deviceId));
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        return _snapshotFromCacheMap(_objectMap(jsonDecode(raw)));
+      } catch (_) {
+        return null;
+      }
+    }
+
+    if (deviceId == null || deviceId.isEmpty) return null;
+    final legacyRaw = prefs.getString(_cacheKey(userId));
+    if (legacyRaw == null || legacyRaw.isEmpty) return null;
     try {
-      return _snapshotFromCacheMap(_objectMap(jsonDecode(raw)));
+      final legacy = _snapshotFromCacheMap(_objectMap(jsonDecode(legacyRaw)));
+      return UserDataSnapshot(
+        settings: const UserSettings(),
+        profile: legacy.profile,
+        medications: legacy.medications,
+        weights: legacy.weights,
+        symptoms: legacy.symptoms,
+      );
     } catch (_) {
       return null;
     }
@@ -219,6 +238,7 @@ class UserDataRepository {
             'waterAmount': symptom.waterAmount,
             'steps': symptom.steps,
             'stepsSource': symptom.stepsSource,
+            'stepsDeviceId': symptom.stepsDeviceId,
             'bowel': symptom.bowel,
             'stoolStatus': symptom.stoolStatus,
             'sideEffects': symptom.sideEffects,
@@ -384,6 +404,7 @@ class UserDataRepository {
       'waterAmount': symptom.waterAmount,
       'steps': symptom.steps,
       'stepsSource': symptom.stepsSource,
+      'stepsDeviceId': symptom.stepsDeviceId,
       'bowel': symptom.bowel,
       'stoolStatus': symptom.stoolStatus,
       'sideEffects': symptom.sideEffects,
@@ -477,6 +498,7 @@ class UserDataRepository {
       waterAmount: _string(data['waterAmount']),
       steps: _int(data['steps']),
       stepsSource: _string(data['stepsSource'], fallback: '수동'),
+      stepsDeviceId: _string(data['stepsDeviceId']),
       bowel: _string(data['bowel']),
       stoolStatus: _string(data['stoolStatus']),
       sideEffects: _stringList(data['sideEffects']),

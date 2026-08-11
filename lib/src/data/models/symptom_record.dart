@@ -13,6 +13,7 @@ class SymptomRecord {
     this.dinnerMemo = '',
     this.extraMealMemo = '',
     this.stepsSource = '수동',
+    this.stepsDeviceId = '',
     this.stoolStatus = '',
     this.note = '',
   });
@@ -28,6 +29,7 @@ class SymptomRecord {
   final String waterAmount;
   final int steps;
   final String stepsSource;
+  final String stepsDeviceId;
   final String bowel;
   final List<String> sideEffects;
   final String stoolStatus;

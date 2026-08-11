@@ -14,6 +14,7 @@ class SymptomScreen extends StatefulWidget {
     super.key,
     this.hasRequiredInfo = true,
     this.isPreview = false,
+    this.deviceId,
     this.stepSyncEnabled = false,
     this.initialRecords = const [],
     this.stepSyncService,
@@ -23,6 +24,7 @@ class SymptomScreen extends StatefulWidget {
 
   final bool hasRequiredInfo;
   final bool isPreview;
+  final String? deviceId;
   final bool stepSyncEnabled;
   final List<SymptomRecord> initialRecords;
   final StepSyncService? stepSyncService;
@@ -102,17 +104,21 @@ class _SymptomScreenState extends State<SymptomScreen>
   }
 
   Future<void> _refreshTodayLinkedSteps() async {
-    if (widget.isPreview || _refreshingTodaySteps) return;
+    if (widget.isPreview || !_stepSyncEnabled || _refreshingTodaySteps) return;
     final today = _dateOnly(DateTime.now());
     final record = _records[today];
-    if (record == null || record.stepsSource != '연동') return;
+    if (record == null ||
+        record.stepsSource != '연동' ||
+        record.stepsDeviceId.isEmpty ||
+        record.stepsDeviceId != widget.deviceId) {
+      return;
+    }
 
     _refreshingTodaySteps = true;
     try {
       final steps = await _stepSyncService.readTodaySteps();
       if (!mounted || steps == null || steps == record.steps) return;
       setState(() {
-        _stepSyncEnabled = true;
         _records[today] = record.copyWith(
           steps: steps,
           stepsSource: '연동',
@@ -121,7 +127,6 @@ class _SymptomScreenState extends State<SymptomScreen>
           _selectedDate = today;
         }
       });
-      widget.onStepSyncChanged?.call(true);
       _notifyRecordsChanged();
     } catch (_) {
       // 걸음수 자동 갱신 실패는 기록 사용을 막지 않습니다.
@@ -144,6 +149,7 @@ class _SymptomScreenState extends State<SymptomScreen>
         date: date,
         initialRecord: record,
         isPreview: widget.isPreview,
+        deviceId: widget.deviceId,
         stepSyncEnabled: _stepSyncEnabled,
         stepSyncService: _stepSyncService,
         onStepSyncChanged: (value) {
@@ -1016,6 +1022,7 @@ class _SymptomEditorSheet extends StatefulWidget {
     required this.date,
     required this.initialRecord,
     required this.isPreview,
+    required this.deviceId,
     required this.stepSyncEnabled,
     required this.stepSyncService,
     required this.onStepSyncChanged,
@@ -1024,6 +1031,7 @@ class _SymptomEditorSheet extends StatefulWidget {
   final DateTime date;
   final _SymptomRecord? initialRecord;
   final bool isPreview;
+  final String? deviceId;
   final bool stepSyncEnabled;
   final StepSyncService stepSyncService;
   final ValueChanged<bool> onStepSyncChanged;
@@ -1074,11 +1082,19 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   late final _sideEffects = {...?widget.initialRecord?.sideEffects};
   late var _stepSyncEnabled = widget.stepSyncEnabled;
   late var _stepsSource = widget.initialRecord?.stepsSource ??
-      (widget.stepSyncEnabled ? '연동' : '수동');
+      (widget.stepSyncEnabled && (widget.deviceId?.isNotEmpty ?? false)
+          ? '연동'
+          : '수동');
+  late var _stepsDeviceId = widget.initialRecord?.stepsDeviceId ??
+      (_stepsSource == '연동' ? widget.deviceId ?? '' : '');
   var _stepSyncInProgress = false;
   String? _validationMessage;
 
-  bool get _usingStepSync => _stepsSource == '연동';
+  bool get _usingStepSync =>
+      _stepSyncEnabled &&
+      _stepsSource == '연동' &&
+      _stepsDeviceId.isNotEmpty &&
+      _stepsDeviceId == widget.deviceId;
 
   @override
   void initState() {
@@ -1108,11 +1124,8 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       final steps = await widget.stepSyncService.readTodaySteps();
       if (!mounted || steps == null || steps.toString() == _steps.text) return;
       setState(() {
-        _stepSyncEnabled = true;
-        _stepsSource = '연동';
         _steps.text = steps.toString();
       });
-      widget.onStepSyncChanged(true);
     } catch (_) {
       // 편집창 자동 갱신 실패는 수동 입력과 저장을 막지 않습니다.
     }
@@ -1267,6 +1280,11 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       _showMessage('둘러보기에서는 권한 요청을 진행하지 않습니다.');
       return;
     }
+    final deviceId = widget.deviceId;
+    if (deviceId == null || deviceId.isEmpty) {
+      _showMessage('현재 기기 정보를 확인할 수 없어 걸음수를 연동할 수 없습니다.');
+      return;
+    }
     if (!_stepSyncEnabled) {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -1296,6 +1314,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       setState(() {
         _stepSyncEnabled = granted;
         _stepsSource = granted ? '연동' : '수동';
+        _stepsDeviceId = granted ? deviceId : '';
       });
       widget.onStepSyncChanged(granted);
       if (granted) {
@@ -1311,6 +1330,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       setState(() {
         _stepSyncEnabled = false;
         _stepsSource = '수동';
+        _stepsDeviceId = '';
       });
       widget.onStepSyncChanged(false);
       await _showStepSyncSettingsSheet(error);
@@ -1319,6 +1339,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       setState(() {
         _stepSyncEnabled = false;
         _stepsSource = '수동';
+        _stepsDeviceId = '';
       });
       widget.onStepSyncChanged(false);
       await _showStepSyncSettingsSheet(
@@ -1332,8 +1353,17 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   }
 
   void _disableStepSyncForRecord() {
-    setState(() => _stepsSource = '수동');
+    setState(() {
+      _stepsSource = '수동';
+      _stepsDeviceId = '';
+    });
     _showMessage('이 기록은 수동 입력으로 변경되었습니다.');
+  }
+
+  void _handleManualStepsChanged(String _) {
+    if (_usingStepSync) return;
+    _stepsSource = '수동';
+    _stepsDeviceId = '';
   }
 
   Future<void> _showStepSyncSettingsSheet(
@@ -1486,6 +1516,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
           waterAmount: _waterAmount!,
           steps: steps,
           stepsSource: _stepsSource,
+          stepsDeviceId: _stepsDeviceId,
           bowel: _bowel!,
           stoolStatus: _bowel == '있음' ? _stoolStatus : null,
           sideEffects: _orderedSideEffects(_sideEffects),
@@ -1685,9 +1716,10 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                         key: _stepsKey,
                         child: _StepsField(
                           controller: _steps,
-                          source: _stepsSource,
+                          source: _usingStepSync ? '연동' : '수동',
                           readOnly: _usingStepSync,
                           allowEmpty: _usingStepSync,
+                          onChanged: _handleManualStepsChanged,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -2051,12 +2083,14 @@ class _StepsField extends StatelessWidget {
     required this.source,
     required this.readOnly,
     required this.allowEmpty,
+    required this.onChanged,
   });
 
   final TextEditingController controller;
   final String source;
   final bool readOnly;
   final bool allowEmpty;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -2069,6 +2103,7 @@ class _StepsField extends StatelessWidget {
           key: const ValueKey('symptom-steps-field'),
           controller: controller,
           readOnly: readOnly,
+          onChanged: onChanged,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: _inputDecoration('걸음수를 입력하세요').copyWith(
@@ -2300,6 +2335,7 @@ class _SymptomRecord {
     required this.waterAmount,
     required this.steps,
     required this.stepsSource,
+    required this.stepsDeviceId,
     required this.bowel,
     required this.stoolStatus,
     required this.sideEffects,
@@ -2318,6 +2354,7 @@ class _SymptomRecord {
       waterAmount: record.waterAmount,
       steps: record.steps,
       stepsSource: record.stepsSource,
+      stepsDeviceId: record.stepsDeviceId,
       bowel: record.bowel,
       stoolStatus: record.stoolStatus.isEmpty ? null : record.stoolStatus,
       sideEffects: record.sideEffects,
@@ -2335,6 +2372,7 @@ class _SymptomRecord {
   final String waterAmount;
   final int steps;
   final String stepsSource;
+  final String stepsDeviceId;
   final String bowel;
   final String? stoolStatus;
   final List<String> sideEffects;
@@ -2358,6 +2396,7 @@ class _SymptomRecord {
       waterAmount: waterAmount,
       steps: steps ?? this.steps,
       stepsSource: stepsSource ?? this.stepsSource,
+      stepsDeviceId: stepsDeviceId,
       bowel: bowel,
       stoolStatus: stoolStatus,
       sideEffects: sideEffects,
@@ -2378,6 +2417,7 @@ class _SymptomRecord {
       waterAmount: waterAmount,
       steps: steps,
       stepsSource: stepsSource,
+      stepsDeviceId: stepsDeviceId,
       bowel: bowel,
       stoolStatus: stoolStatus ?? '',
       sideEffects: sideEffects,

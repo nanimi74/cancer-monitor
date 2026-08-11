@@ -653,6 +653,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         SymptomScreen(
           hasRequiredInfo: _hasRequiredInfo,
           isPreview: widget.isPreview,
+          deviceId: _deviceId,
           stepSyncEnabled: _stepSyncEnabled,
           initialRecords: _symptomRecords,
           stepSyncService: widget.stepSyncService,

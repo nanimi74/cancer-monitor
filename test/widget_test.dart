@@ -10,6 +10,7 @@ import 'package:cancer_monitor/src/features/medication/medication_screen.dart';
 import 'package:cancer_monitor/src/features/symptom/symptom_screen.dart';
 import 'package:cancer_monitor/src/features/weight/weight_screen.dart';
 import 'package:cancer_monitor/src/data/models/medication.dart';
+import 'package:cancer_monitor/src/data/models/symptom_record.dart';
 import 'package:cancer_monitor/src/data/models/user_profile.dart';
 import 'package:cancer_monitor/src/data/models/weight_record.dart';
 import 'package:cancer_monitor/src/data/repositories/user_data_repository.dart';
@@ -28,6 +29,30 @@ void main() {
       buildNumber: '4',
       buildSignature: '',
     );
+  });
+
+  test('device cache imports legacy records without device settings', () async {
+    final repository = UserDataRepository();
+    await repository.saveCachedSnapshot(
+      'shared-account',
+      UserDataSnapshot(
+        settings: const UserSettings(
+          notificationEnabled: true,
+          stepSyncEnabled: true,
+        ),
+        symptoms: [_linkedTodayRecord('legacy-device')],
+      ),
+    );
+
+    final caregiverSnapshot = await repository.loadCachedSnapshot(
+      'shared-account',
+      deviceId: 'caregiver-device',
+    );
+
+    expect(caregiverSnapshot, isNotNull);
+    expect(caregiverSnapshot!.settings.notificationEnabled, isFalse);
+    expect(caregiverSnapshot.settings.stepSyncEnabled, isFalse);
+    expect(caregiverSnapshot.symptoms.single.steps, 2400);
   });
 
   testWidgets('does not show entry screen while restoring session',
@@ -544,6 +569,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: SymptomScreen(
+            deviceId: 'patient-device',
             stepSyncEnabled: true,
             stepSyncService: _NullStepSyncService(),
           ),
@@ -604,6 +630,104 @@ void main() {
     expect(find.text('2-2'), findsWidgets);
     expect(find.text('0보'), findsOneWidget);
     expect(find.text('운동량을 입력해주세요.'), findsNothing);
+  });
+
+  testWidgets('another device cannot refresh source device steps',
+      (WidgetTester tester) async {
+    final stepSyncService = _TrackingStepSyncService(9800);
+    var recordsChanged = 0;
+    bool? stepSyncChanged;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SymptomScreen(
+            deviceId: 'viewer-device',
+            stepSyncEnabled: true,
+            stepSyncService: stepSyncService,
+            initialRecords: [_linkedTodayRecord('source-device')],
+            onRecordsChanged: (_) => recordsChanged += 1,
+            onStepSyncChanged: (value) => stepSyncChanged = value,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(stepSyncService.readCount, 0);
+    expect(recordsChanged, 0);
+    expect(stepSyncChanged, isNull);
+
+    await tester.tap(find.byKey(ValueKey('symptom-day-${_testFormatDate()}')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('2400보'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('2400보'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ElevatedButton, '기록 수정하기'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    tester
+        .widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, '기록 수정하기'),
+        )
+        .onPressed
+        ?.call();
+    await tester.pumpAndSettle();
+
+    expect(stepSyncService.readCount, 0);
+    expect(stepSyncChanged, isNull);
+  });
+
+  testWidgets('disabled device does not refresh its linked steps',
+      (WidgetTester tester) async {
+    final stepSyncService = _TrackingStepSyncService(9800);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SymptomScreen(
+            deviceId: 'source-device',
+            stepSyncEnabled: false,
+            stepSyncService: stepSyncService,
+            initialRecords: [_linkedTodayRecord('source-device')],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(stepSyncService.readCount, 0);
+  });
+
+  testWidgets('enabled source device refreshes its own linked steps',
+      (WidgetTester tester) async {
+    final stepSyncService = _TrackingStepSyncService(9800);
+    List<SymptomRecord>? updatedRecords;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SymptomScreen(
+            deviceId: 'source-device',
+            stepSyncEnabled: true,
+            stepSyncService: stepSyncService,
+            initialRecords: [_linkedTodayRecord('source-device')],
+            onRecordsChanged: (records) => updatedRecords = records,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(stepSyncService.readCount, greaterThan(0));
+    expect(updatedRecords, isNotNull);
+    expect(updatedRecords!.single.steps, 9800);
+    expect(updatedRecords!.single.stepsDeviceId, 'source-device');
   });
 
   testWidgets('medication can be added with multiple default reminders',
@@ -1393,6 +1517,22 @@ void main() {
   });
 }
 
+SymptomRecord _linkedTodayRecord(String sourceDeviceId) {
+  return SymptomRecord(
+    date: DateTime.now(),
+    cycleNo: 2,
+    cycleDay: 2,
+    mealAmount: '평소와 같음',
+    waterAmount: '1~1.5L',
+    steps: 2400,
+    stepsSource: '연동',
+    stepsDeviceId: sourceDeviceId,
+    bowel: '있음',
+    stoolStatus: '정상변',
+    sideEffects: const ['피로'],
+  );
+}
+
 class _FakeNotificationPermissionService
     implements NotificationPermissionService {
   final _payloadController = StreamController<String>.broadcast();
@@ -1443,6 +1583,25 @@ class _NullStepSyncService implements StepSyncService {
 
   @override
   Future<int?> readTodaySteps() async => null;
+}
+
+class _TrackingStepSyncService implements StepSyncService {
+  _TrackingStepSyncService(this.steps);
+
+  final int steps;
+  var readCount = 0;
+
+  @override
+  Future<bool> requestPermission() async => true;
+
+  @override
+  Future<bool> openPermissionSettings() async => true;
+
+  @override
+  Future<int?> readTodaySteps() async {
+    readCount += 1;
+    return steps;
+  }
 }
 
 class _DeviceScopedSettingsRepository extends UserDataRepository {
