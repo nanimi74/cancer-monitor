@@ -705,6 +705,69 @@ void main() {
     expect(stepSyncChanged, isNull);
   });
 
+  testWidgets('step device takeover preserves an existing linked record',
+      (WidgetTester tester) async {
+    final stepSyncService = _TrackingStepSyncService(9800);
+    List<SymptomRecord>? updatedRecords;
+    bool? stepSyncChanged;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SymptomScreen(
+            deviceId: 'viewer-device',
+            stepSyncEnabled: false,
+            hasOtherActiveStepDevice: true,
+            stepSyncService: stepSyncService,
+            initialRecords: [_linkedTodayRecord('source-device')],
+            onRecordsChanged: (records) => updatedRecords = records,
+            onStepSyncChanged: (value) => stepSyncChanged = value,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(ValueKey('symptom-day-${_testFormatDate()}')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ElevatedButton, '기록 수정하기'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    tester
+        .widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, '기록 수정하기'),
+        )
+        .onPressed
+        ?.call();
+    await tester.pumpAndSettle();
+
+    final linkButton = find.widgetWithText(TextButton, '연동하기');
+    await tester.scrollUntilVisible(
+      linkButton,
+      300,
+      scrollable: _symptomEditorScrollable,
+    );
+    await tester.tap(linkButton);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('변경'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(stepSyncChanged, isTrue);
+    expect(stepSyncService.readCount, 0);
+    expect(updatedRecords, isNotNull);
+    expect(updatedRecords!.single.steps, 2400);
+    expect(updatedRecords!.single.stepsDeviceId, 'source-device');
+  });
+
   testWidgets('disabled device does not refresh its linked steps',
       (WidgetTester tester) async {
     final stepSyncService = _TrackingStepSyncService(9800);
@@ -1333,6 +1396,101 @@ void main() {
     expect(notificationService.syncedDailyConditionStates.last, isTrue);
   });
 
+  testWidgets('step sync takeover requires confirmation before device changes',
+      (WidgetTester tester) async {
+    final repository = _DeviceScopedSettingsRepository(
+      activeStepDeviceId: 'source-device',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'viewer-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+          stepSyncService: _FakeStepSyncService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('마이페이지').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('걸음수 연동 권한'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final stepSwitch = find.byKey(const ValueKey('step-sync-switch'));
+    await tester.ensureVisible(stepSwitch);
+    await tester.pumpAndSettle();
+
+    await tester.tap(stepSwitch);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(repository.claimedStepDeviceId, isNull);
+
+    await tester.tap(stepSwitch);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('변경'));
+    await tester.pumpAndSettle();
+
+    expect(repository.claimedStepDeviceId, 'viewer-device');
+  });
+
+  testWidgets('active step device change turns previous device off in app',
+      (WidgetTester tester) async {
+    final repository = _DeviceScopedSettingsRepository(
+      activeStepDeviceId: 'source-device',
+      settingsByDevice: const {
+        'source-device': UserSettings(stepSyncEnabled: true),
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'source-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+          stepSyncService: _FakeStepSyncService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('마이페이지').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('걸음수 연동 권한'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final stepSwitch = find.byKey(const ValueKey('step-sync-switch'));
+    await tester.ensureVisible(stepSwitch);
+    await tester.pumpAndSettle();
+
+    repository.emitActiveStepDevice('viewer-device');
+    await tester.pumpAndSettle();
+    await tester.tap(stepSwitch);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'),
+      findsOneWidget,
+    );
+    expect(repository.releasedStepDeviceId, isNull);
+  });
+
   testWidgets('home shell reads different settings for each device',
       (WidgetTester tester) async {
     final repository = _DeviceScopedSettingsRepository(
@@ -1700,18 +1858,29 @@ class _DeviceScopedSettingsRepository extends UserDataRepository {
   _DeviceScopedSettingsRepository({
     this.settingsByDevice = const {},
     this.medications = const [],
-  });
+    String activeStepDeviceId = '',
+  }) : _activeStepDeviceId = activeStepDeviceId;
 
   final Map<String, UserSettings> settingsByDevice;
   final List<Medication> medications;
+  final _activeStepDeviceController = StreamController<String>.broadcast();
+  String _activeStepDeviceId;
   String? savedDeviceId;
   UserSettings? savedSettings;
   var savedMedications = <Medication>[];
+  String? claimedStepDeviceId;
+  String? releasedStepDeviceId;
+
+  void emitActiveStepDevice(String deviceId) {
+    _activeStepDeviceId = deviceId;
+    _activeStepDeviceController.add(deviceId);
+  }
 
   @override
   Future<UserDataSnapshot> load(String userId, {String? deviceId}) async {
     return UserDataSnapshot(
       settings: settingsByDevice[deviceId] ?? const UserSettings(),
+      activeStepDeviceId: _activeStepDeviceId,
       profile: UserProfile(
         sex: '여성',
         birthDate: DateTime(1974, 3, 12),
@@ -1725,6 +1894,28 @@ class _DeviceScopedSettingsRepository extends UserDataRepository {
       ),
       medications: medications,
     );
+  }
+
+  @override
+  Stream<String> watchActiveStepDevice(String userId) =>
+      _activeStepDeviceController.stream;
+
+  @override
+  Future<String> ensureActiveStepDevice(String userId, String deviceId) async {
+    if (_activeStepDeviceId.isEmpty) _activeStepDeviceId = deviceId;
+    return _activeStepDeviceId;
+  }
+
+  @override
+  Future<void> claimActiveStepDevice(String userId, String deviceId) async {
+    claimedStepDeviceId = deviceId;
+    emitActiveStepDevice(deviceId);
+  }
+
+  @override
+  Future<void> releaseActiveStepDevice(String userId, String deviceId) async {
+    releasedStepDeviceId = deviceId;
+    if (_activeStepDeviceId == deviceId) emitActiveStepDevice('');
   }
 
   @override

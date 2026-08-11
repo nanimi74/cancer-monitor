@@ -24,6 +24,7 @@ class ProfileScreen extends StatefulWidget {
     this.stepSyncService,
     this.notificationEnabled = false,
     this.stepSyncEnabled = false,
+    this.hasOtherActiveStepDevice = false,
     this.initialProfile,
     this.onNotificationPermissionChanged,
     this.onStepSyncChanged,
@@ -41,6 +42,7 @@ class ProfileScreen extends StatefulWidget {
   final StepSyncService? stepSyncService;
   final bool notificationEnabled;
   final bool stepSyncEnabled;
+  final bool hasOtherActiveStepDevice;
   final UserProfile? initialProfile;
   final ValueChanged<bool>? onNotificationPermissionChanged;
   final ValueChanged<bool>? onStepSyncChanged;
@@ -115,25 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showMessage('둘러보기에서는 권한 요청을 진행하지 않습니다.');
       return;
     }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('걸음수 연동 권한'),
-        content: const Text(
-          'Health Connect의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('켜기'),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await _confirmStepSyncChange();
     if (!mounted) return;
     if (confirmed != true) {
       _showMessage('걸음수 연동 권한 요청이 취소되었습니다.');
@@ -168,6 +152,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } finally {
       if (mounted) setState(() => _stepSyncPermissionInProgress = false);
     }
+  }
+
+  Future<bool?> _confirmStepSyncChange() {
+    final replacingDevice = widget.hasOtherActiveStepDevice;
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(replacingDevice ? '걸음수 연동 기기 변경' : '걸음수 연동 권한'),
+        content: Text(
+          replacingDevice
+              ? '다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'
+              : 'Health Connect의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(replacingDevice ? '변경' : '켜기'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showStepSyncSettingsSheet(
@@ -433,6 +442,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           title: '걸음수 연동 권한',
           subtitle: 'Health Connect 걸음수로 운동량을 자동 입력합니다.',
           value: _stepSyncEnabled,
+          switchKey: const ValueKey('step-sync-switch'),
           onChanged: _setStepSync,
         ),
         _MenuTile(

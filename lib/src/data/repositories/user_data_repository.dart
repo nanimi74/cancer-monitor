@@ -24,6 +24,7 @@ class UserSettings {
 class UserDataSnapshot {
   const UserDataSnapshot({
     required this.settings,
+    this.activeStepDeviceId = '',
     this.profile,
     this.medications = const [],
     this.weights = const [],
@@ -31,6 +32,7 @@ class UserDataSnapshot {
   });
 
   final UserSettings settings;
+  final String activeStepDeviceId;
   final UserProfile? profile;
   final List<Medication> medications;
   final List<WeightRecord> weights;
@@ -72,6 +74,7 @@ class UserDataRepository {
             ? deviceDoc?.data() ?? const {}
             : userDoc.data() ?? const {},
       ),
+      activeStepDeviceId: _string(userDoc.data()?['activeStepDeviceId']),
       profile: profileDoc.exists ? _profileFromMap(profileDoc.data()!) : null,
       medications: medicationDocs.docs
           .map((doc) => _medicationFromMap(doc.data()))
@@ -106,6 +109,133 @@ class UserDataRepository {
     }, SetOptions(merge: true));
   }
 
+  Stream<String> watchActiveStepDevice(String userId) {
+    final path = UserDataPaths(userId).userDocument;
+    return _db.doc(path).snapshots().map(
+          (snapshot) => _string(snapshot.data()?['activeStepDeviceId']),
+        );
+  }
+
+  Future<String> ensureActiveStepDevice(
+    String userId,
+    String deviceId,
+  ) async {
+    final paths = UserDataPaths(userId);
+    final userRef = _db.doc(paths.userDocument);
+    final deviceRef = _db.doc(paths.deviceDocument(deviceId));
+    return _db.runTransaction((transaction) async {
+      final userSnapshot = await transaction.get(userRef);
+      final activeDeviceId =
+          _string(userSnapshot.data()?['activeStepDeviceId']);
+      if (activeDeviceId.isNotEmpty) {
+        if (activeDeviceId != deviceId) {
+          transaction.set(
+            deviceRef,
+            {
+              'schemaVersion': 1,
+              'stepSyncEnabled': false,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+        }
+        return activeDeviceId;
+      }
+
+      transaction.set(
+        userRef,
+        {
+          'schemaVersion': 1,
+          'activeStepDeviceId': deviceId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      transaction.set(
+        deviceRef,
+        {
+          'schemaVersion': 1,
+          'stepSyncEnabled': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      return deviceId;
+    });
+  }
+
+  Future<void> claimActiveStepDevice(String userId, String deviceId) async {
+    final paths = UserDataPaths(userId);
+    final userRef = _db.doc(paths.userDocument);
+    final deviceRef = _db.doc(paths.deviceDocument(deviceId));
+    await _db.runTransaction((transaction) async {
+      final userSnapshot = await transaction.get(userRef);
+      final previousDeviceId =
+          _string(userSnapshot.data()?['activeStepDeviceId']);
+
+      transaction.set(
+        userRef,
+        {
+          'schemaVersion': 1,
+          'activeStepDeviceId': deviceId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      transaction.set(
+        deviceRef,
+        {
+          'schemaVersion': 1,
+          'stepSyncEnabled': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      if (previousDeviceId.isNotEmpty && previousDeviceId != deviceId) {
+        transaction.set(
+          _db.doc(paths.deviceDocument(previousDeviceId)),
+          {
+            'schemaVersion': 1,
+            'stepSyncEnabled': false,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+    });
+  }
+
+  Future<void> releaseActiveStepDevice(String userId, String deviceId) async {
+    final paths = UserDataPaths(userId);
+    final userRef = _db.doc(paths.userDocument);
+    final deviceRef = _db.doc(paths.deviceDocument(deviceId));
+    await _db.runTransaction((transaction) async {
+      final userSnapshot = await transaction.get(userRef);
+      final activeDeviceId =
+          _string(userSnapshot.data()?['activeStepDeviceId']);
+
+      transaction.set(
+        deviceRef,
+        {
+          'schemaVersion': 1,
+          'stepSyncEnabled': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      if (activeDeviceId == deviceId) {
+        transaction.set(
+          userRef,
+          {
+            'activeStepDeviceId': '',
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+    });
+  }
+
   Future<UserDataSnapshot?> loadCachedSnapshot(
     String userId, {
     String? deviceId,
@@ -127,6 +257,7 @@ class UserDataRepository {
       final legacy = _snapshotFromCacheMap(_objectMap(jsonDecode(legacyRaw)));
       return UserDataSnapshot(
         settings: const UserSettings(),
+        activeStepDeviceId: legacy.activeStepDeviceId,
         profile: legacy.profile,
         medications: legacy.medications,
         weights: legacy.weights,
@@ -306,6 +437,7 @@ class UserDataRepository {
 
   static Map<String, Object?> _snapshotToCacheMap(UserDataSnapshot snapshot) {
     return {
+      'activeStepDeviceId': snapshot.activeStepDeviceId,
       'settings': {
         'notificationEnabled': snapshot.settings.notificationEnabled,
         'stepSyncEnabled': snapshot.settings.stepSyncEnabled,
@@ -334,6 +466,7 @@ class UserDataRepository {
   static UserDataSnapshot _snapshotFromCacheMap(Map<String, Object?> data) {
     return UserDataSnapshot(
       settings: _settingsFromMap(_objectMap(data['settings'])),
+      activeStepDeviceId: _string(data['activeStepDeviceId']),
       profile: data['profile'] == null
           ? null
           : _profileFromMap(_objectMap(data['profile'])),

@@ -16,6 +16,7 @@ class SymptomScreen extends StatefulWidget {
     this.isPreview = false,
     this.deviceId,
     this.stepSyncEnabled = false,
+    this.hasOtherActiveStepDevice = false,
     this.initialRecords = const [],
     this.stepSyncService,
     this.onStepSyncChanged,
@@ -26,6 +27,7 @@ class SymptomScreen extends StatefulWidget {
   final bool isPreview;
   final String? deviceId;
   final bool stepSyncEnabled;
+  final bool hasOtherActiveStepDevice;
   final List<SymptomRecord> initialRecords;
   final StepSyncService? stepSyncService;
   final ValueChanged<bool>? onStepSyncChanged;
@@ -151,6 +153,7 @@ class _SymptomScreenState extends State<SymptomScreen>
         isPreview: widget.isPreview,
         deviceId: widget.deviceId,
         stepSyncEnabled: _stepSyncEnabled,
+        hasOtherActiveStepDevice: widget.hasOtherActiveStepDevice,
         stepSyncService: _stepSyncService,
         onStepSyncChanged: (value) {
           if (mounted) setState(() => _stepSyncEnabled = value);
@@ -1024,6 +1027,7 @@ class _SymptomEditorSheet extends StatefulWidget {
     required this.isPreview,
     required this.deviceId,
     required this.stepSyncEnabled,
+    required this.hasOtherActiveStepDevice,
     required this.stepSyncService,
     required this.onStepSyncChanged,
   });
@@ -1033,6 +1037,7 @@ class _SymptomEditorSheet extends StatefulWidget {
   final bool isPreview;
   final String? deviceId;
   final bool stepSyncEnabled;
+  final bool hasOtherActiveStepDevice;
   final StepSyncService stepSyncService;
   final ValueChanged<bool> onStepSyncChanged;
 
@@ -1088,9 +1093,11 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   late var _stepsDeviceId = widget.initialRecord?.stepsDeviceId ??
       (_stepsSource == '연동' ? widget.deviceId ?? '' : '');
   var _stepSyncInProgress = false;
+  var _preserveExistingStepsAfterDeviceChange = false;
   String? _validationMessage;
 
   bool get _usingStepSync =>
+      !_preserveExistingStepsAfterDeviceChange &&
       _stepSyncEnabled &&
       _stepsSource == '연동' &&
       _stepsDeviceId.isNotEmpty &&
@@ -1285,13 +1292,16 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       _showMessage('현재 기기 정보를 확인할 수 없어 걸음수를 연동할 수 없습니다.');
       return;
     }
-    if (!_stepSyncEnabled) {
+    final replacingDevice = widget.hasOtherActiveStepDevice;
+    if (!_stepSyncEnabled || replacingDevice) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('걸음수 연동 권한'),
-          content: const Text(
-            'Health Connect의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
+          title: Text(replacingDevice ? '걸음수 연동 기기 변경' : '걸음수 연동 권한'),
+          content: Text(
+            replacingDevice
+                ? '다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'
+                : 'Health Connect의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
           ),
           actions: [
             TextButton(
@@ -1300,7 +1310,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('켜기'),
+              child: Text(replacingDevice ? '변경' : '켜기'),
             ),
           ],
         ),
@@ -1311,16 +1321,25 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     try {
       final granted = await widget.stepSyncService.requestPermission();
       if (!mounted) return;
+      final preserveExistingSteps = replacingDevice &&
+          widget.initialRecord != null &&
+          widget.initialRecord!.stepsDeviceId.isNotEmpty;
       setState(() {
         _stepSyncEnabled = granted;
-        _stepsSource = granted ? '연동' : '수동';
-        _stepsDeviceId = granted ? deviceId : '';
+        _preserveExistingStepsAfterDeviceChange =
+            granted && preserveExistingSteps;
+        if (!preserveExistingSteps || !granted) {
+          _stepsSource = granted ? '연동' : '수동';
+          _stepsDeviceId = granted ? deviceId : '';
+        }
       });
       widget.onStepSyncChanged(granted);
       if (granted) {
-        final steps = await widget.stepSyncService.readTodaySteps();
-        if (!mounted) return;
-        if (steps != null) _steps.text = steps.toString();
+        if (!preserveExistingSteps) {
+          final steps = await widget.stepSyncService.readTodaySteps();
+          if (!mounted) return;
+          if (steps != null) _steps.text = steps.toString();
+        }
         _showMessage('걸음수 연동 권한이 허용되었습니다.');
       } else {
         _showMessage('걸음수 연동 권한이 허용되지 않았습니다.');

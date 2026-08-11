@@ -63,6 +63,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   late var _index = _hasRequiredInfo ? _symptomTabIndex : _profileTabIndex;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
+  var _activeStepDeviceId = '';
   late var _loadingUserData = _canPersist;
   double? _heightCm;
   UserProfile? _userProfile;
@@ -74,6 +75,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   String? _deviceId;
   Future<void> _pendingWrite = Future<void>.value();
   StreamSubscription<String>? _notificationPayloadSubscription;
+  StreamSubscription<String>? _activeStepDeviceSubscription;
+  String? _activeStepDeviceSubscriptionUserId;
   String? _pendingNotificationPayload;
 
   bool get _canPersist => !widget.isPreview && widget.userId != null;
@@ -100,6 +103,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_notificationPayloadSubscription?.cancel());
+    unawaited(_activeStepDeviceSubscription?.cancel());
     super.dispose();
   }
 
@@ -123,6 +127,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   Future<void> _loadUserData() async {
     if (!_canPersist) {
+      _stopWatchingActiveStepDevice();
       if (mounted && _loadingUserData) {
         setState(() => _loadingUserData = false);
       }
@@ -136,6 +141,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     try {
       final remoteSnapshot =
           await _userDataRepository.load(userId, deviceId: deviceId);
+      final activeStepDeviceId = await _resolveActiveStepDevice(
+        userId,
+        deviceId,
+        remoteSnapshot,
+      );
       final remoteMedications = _applyMedicationReminderSettings(
         remoteSnapshot.medications,
         remoteSnapshot.settings.medicationReminderEnabled,
@@ -143,7 +153,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       if (!mounted || widget.userId != userId) return;
       setState(() {
         _notificationEnabled = remoteSnapshot.settings.notificationEnabled;
-        _stepSyncEnabled = remoteSnapshot.settings.stepSyncEnabled;
+        _activeStepDeviceId = activeStepDeviceId;
+        _stepSyncEnabled = remoteSnapshot.settings.stepSyncEnabled &&
+            activeStepDeviceId == deviceId;
         _medicationReminderEnabled = _medicationReminderMap(remoteMedications);
         _sharedMedicationReminderEnabled =
             _medicationReminderMap(remoteSnapshot.medications);
@@ -161,13 +173,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       });
       unawaited(_syncMedicationNotifications());
       unawaited(_syncDailyConditionReminder());
-      unawaited(
-        _userDataRepository.saveCachedSnapshot(
-          userId,
-          remoteSnapshot,
-          deviceId: deviceId,
-        ),
-      );
+      _cacheCurrentSnapshot();
+      _watchActiveStepDevice(userId);
     } catch (_) {
       final cachedSnapshot = await _userDataRepository.loadCachedSnapshot(
         userId,
@@ -181,7 +188,12 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         );
         setState(() {
           _notificationEnabled = cachedSnapshot.settings.notificationEnabled;
-          _stepSyncEnabled = cachedSnapshot.settings.stepSyncEnabled;
+          _activeStepDeviceId = cachedSnapshot.activeStepDeviceId.isEmpty &&
+                  cachedSnapshot.settings.stepSyncEnabled
+              ? deviceId
+              : cachedSnapshot.activeStepDeviceId;
+          _stepSyncEnabled = cachedSnapshot.settings.stepSyncEnabled &&
+              _activeStepDeviceId == deviceId;
           _medicationReminderEnabled =
               _medicationReminderMap(cachedMedications);
           _sharedMedicationReminderEnabled =
@@ -205,6 +217,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       setState(() {
         _notificationEnabled = false;
         _stepSyncEnabled = false;
+        _activeStepDeviceId = '';
         _userProfile = null;
         _heightCm = null;
         _hasRequiredInfo = false;
@@ -221,6 +234,80 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         setState(() => _loadingUserData = false);
       }
     }
+  }
+
+  Future<String> _resolveActiveStepDevice(
+    String userId,
+    String deviceId,
+    UserDataSnapshot snapshot,
+  ) async {
+    final activeDeviceId = snapshot.activeStepDeviceId;
+    if (activeDeviceId.isNotEmpty || !snapshot.settings.stepSyncEnabled) {
+      return activeDeviceId;
+    }
+    try {
+      return await _userDataRepository.ensureActiveStepDevice(userId, deviceId);
+    } catch (_) {
+      return deviceId;
+    }
+  }
+
+  void _watchActiveStepDevice(String userId) {
+    if (_activeStepDeviceSubscriptionUserId == userId) return;
+    _stopWatchingActiveStepDevice();
+    _activeStepDeviceSubscriptionUserId = userId;
+    try {
+      _activeStepDeviceSubscription =
+          _userDataRepository.watchActiveStepDevice(userId).listen(
+        (activeDeviceId) {
+          if (!mounted || widget.userId != userId) return;
+          final deviceId = _deviceId;
+          if (deviceId == null || deviceId.isEmpty) return;
+          final enabled = activeDeviceId == deviceId;
+          if (_activeStepDeviceId == activeDeviceId &&
+              _stepSyncEnabled == enabled) {
+            return;
+          }
+          setState(() {
+            _activeStepDeviceId = activeDeviceId;
+            _stepSyncEnabled = enabled;
+          });
+          _cacheCurrentSnapshot();
+        },
+        onError: (_) {},
+      );
+    } catch (_) {
+      _activeStepDeviceSubscriptionUserId = null;
+    }
+  }
+
+  void _stopWatchingActiveStepDevice() {
+    unawaited(_activeStepDeviceSubscription?.cancel());
+    _activeStepDeviceSubscription = null;
+    _activeStepDeviceSubscriptionUserId = null;
+  }
+
+  void _setStepSyncEnabled(bool value) {
+    final deviceId = _deviceId;
+    if (deviceId == null || deviceId.isEmpty) return;
+    setState(() {
+      _stepSyncEnabled = value;
+      if (value) {
+        _activeStepDeviceId = deviceId;
+      } else if (_activeStepDeviceId == deviceId) {
+        _activeStepDeviceId = '';
+      }
+    });
+    _cacheCurrentSnapshot();
+    if (!_canPersist) return;
+    _queueWrite(
+      () => value
+          ? _userDataRepository.claimActiveStepDevice(widget.userId!, deviceId)
+          : _userDataRepository.releaseActiveStepDevice(
+              widget.userId!,
+              deviceId,
+            ),
+    );
   }
 
   void _saveSettings() {
@@ -291,6 +378,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             stepSyncEnabled: _stepSyncEnabled,
             medicationReminderEnabled: _medicationReminderEnabled,
           ),
+          activeStepDeviceId: _activeStepDeviceId,
           profile: _userProfile,
           medications: _medications,
           weights: _weightRecords,
@@ -624,16 +712,15 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           initialProfile: _userProfile,
           notificationEnabled: _notificationEnabled,
           stepSyncEnabled: _stepSyncEnabled,
+          hasOtherActiveStepDevice: _activeStepDeviceId.isNotEmpty &&
+              _activeStepDeviceId != _deviceId,
           onNotificationPermissionChanged: (value) => setState(() {
             _notificationEnabled = value;
             _saveSettings();
             unawaited(_syncMedicationNotifications(announce: value));
             unawaited(_syncDailyConditionReminder());
           }),
-          onStepSyncChanged: (value) => setState(() {
-            _stepSyncEnabled = value;
-            _saveSettings();
-          }),
+          onStepSyncChanged: _setStepSyncEnabled,
           onRequiredInfoChanged: (value) =>
               setState(() => _hasRequiredInfo = value),
           onHeightChanged: (value) => setState(() => _heightCm = value),
@@ -676,12 +763,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           isPreview: widget.isPreview,
           deviceId: _deviceId,
           stepSyncEnabled: _stepSyncEnabled,
+          hasOtherActiveStepDevice: _activeStepDeviceId.isNotEmpty &&
+              _activeStepDeviceId != _deviceId,
           initialRecords: _symptomRecords,
           stepSyncService: widget.stepSyncService,
-          onStepSyncChanged: (value) => setState(() {
-            _stepSyncEnabled = value;
-            _saveSettings();
-          }),
+          onStepSyncChanged: _setStepSyncEnabled,
           onRecordsChanged: (records) => setState(() {
             _symptomRecords = records;
             _saveSymptoms(records);
