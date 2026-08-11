@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAIKON6370EHDKwV6ew9PihWyCK-Dql5r0',
-    appId: '1:210055151747:android:7a79ec2ada7e7310e49bb6',
+    appId: '1:210055151747:android:789c7b8b34d6e93ae49bb6',
     messagingSenderId: '210055151747',
     projectId: 'cancer-monitor-f40ab',
     storageBucket: 'cancer-monitor-f40ab.firebasestorage.app',

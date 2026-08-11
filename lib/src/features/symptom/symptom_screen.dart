@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
+import '../../data/models/symptom_record.dart';
 import '../../services/health/step_sync_service.dart';
 
 class SymptomScreen extends StatefulWidget {
@@ -11,34 +14,124 @@ class SymptomScreen extends StatefulWidget {
     super.key,
     this.hasRequiredInfo = true,
     this.isPreview = false,
+    this.deviceId,
     this.stepSyncEnabled = false,
+    this.initialRecords = const [],
     this.stepSyncService,
     this.onStepSyncChanged,
+    this.onRecordsChanged,
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
+  final String? deviceId;
   final bool stepSyncEnabled;
+  final List<SymptomRecord> initialRecords;
   final StepSyncService? stepSyncService;
   final ValueChanged<bool>? onStepSyncChanged;
+  final ValueChanged<List<SymptomRecord>>? onRecordsChanged;
 
   @override
   State<SymptomScreen> createState() => _SymptomScreenState();
 }
 
-class _SymptomScreenState extends State<SymptomScreen> {
+class _SymptomScreenState extends State<SymptomScreen>
+    with WidgetsBindingObserver {
   final _records = <DateTime, _SymptomRecord>{};
   late final StepSyncService _stepSyncService =
       widget.stepSyncService ?? PlatformStepSyncService();
   late var _stepSyncEnabled = widget.stepSyncEnabled;
   var _visibleMonth = _monthStart(DateTime.now());
   DateTime? _selectedDate;
+  var _refreshingTodaySteps = false;
+  var _refreshScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _syncInitialRecords();
+    _scheduleTodayLinkedStepsRefresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(covariant SymptomScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.stepSyncEnabled != widget.stepSyncEnabled) {
       _stepSyncEnabled = widget.stepSyncEnabled;
+      _scheduleTodayLinkedStepsRefresh();
+    }
+    if (oldWidget.initialRecords != widget.initialRecords) {
+      _syncInitialRecords();
+      _scheduleTodayLinkedStepsRefresh();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _scheduleTodayLinkedStepsRefresh();
+    }
+  }
+
+  void _scheduleTodayLinkedStepsRefresh() {
+    if (_refreshScheduled) return;
+    _refreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshScheduled = false;
+      if (!mounted) return;
+      unawaited(_refreshTodayLinkedSteps());
+    });
+  }
+
+  void _syncInitialRecords() {
+    _records
+      ..clear()
+      ..addEntries(
+        widget.initialRecords.map(
+          (record) => MapEntry(
+            _dateOnly(record.date),
+            _SymptomRecord.fromModel(record),
+          ),
+        ),
+      );
+  }
+
+  Future<void> _refreshTodayLinkedSteps() async {
+    if (widget.isPreview || !_stepSyncEnabled || _refreshingTodaySteps) return;
+    final today = _dateOnly(DateTime.now());
+    final record = _records[today];
+    if (record == null ||
+        record.stepsSource != '연동' ||
+        record.stepsDeviceId.isEmpty ||
+        record.stepsDeviceId != widget.deviceId) {
+      return;
+    }
+
+    _refreshingTodaySteps = true;
+    try {
+      final steps = await _stepSyncService.readTodaySteps();
+      if (!mounted || steps == null || steps == record.steps) return;
+      setState(() {
+        _records[today] = record.copyWith(
+          steps: steps,
+          stepsSource: '연동',
+        );
+        if (_selectedDate != null && _isSameDay(_selectedDate!, today)) {
+          _selectedDate = today;
+        }
+      });
+      _notifyRecordsChanged();
+    } catch (_) {
+      // 걸음수 자동 갱신 실패는 기록 사용을 막지 않습니다.
+    } finally {
+      _refreshingTodaySteps = false;
     }
   }
 
@@ -56,6 +149,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
         date: date,
         initialRecord: record,
         isPreview: widget.isPreview,
+        deviceId: widget.deviceId,
         stepSyncEnabled: _stepSyncEnabled,
         stepSyncService: _stepSyncService,
         onStepSyncChanged: (value) {
@@ -75,6 +169,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
       _records[_dateOnly(date)] = result.record!;
       _selectedDate = _dateOnly(date);
     });
+    _notifyRecordsChanged();
     _showMessage('증상 기록을 저장했습니다.');
   }
 
@@ -99,7 +194,16 @@ class _SymptomScreenState extends State<SymptomScreen> {
     );
     if (!mounted || confirmed != true) return;
     setState(() => _records.remove(_dateOnly(date)));
+    _notifyRecordsChanged();
     _showMessage('증상 기록을 삭제했습니다.');
+  }
+
+  void _notifyRecordsChanged() {
+    final records = _records.entries
+        .map((entry) => entry.value.toModel(entry.key))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    widget.onRecordsChanged?.call(records);
   }
 
   void _selectDate(DateTime date) {
@@ -123,6 +227,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _scheduleTodayLinkedStepsRefresh();
     final selectedDate = _selectedDate;
     final selectedRecord =
         selectedDate == null ? null : _records[_dateOnly(selectedDate)];
@@ -132,7 +237,7 @@ class _SymptomScreenState extends State<SymptomScreen> {
       children: [
         const SectionHeader(
           title: '증상 관리',
-          subtitle: '회차별 생활반응과 주요 부작용을 기록합니다.',
+          subtitle: '회차별 생활 반응과 컨디션 변화를 기록합니다.',
         ),
         if (!widget.hasRequiredInfo) ...[
           const RequiredInfoBanner(),
@@ -236,6 +341,10 @@ class _SymptomCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = _calendarDays(visibleMonth);
+    final weeks = [
+      for (var start = 0; start < days.length; start += 7)
+        days.sublist(start, start + 7),
+    ];
     const dayLabels = ['월', '화', '수', '목', '금', '토', '일'];
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -273,26 +382,33 @@ class _SymptomCalendar extends StatelessWidget {
                   )
                   .toList(),
             ),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                childAspectRatio: .68,
-              ),
-              itemCount: days.length,
-              itemBuilder: (context, index) {
-                final date = days[index];
-                final key = _dateOnly(date);
-                final record = records[key];
-                return _SymptomDayCell(
-                  key: ValueKey('symptom-day-${_formatDateKey(key)}'),
-                  date: date,
-                  isCurrentMonth: date.month == visibleMonth.month,
-                  selected: selectedDate != null &&
-                      _isSameDay(key, _dateOnly(selectedDate!)),
-                  record: record,
-                  onTap: () => onSelectDate(key),
+            ...weeks.map(
+              (week) {
+                final rowHeight = _symptomWeekHeight(week, records);
+                return SizedBox(
+                  height: rowHeight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: week.map(
+                      (date) {
+                        final key = _dateOnly(date);
+                        final record = records[key];
+                        return Expanded(
+                          child: _SymptomDayCell(
+                            key: ValueKey(
+                              'symptom-day-${_formatDateKey(key)}',
+                            ),
+                            date: date,
+                            isCurrentMonth: date.month == visibleMonth.month,
+                            selected: selectedDate != null &&
+                                _isSameDay(key, _dateOnly(selectedDate!)),
+                            record: record,
+                            onTap: () => onSelectDate(key),
+                          ),
+                        );
+                      },
+                    ).toList(),
+                  ),
                 );
               },
             ),
@@ -301,6 +417,28 @@ class _SymptomCalendar extends StatelessWidget {
       ),
     );
   }
+}
+
+double _symptomWeekHeight(
+  List<DateTime> week,
+  Map<DateTime, _SymptomRecord> records,
+) {
+  var maxBadgeUnits = 0;
+  for (final date in week) {
+    final record = records[_dateOnly(date)];
+    if (record == null) continue;
+    final sideEffectUnits = record.visibleSideEffects
+        .map(_sideEffectLineUnits)
+        .fold<int>(0, (sum, units) => sum + units);
+    final badgeUnits = 1 + sideEffectUnits;
+    if (badgeUnits > maxBadgeUnits) maxBadgeUnits = badgeUnits;
+  }
+  if (maxBadgeUnits == 0) return 82;
+  return (58 + maxBadgeUnits * 18).clamp(98, 196).toDouble();
+}
+
+int _sideEffectLineUnits(String label) {
+  return 1;
 }
 
 class _SymptomDayCell extends StatelessWidget {
@@ -324,6 +462,7 @@ class _SymptomDayCell extends StatelessWidget {
     final isToday = _isSameDay(date, _dateOnly(DateTime.now()));
     final isSunday = date.weekday == DateTime.sunday;
     final record = this.record;
+    final cycleTone = record == null ? null : _cycleBadgeTone(record.cycleNo);
     return Material(
       color: selected ? AppColors.accentSoft : Colors.white,
       child: InkWell(
@@ -339,47 +478,81 @@ class _SymptomDayCell extends StatelessWidget {
             alignment: Alignment.topCenter,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(3, 7, 3, 3),
+                padding: const EdgeInsets.fromLTRB(2, 5, 2, 2),
                 child: Column(
                   children: [
-                    Text(
-                      '${date.day}일',
-                      style: TextStyle(
-                        color: isCurrentMonth
-                            ? (isSunday ? AppColors.danger : AppColors.text)
-                            : AppColors.muted.withValues(alpha: .6),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${date.day}일',
+                            style: TextStyle(
+                              color: isCurrentMonth
+                                  ? (isSunday
+                                      ? AppColors.danger
+                                      : AppColors.text)
+                                  : AppColors.muted.withValues(alpha: .6),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (isToday) ...[
+                            const SizedBox(width: 4),
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: AppColors.danger,
+                                shape: BoxShape.circle,
+                              ),
+                              child: SizedBox(width: 6, height: 6),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     if (record != null) ...[
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 4),
                       Expanded(
                         child: ClipRect(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.topCenter,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _CalendarBadge(
-                                  label: '${record.cycleNo}-${record.cycleDay}',
-                                  color: AppColors.accent,
-                                  backgroundColor: AppColors.accentSoft,
-                                ),
-                                const SizedBox(height: 3),
-                                ...record.visibleSideEffects.map(
-                                  (effect) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 2),
-                                    child: _CalendarBadge(
-                                      label: effect,
-                                      color: const Color(0xFF0B8F63),
-                                      backgroundColor: const Color(0xFFE8F8EF),
-                                    ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _CalendarBadge(
+                                label: '${record.cycleNo}-${record.cycleDay}',
+                                color: cycleTone!.foreground,
+                                backgroundColor: cycleTone.background,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                minWidth: 34,
+                                maxWidth: 56,
+                                horizontalPadding: 5,
+                                verticalPadding: 1.5,
+                                maxLines: 1,
+                                overflow: null,
+                                fitText: true,
+                              ),
+                              const SizedBox(height: 3),
+                              ...record.visibleSideEffects.map(
+                                (effect) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: _CalendarBadge(
+                                    label: effect,
+                                    color: const Color(0xFF0B8F63),
+                                    backgroundColor: const Color(0xFFE8F8EF),
+                                    fontSize: effect.length >= 4 ? 8.5 : 10,
+                                    fontWeight: FontWeight.w600,
+                                    minWidth: 30,
+                                    maxWidth: 56,
+                                    horizontalPadding: 5,
+                                    verticalPadding: 1.5,
+                                    maxLines: 1,
+                                    overflow: null,
+                                    fitText: true,
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -388,17 +561,6 @@ class _SymptomDayCell extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isToday)
-                const Positioned(
-                  top: 31,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.danger,
-                      shape: BoxShape.circle,
-                    ),
-                    child: SizedBox(width: 7, height: 7),
-                  ),
-                ),
             ],
           ),
         ),
@@ -407,39 +569,127 @@ class _SymptomDayCell extends StatelessWidget {
   }
 }
 
+class _CycleBadgeTone {
+  const _CycleBadgeTone({
+    required this.foreground,
+    required this.background,
+  });
+
+  final Color foreground;
+  final Color background;
+}
+
+_CycleBadgeTone _cycleBadgeTone(int cycleNo) {
+  switch (cycleNo) {
+    case 1:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFFDB2777),
+        background: Color(0xFFFCE7F3),
+      );
+    case 2:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF059669),
+        background: Color(0xFFE7F8EF),
+      );
+    case 3:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF2563EB),
+        background: Color(0xFFEFF6FF),
+      );
+    case 4:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF0F766E),
+        background: Color(0xFFE0F7F4),
+      );
+    case 5:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF0891B2),
+        background: Color(0xFFE0F7FA),
+      );
+    case 6:
+      return const _CycleBadgeTone(
+        foreground: Color(0xFF7C3AED),
+        background: Color(0xFFF3E8FF),
+      );
+  }
+  final hue = ((cycleNo <= 0 ? 1 : cycleNo) * 67 + 211) % 360;
+  return _CycleBadgeTone(
+    foreground: HSVColor.fromAHSV(1, hue.toDouble(), .72, .52).toColor(),
+    background: HSVColor.fromAHSV(1, hue.toDouble(), .14, .98).toColor(),
+  );
+}
+
 class _CalendarBadge extends StatelessWidget {
   const _CalendarBadge({
     required this.label,
     required this.color,
     required this.backgroundColor,
+    required this.fontSize,
+    required this.fontWeight,
+    required this.minWidth,
+    required this.maxWidth,
+    required this.horizontalPadding,
+    required this.verticalPadding,
+    required this.maxLines,
+    required this.overflow,
+    required this.fitText,
   });
 
   final String label;
   final Color color;
   final Color backgroundColor;
+  final double fontSize;
+  final FontWeight fontWeight;
+  final double minWidth;
+  final double maxWidth;
+  final double horizontalPadding;
+  final double verticalPadding;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final bool fitText;
 
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 56),
+      constraints: BoxConstraints(minWidth: minWidth, maxWidth: maxWidth),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: color,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w600,
-            ),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
           ),
+          child: fitText
+              ? FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: maxLines,
+                    overflow: overflow,
+                    textAlign: TextAlign.center,
+                    softWrap: false,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: fontSize,
+                      fontWeight: fontWeight,
+                    ),
+                  ),
+                )
+              : Text(
+                  label,
+                  maxLines: maxLines,
+                  overflow: overflow,
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: fontSize,
+                    fontWeight: fontWeight,
+                  ),
+                ),
         ),
       ),
     );
@@ -533,6 +783,7 @@ class _SymptomRecordSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SummaryRow(
           label: '▣ 항암 치료 정보',
@@ -578,7 +829,7 @@ class _SymptomRecordSummary extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _SummaryRow(
-          label: '△ 주요 부작용',
+          label: '△ 컨디션 변화',
           trailing: Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -620,15 +871,18 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
-        color: Colors.white,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: child,
+    return SizedBox(
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.line),
+          borderRadius: BorderRadius.circular(14),
+          color: Colors.white,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: child,
+        ),
       ),
     );
   }
@@ -678,7 +932,12 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
           if (trailing != null)
-            Flexible(child: trailing!)
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: trailing!,
+              ),
+            )
           else
             Text(
               value ?? '',
@@ -763,6 +1022,7 @@ class _SymptomEditorSheet extends StatefulWidget {
     required this.date,
     required this.initialRecord,
     required this.isPreview,
+    required this.deviceId,
     required this.stepSyncEnabled,
     required this.stepSyncService,
     required this.onStepSyncChanged,
@@ -771,6 +1031,7 @@ class _SymptomEditorSheet extends StatefulWidget {
   final DateTime date;
   final _SymptomRecord? initialRecord;
   final bool isPreview;
+  final String? deviceId;
   final bool stepSyncEnabled;
   final StepSyncService stepSyncService;
   final ValueChanged<bool> onStepSyncChanged;
@@ -781,6 +1042,15 @@ class _SymptomEditorSheet extends StatefulWidget {
 
 class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+  final _cycleNoKey = GlobalKey();
+  final _cycleDayKey = GlobalKey();
+  final _mealAmountKey = GlobalKey();
+  final _waterAmountKey = GlobalKey();
+  final _stepsKey = GlobalKey();
+  final _bowelKey = GlobalKey();
+  final _stoolStatusKey = GlobalKey();
+  final _sideEffectsKey = GlobalKey();
   late final _cycleNo = TextEditingController(
     text: widget.initialRecord?.cycleNo.toString() ?? '',
   );
@@ -812,11 +1082,29 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   late final _sideEffects = {...?widget.initialRecord?.sideEffects};
   late var _stepSyncEnabled = widget.stepSyncEnabled;
   late var _stepsSource = widget.initialRecord?.stepsSource ??
-      (widget.stepSyncEnabled ? '연동' : '수동');
+      (widget.stepSyncEnabled && (widget.deviceId?.isNotEmpty ?? false)
+          ? '연동'
+          : '수동');
+  late var _stepsDeviceId = widget.initialRecord?.stepsDeviceId ??
+      (_stepsSource == '연동' ? widget.deviceId ?? '' : '');
   var _stepSyncInProgress = false;
+  String? _validationMessage;
+
+  bool get _usingStepSync =>
+      _stepSyncEnabled &&
+      _stepsSource == '연동' &&
+      _stepsDeviceId.isNotEmpty &&
+      _stepsDeviceId == widget.deviceId;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshLinkedStepsForEditor());
+  }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _cycleNo.dispose();
     _cycleDay.dispose();
     _breakfast.dispose();
@@ -828,22 +1116,68 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     super.dispose();
   }
 
+  Future<void> _refreshLinkedStepsForEditor() async {
+    if (widget.isPreview || !_usingStepSync) return;
+    if (!_isSameDay(widget.date, _dateOnly(DateTime.now()))) return;
+
+    try {
+      final steps = await widget.stepSyncService.readTodaySteps();
+      if (!mounted || steps == null || steps.toString() == _steps.text) return;
+      setState(() {
+        _steps.text = steps.toString();
+      });
+    } catch (_) {
+      // 편집창 자동 갱신 실패는 수동 입력과 저장을 막지 않습니다.
+    }
+  }
+
   Future<void> _pickMealAmount() async {
+    final scrollOffset = _currentScrollOffset();
+    FocusManager.instance.primaryFocus?.unfocus();
     final selected = await _showOptionSheet(
       title: '식사량',
       options: _mealOptions,
       currentValue: _mealAmount,
     );
-    if (selected != null) setState(() => _mealAmount = selected);
+    if (selected != null) {
+      setState(() => _mealAmount = selected);
+      _restoreScrollOffset(scrollOffset, repeat: true);
+    }
   }
 
   Future<void> _pickWaterAmount() async {
+    final scrollOffset = _currentScrollOffset();
+    FocusManager.instance.primaryFocus?.unfocus();
     final selected = await _showOptionSheet(
       title: '음수량',
       options: _waterOptions,
       currentValue: _waterAmount,
     );
-    if (selected != null) setState(() => _waterAmount = selected);
+    if (selected != null) {
+      setState(() => _waterAmount = selected);
+      _restoreScrollOffset(scrollOffset, repeat: true);
+    }
+  }
+
+  double _currentScrollOffset() {
+    return _scrollController.hasClients ? _scrollController.offset : 0;
+  }
+
+  void _restoreScrollOffset(double offset, {bool repeat = false}) {
+    void jump() {
+      if (!_scrollController.hasClients) return;
+      final position = _scrollController.position;
+      final safeOffset =
+          offset.clamp(position.minScrollExtent, position.maxScrollExtent);
+      _scrollController.jumpTo(safeOffset);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      jump();
+      if (!repeat) return;
+      Future<void>.delayed(const Duration(milliseconds: 60), jump);
+      Future<void>.delayed(const Duration(milliseconds: 160), jump);
+    });
   }
 
   Future<String?> _showOptionSheet({
@@ -941,31 +1275,38 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
   }
 
   Future<void> _enableStepSync() async {
-    if (_stepSyncInProgress || _stepSyncEnabled) return;
+    if (_stepSyncInProgress) return;
     if (widget.isPreview) {
       _showMessage('둘러보기에서는 권한 요청을 진행하지 않습니다.');
       return;
     }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('걸음수 연동 권한'),
-        content: const Text(
-          '휴대폰의 걸음수를 불러와 증상관리에 사용합니다. 걸음수 연동을 켜시겠습니까?',
+    final deviceId = widget.deviceId;
+    if (deviceId == null || deviceId.isEmpty) {
+      _showMessage('현재 기기 정보를 확인할 수 없어 걸음수를 연동할 수 없습니다.');
+      return;
+    }
+    if (!_stepSyncEnabled) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('걸음수 연동 권한'),
+          content: const Text(
+            'Health Connect의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('켜기'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('켜기'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || confirmed != true) return;
+      );
+      if (!mounted || confirmed != true) return;
+    }
     setState(() => _stepSyncInProgress = true);
     try {
       final granted = await widget.stepSyncService.requestPermission();
@@ -973,6 +1314,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       setState(() {
         _stepSyncEnabled = granted;
         _stepsSource = granted ? '연동' : '수동';
+        _stepsDeviceId = granted ? deviceId : '';
       });
       widget.onStepSyncChanged(granted);
       if (granted) {
@@ -983,12 +1325,137 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       } else {
         _showMessage('걸음수 연동 권한이 허용되지 않았습니다.');
       }
+    } on StepSyncPermissionException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _stepSyncEnabled = false;
+        _stepsSource = '수동';
+        _stepsDeviceId = '';
+      });
+      widget.onStepSyncChanged(false);
+      await _showStepSyncSettingsSheet(error);
     } catch (_) {
       if (!mounted) return;
-      _showMessage('걸음수 연동 중 문제가 발생했습니다.');
+      setState(() {
+        _stepSyncEnabled = false;
+        _stepsSource = '수동';
+        _stepsDeviceId = '';
+      });
+      widget.onStepSyncChanged(false);
+      await _showStepSyncSettingsSheet(
+        const StepSyncPermissionException(
+          'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _stepSyncInProgress = false);
     }
+  }
+
+  void _disableStepSyncForRecord() {
+    setState(() {
+      _stepsSource = '수동';
+      _stepsDeviceId = '';
+    });
+    _showMessage('이 기록은 수동 입력으로 변경되었습니다.');
+  }
+
+  void _handleManualStepsChanged(String _) {
+    if (_usingStepSync) return;
+    _stepsSource = '수동';
+    _stepsDeviceId = '';
+  }
+
+  Future<void> _showStepSyncSettingsSheet(
+    StepSyncPermissionException error,
+  ) async {
+    if (!mounted) return;
+    final needsInstall =
+        error.issue == StepSyncPermissionIssue.healthConnectRequired;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: AppColors.line),
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1F1F2937),
+                      blurRadius: 36,
+                      offset: Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.line,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      needsInstall ? 'Health Connect가 필요해요' : '걸음수 권한이 필요해요',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      needsInstall
+                          ? '설치 또는 업데이트 후 다시 시도해 주세요.'
+                          : 'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 14,
+                        height: 1.55,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        final opened = await widget.stepSyncService
+                            .openPermissionSettings();
+                        if (!mounted || opened) return;
+                        _showMessage('걸음수 연동을 활성화할 수 없습니다. 수동 입력을 사용해 주세요.');
+                      },
+                      child: Text(needsInstall ? '설치/업데이트' : '설정 열기'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('나중에 하기'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _selectBowel(String value) {
@@ -1015,21 +1482,26 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (widget.isPreview) {
       Navigator.of(context).pop(const _SymptomEditorResult.previewBlocked());
       return;
     }
     final missingMessage = _firstMissingRequiredMessage();
     if (missingMessage != null) {
-      _showMessage(missingMessage);
+      _showValidationToast(missingMessage);
       return;
     }
 
     if (!_formKey.currentState!.validate()) {
-      _showMessage('입력값을 다시 확인해 주세요.');
+      _showValidationToast(
+        const _ValidationMessage('입력값을 다시 확인해 주세요.', null),
+      );
       return;
     }
+
+    final steps = await _stepsForSave();
+    if (!mounted) return;
 
     Navigator.of(context).pop(
       _SymptomEditorResult.save(
@@ -1042,8 +1514,9 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
           dinnerMemo: _dinner.text.trim(),
           extraMealMemo: _extraMeal.text.trim(),
           waterAmount: _waterAmount!,
-          steps: int.parse(_steps.text),
+          steps: steps,
           stepsSource: _stepsSource,
+          stepsDeviceId: _stepsDeviceId,
           bowel: _bowel!,
           stoolStatus: _bowel == '있음' ? _stoolStatus : null,
           sideEffects: _orderedSideEffects(_sideEffects),
@@ -1053,18 +1526,70 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     );
   }
 
-  String? _firstMissingRequiredMessage() {
-    if (_cycleNo.text.trim().isEmpty) return '항암 회차를 입력해주세요.';
-    if (_cycleDay.text.trim().isEmpty) return '진행일차를 입력해주세요.';
-    if (_mealAmount == null) return '식사량을 입력해주세요.';
-    if (_waterAmount == null) return '음수량을 입력해주세요.';
-    if (_steps.text.trim().isEmpty) return '운동량을 입력해주세요.';
-    if (_bowel == null) return '배변 유무를 입력해주세요.';
-    if (_bowel == '있음' && _stoolStatus == null) {
-      return '배변 상태를 입력해주세요.';
+  Future<int> _stepsForSave() async {
+    final typedSteps = int.tryParse(_steps.text.trim());
+    if (!_usingStepSync) return typedSteps ?? 0;
+    if (!_isSameDay(widget.date, _dateOnly(DateTime.now()))) {
+      return typedSteps ?? 0;
     }
-    if (_sideEffects.isEmpty) return '주요부작용을 입력해주세요.';
+
+    setState(() => _stepSyncInProgress = true);
+    try {
+      final syncedSteps = await widget.stepSyncService.readTodaySteps();
+      if (!mounted) return typedSteps ?? syncedSteps ?? 0;
+      final steps = syncedSteps ?? typedSteps ?? 0;
+      _steps.text = steps.toString();
+      return steps;
+    } catch (_) {
+      return typedSteps ?? 0;
+    } finally {
+      if (mounted) setState(() => _stepSyncInProgress = false);
+    }
+  }
+
+  _ValidationMessage? _firstMissingRequiredMessage() {
+    if (_cycleNo.text.trim().isEmpty) {
+      return _ValidationMessage('회차를 입력해주세요.', _cycleNoKey);
+    }
+    if (_cycleDay.text.trim().isEmpty) {
+      return _ValidationMessage('진행일차를 입력해주세요.', _cycleDayKey);
+    }
+    if (_mealAmount == null) {
+      return _ValidationMessage('식사량을 입력해주세요.', _mealAmountKey);
+    }
+    if (_waterAmount == null) {
+      return _ValidationMessage('음수량을 입력해주세요.', _waterAmountKey);
+    }
+    if (!_usingStepSync && _steps.text.trim().isEmpty) {
+      return _ValidationMessage('운동량을 입력해주세요.', _stepsKey);
+    }
+    if (_bowel == null) {
+      return _ValidationMessage('배변 유무를 입력해주세요.', _bowelKey);
+    }
+    if (_bowel == '있음' && _stoolStatus == null) {
+      return _ValidationMessage('배변 상태를 입력해주세요.', _stoolStatusKey);
+    }
+    if (_sideEffects.isEmpty) {
+      return _ValidationMessage('컨디션 변화를 입력해주세요.', _sideEffectsKey);
+    }
     return null;
+  }
+
+  void _showValidationToast(_ValidationMessage message) {
+    setState(() => _validationMessage = message.text);
+    final key = message.anchorKey;
+    if (key != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final context = key.currentContext;
+        if (context == null) return;
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          alignment: .08,
+        );
+      });
+    }
   }
 
   void _showMessage(String message) {
@@ -1107,31 +1632,49 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                 ),
               ),
               const Divider(height: 1),
+              if (_validationMessage != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: _SheetToast(
+                    message: _validationMessage!,
+                    onClose: () => setState(() => _validationMessage = null),
+                  ),
+                ),
               Expanded(
                 child: Form(
                   key: _formKey,
                   child: ListView(
                     key: const ValueKey('symptom-editor-scroll'),
+                    controller: _scrollController,
                     scrollCacheExtent: const ScrollCacheExtent.pixels(2400),
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                     children: [
-                      _NumberField(
-                        label: '항암 회차',
-                        controller: _cycleNo,
-                        placeholder: '진행회차를 숫자로 입력하세요.',
+                      KeyedSubtree(
+                        key: _cycleNoKey,
+                        child: _NumberField(
+                          label: '회차',
+                          controller: _cycleNo,
+                          placeholder: '진행회차를 숫자로 입력하세요.',
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      _NumberField(
-                        label: '진행일차',
-                        controller: _cycleDay,
-                        placeholder: '진행일차를 숫자로 입력하세요.',
+                      KeyedSubtree(
+                        key: _cycleDayKey,
+                        child: _NumberField(
+                          label: '진행일차',
+                          controller: _cycleDay,
+                          placeholder: '진행일차를 숫자로 입력하세요.',
+                        ),
                       ),
                       const SizedBox(height: 18),
-                      _SheetField(
-                        label: '식사량',
-                        value: _mealAmount ?? '선택',
-                        empty: _mealAmount == null,
-                        onTap: _pickMealAmount,
+                      KeyedSubtree(
+                        key: _mealAmountKey,
+                        child: _SheetField(
+                          label: '식사량',
+                          value: _mealAmount ?? '선택',
+                          empty: _mealAmount == null,
+                          onTap: _pickMealAmount,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _MemoField(
@@ -1159,29 +1702,40 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                         placeholder:
                             '아침, 점심, 저녁 외의 섭취한 식사를 기록하세요. AI분석에 활용됩니다.',
                       ),
-                      _SheetField(
-                        label: '음수량',
-                        value: _waterAmount ?? '선택',
-                        empty: _waterAmount == null,
-                        onTap: _pickWaterAmount,
+                      KeyedSubtree(
+                        key: _waterAmountKey,
+                        child: _SheetField(
+                          label: '음수량',
+                          value: _waterAmount ?? '선택',
+                          empty: _waterAmount == null,
+                          onTap: _pickWaterAmount,
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      _StepsField(
-                        controller: _steps,
-                        source: _stepsSource,
-                        readOnly: _stepSyncEnabled,
-                      ),
-                      if (!_stepSyncEnabled) ...[
-                        const SizedBox(height: 10),
-                        _StepSyncPanel(
-                          inProgress: _stepSyncInProgress,
-                          onTap: _enableStepSync,
+                      KeyedSubtree(
+                        key: _stepsKey,
+                        child: _StepsField(
+                          controller: _steps,
+                          source: _usingStepSync ? '연동' : '수동',
+                          readOnly: _usingStepSync,
+                          allowEmpty: _usingStepSync,
+                          onChanged: _handleManualStepsChanged,
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 10),
+                      _StepSyncPanel(
+                        enabled: _usingStepSync,
+                        inProgress: _stepSyncInProgress,
+                        onEnable: _enableStepSync,
+                        onDisable: _disableStepSyncForRecord,
+                      ),
                       const SizedBox(height: 18),
-                      const _FieldLabel.required(
-                        '배변 유무',
-                        key: ValueKey('symptom-label-bowel'),
+                      KeyedSubtree(
+                        key: _bowelKey,
+                        child: const _FieldLabel.required(
+                          '배변 유무',
+                          key: ValueKey('symptom-label-bowel'),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -1205,9 +1759,12 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                       ),
                       if (_bowel == '있음') ...[
                         const SizedBox(height: 18),
-                        const _FieldLabel.required(
-                          '배변 상태',
-                          key: ValueKey('symptom-label-stool'),
+                        KeyedSubtree(
+                          key: _stoolStatusKey,
+                          child: const _FieldLabel.required(
+                            '배변 상태',
+                            key: ValueKey('symptom-label-stool'),
+                          ),
                         ),
                         const SizedBox(height: 8),
                         _ChoiceWrap(
@@ -1218,9 +1775,12 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
                         ),
                       ],
                       const SizedBox(height: 18),
-                      const _FieldLabel.required(
-                        '주요부작용',
-                        key: ValueKey('symptom-label-side-effects'),
+                      KeyedSubtree(
+                        key: _sideEffectsKey,
+                        child: const _FieldLabel.required(
+                          '컨디션 변화',
+                          key: ValueKey('symptom-label-side-effects'),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       _ChoiceWrap(
@@ -1257,6 +1817,61 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ValidationMessage {
+  const _ValidationMessage(this.text, this.anchorKey);
+
+  final String text;
+  final GlobalKey? anchorKey;
+}
+
+class _SheetToast extends StatelessWidget {
+  const _SheetToast({required this.message, required this.onClose});
+
+  final String message;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.accentSoft,
+        border: Border.all(color: AppColors.accent.withValues(alpha: .28)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.info_outline_rounded,
+              size: 18,
+              color: AppColors.accent,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: AppColors.muted,
+              tooltip: '닫기',
+            ),
+          ],
         ),
       ),
     );
@@ -1467,11 +2082,15 @@ class _StepsField extends StatelessWidget {
     required this.controller,
     required this.source,
     required this.readOnly,
+    required this.allowEmpty,
+    required this.onChanged,
   });
 
   final TextEditingController controller;
   final String source;
   final bool readOnly;
+  final bool allowEmpty;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1484,6 +2103,7 @@ class _StepsField extends StatelessWidget {
           key: const ValueKey('symptom-steps-field'),
           controller: controller,
           readOnly: readOnly,
+          onChanged: onChanged,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: _inputDecoration('걸음수를 입력하세요').copyWith(
@@ -1495,6 +2115,7 @@ class _StepsField extends StatelessWidget {
             ),
           ),
           validator: (value) {
+            if (allowEmpty && (value == null || value.isEmpty)) return null;
             final number = int.tryParse(value ?? '');
             if (number == null) return '필수';
             if (number < 0) return '확인';
@@ -1507,10 +2128,17 @@ class _StepsField extends StatelessWidget {
 }
 
 class _StepSyncPanel extends StatelessWidget {
-  const _StepSyncPanel({required this.inProgress, required this.onTap});
+  const _StepSyncPanel({
+    required this.enabled,
+    required this.inProgress,
+    required this.onEnable,
+    required this.onDisable,
+  });
 
+  final bool enabled;
   final bool inProgress;
-  final VoidCallback onTap;
+  final VoidCallback onEnable;
+  final VoidCallback onDisable;
 
   @override
   Widget build(BuildContext context) {
@@ -1524,26 +2152,41 @@ class _StepSyncPanel extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '걸음수 연동 꺼짐',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    enabled ? '걸음수 연동 켜짐' : '걸음수 연동 꺼짐',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  SizedBox(height: 3),
+                  const SizedBox(height: 3),
                   Text(
-                    '휴대폰의 걸음수를 불러오려면 연동을 활성화하세요.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                    enabled
+                        ? '직접 수정하려면 수동입력으로 바꾸세요.'
+                        : '연동하면 걸음수를 운동량에 자동 입력합니다.',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
             ),
-            TextButton(
-              onPressed: inProgress ? null : onTap,
-              child: Text(inProgress ? '요청 중' : '연동하기'),
-            ),
+            if (enabled) ...[
+              TextButton(
+                onPressed: inProgress ? null : onEnable,
+                child: Text(inProgress ? '요청 중' : '재연동'),
+              ),
+              TextButton(
+                onPressed: inProgress ? null : onDisable,
+                child: const Text('수동입력'),
+              ),
+            ] else
+              TextButton(
+                onPressed: inProgress ? null : onEnable,
+                child: Text(inProgress ? '요청 중' : '연동하기'),
+              ),
           ],
         ),
       ),
@@ -1692,11 +2335,32 @@ class _SymptomRecord {
     required this.waterAmount,
     required this.steps,
     required this.stepsSource,
+    required this.stepsDeviceId,
     required this.bowel,
     required this.stoolStatus,
     required this.sideEffects,
     required this.note,
   });
+
+  factory _SymptomRecord.fromModel(SymptomRecord record) {
+    return _SymptomRecord(
+      cycleNo: record.cycleNo,
+      cycleDay: record.cycleDay,
+      mealAmount: record.mealAmount,
+      breakfastMemo: record.breakfastMemo,
+      lunchMemo: record.lunchMemo,
+      dinnerMemo: record.dinnerMemo,
+      extraMealMemo: record.extraMealMemo,
+      waterAmount: record.waterAmount,
+      steps: record.steps,
+      stepsSource: record.stepsSource,
+      stepsDeviceId: record.stepsDeviceId,
+      bowel: record.bowel,
+      stoolStatus: record.stoolStatus.isEmpty ? null : record.stoolStatus,
+      sideEffects: record.sideEffects,
+      note: record.note,
+    );
+  }
 
   final int cycleNo;
   final int cycleDay;
@@ -1708,6 +2372,7 @@ class _SymptomRecord {
   final String waterAmount;
   final int steps;
   final String stepsSource;
+  final String stepsDeviceId;
   final String bowel;
   final String? stoolStatus;
   final List<String> sideEffects;
@@ -1715,6 +2380,50 @@ class _SymptomRecord {
 
   List<String> get visibleSideEffects =>
       sideEffects.where((effect) => effect != '없음').take(3).toList();
+
+  _SymptomRecord copyWith({
+    int? steps,
+    String? stepsSource,
+  }) {
+    return _SymptomRecord(
+      cycleNo: cycleNo,
+      cycleDay: cycleDay,
+      mealAmount: mealAmount,
+      breakfastMemo: breakfastMemo,
+      lunchMemo: lunchMemo,
+      dinnerMemo: dinnerMemo,
+      extraMealMemo: extraMealMemo,
+      waterAmount: waterAmount,
+      steps: steps ?? this.steps,
+      stepsSource: stepsSource ?? this.stepsSource,
+      stepsDeviceId: stepsDeviceId,
+      bowel: bowel,
+      stoolStatus: stoolStatus,
+      sideEffects: sideEffects,
+      note: note,
+    );
+  }
+
+  SymptomRecord toModel(DateTime date) {
+    return SymptomRecord(
+      date: date,
+      cycleNo: cycleNo,
+      cycleDay: cycleDay,
+      mealAmount: mealAmount,
+      breakfastMemo: breakfastMemo,
+      lunchMemo: lunchMemo,
+      dinnerMemo: dinnerMemo,
+      extraMealMemo: extraMealMemo,
+      waterAmount: waterAmount,
+      steps: steps,
+      stepsSource: stepsSource,
+      stepsDeviceId: stepsDeviceId,
+      bowel: bowel,
+      stoolStatus: stoolStatus ?? '',
+      sideEffects: sideEffects,
+      note: note,
+    );
+  }
 }
 
 class _SymptomEditorResult {
