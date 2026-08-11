@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
+import '../../data/models/weight_record.dart';
 
 class WeightScreen extends StatefulWidget {
   const WeightScreen({
@@ -12,11 +13,15 @@ class WeightScreen extends StatefulWidget {
     this.hasRequiredInfo = true,
     this.isPreview = false,
     this.heightCm,
+    this.initialRecords = const [],
+    this.onRecordsChanged,
   });
 
   final bool hasRequiredInfo;
   final bool isPreview;
   final double? heightCm;
+  final List<WeightRecord> initialRecords;
+  final ValueChanged<List<WeightRecord>>? onRecordsChanged;
 
   @override
   State<WeightScreen> createState() => _WeightScreenState();
@@ -27,6 +32,30 @@ class _WeightScreenState extends State<WeightScreen> {
   late var _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
   late var _selectedDate = _dateOnly(DateTime.now());
   var _range = _WeightRange.recent30;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncInitialRecords();
+  }
+
+  @override
+  void didUpdateWidget(covariant WeightScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialRecords != widget.initialRecords) {
+      _syncInitialRecords();
+    }
+  }
+
+  void _syncInitialRecords() {
+    _records
+      ..clear()
+      ..addEntries(
+        widget.initialRecords.map(
+          (record) => MapEntry(_dateOnly(record.date), record.weightKg),
+        ),
+      );
+  }
 
   List<MapEntry<DateTime, double>> get _sortedRecords {
     final values = _records.entries.toList()
@@ -81,6 +110,7 @@ class _WeightScreenState extends State<WeightScreen> {
         _records[day] = result.weightKg!;
       }
     });
+    widget.onRecordsChanged?.call(_weightRecords);
     _showMessage(result.deleted ? '체중 기록이 삭제되었습니다.' : '체중 기록이 저장되었습니다.');
   }
 
@@ -92,54 +122,58 @@ class _WeightScreenState extends State<WeightScreen> {
   @override
   Widget build(BuildContext context) {
     final latest = _latestRecord;
-    return ListView(
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 34),
-      children: [
-        const SectionHeader(
-          title: '체중 관리',
-          subtitle: '최근 체중과 사용자정보의 키를 기준으로 BMI를 계산하고, 기간별 체중 변화를 확인합니다.',
-        ),
-        if (!widget.hasRequiredInfo) ...[
-          const RequiredInfoBanner(),
-          const SizedBox(height: 14),
-        ],
-        if (latest != null && widget.heightCm != null) ...[
-          _BmiCard(
-            latest: latest,
-            heightCm: widget.heightCm!,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionHeader(
+            title: '체중 관리',
+            subtitle: '최근 체중과 사용자정보의 키를 기준으로 BMI를 계산하고, 기간별 체중 변화를 확인합니다.',
+          ),
+          if (!widget.hasRequiredInfo) ...[
+            const RequiredInfoBanner(),
+            const SizedBox(height: 14),
+          ],
+          if (latest != null && widget.heightCm != null) ...[
+            _BmiCard(
+              latest: latest,
+              heightCm: widget.heightCm!,
+            ),
+            const SizedBox(height: 14),
+          ],
+          if (_weightAdvice(latest) case final advice?) ...[
+            _WeightAdviceCard(advice: advice),
+            const SizedBox(height: 14),
+          ],
+          AppCard(
+            padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+            child: _WeightCalendar(
+              visibleMonth: _visibleMonth,
+              selectedDate: _selectedDate,
+              records: _records,
+              onMoveMonth: _moveMonth,
+              onSelectDate: _openWeightEditor,
+            ),
           ),
           const SizedBox(height: 14),
-        ],
-        if (_weightAdvice(latest) case final advice?) ...[
-          _WeightAdviceCard(advice: advice),
-          const SizedBox(height: 14),
-        ],
-        AppCard(
-          padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
-          child: _WeightCalendar(
-            visibleMonth: _visibleMonth,
-            selectedDate: _selectedDate,
-            records: _records,
-            onMoveMonth: _moveMonth,
-            onSelectDate: _openWeightEditor,
+          AppCard(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+            child: _WeightChartSection(
+              range: _range,
+              records: _chartRecords(),
+              onRangeChanged: (value) => setState(() => _range = value),
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        AppCard(
-          padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
-          child: _WeightChartSection(
-            range: _range,
-            records: _chartRecords(),
-            onRangeChanged: (value) => setState(() => _range = value),
+          const SizedBox(height: 22),
+          const Text(
+            'BMI와 체중 변화 안내는 참고용 정보이며,\n의학적 진단이나 치료 결정을 대체하지 않습니다.',
+            textAlign: TextAlign.center,
+            style:
+                TextStyle(color: AppColors.muted, fontSize: 11, height: 1.45),
           ),
-        ),
-        const SizedBox(height: 22),
-        const Text(
-          'BMI와 체중 변화 안내는 참고용 정보이며,\n의학적 진단이나 치료 결정을 대체하지 않습니다.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.muted, fontSize: 11, height: 1.45),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -152,6 +186,12 @@ class _WeightScreenState extends State<WeightScreen> {
     };
     return _sortedRecords
         .where((item) => !item.key.isBefore(start) && !item.key.isAfter(latest))
+        .toList();
+  }
+
+  List<WeightRecord> get _weightRecords {
+    return _sortedRecords
+        .map((entry) => WeightRecord(date: entry.key, weightKg: entry.value))
         .toList();
   }
 
@@ -213,7 +253,7 @@ class _BmiCard extends StatelessWidget {
                 TextSpan(
                   text: bmi.toStringAsFixed(1),
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -223,11 +263,12 @@ class _BmiCard extends StatelessWidget {
             ),
             style: const TextStyle(
               color: AppColors.text,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(
             status.description,
             maxLines: 2,
@@ -235,10 +276,16 @@ class _BmiCard extends StatelessWidget {
             style: const TextStyle(
                 color: AppColors.muted, fontSize: 13, height: 1.4),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(
             '최근 체중 ${latest.value.toStringAsFixed(1)}kg · 마지막 입력일 ${_formatDate(latest.key)}',
-            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 13,
+              height: 1.45,
+            ),
           ),
         ],
       ),
@@ -471,30 +518,34 @@ class _CalendarDayCell extends StatelessWidget {
           children: [
             Positioned(
               top: 7,
-              child: Text(
-                '${date.day}',
-                style: TextStyle(
-                  color: !inMonth
-                      ? AppColors.muted.withValues(alpha: .65)
-                      : sunday
-                          ? AppColors.danger
-                          : AppColors.text,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${date.day}',
+                    style: TextStyle(
+                      color: !inMonth
+                          ? AppColors.muted.withValues(alpha: .65)
+                          : sunday
+                              ? AppColors.danger
+                              : AppColors.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (today) ...[
+                    const SizedBox(width: 4),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.danger,
+                        shape: BoxShape.circle,
+                      ),
+                      child: SizedBox(width: 5, height: 5),
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (today)
-              const Positioned(
-                top: 31,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: AppColors.danger,
-                    shape: BoxShape.circle,
-                  ),
-                  child: SizedBox(width: 5, height: 5),
-                ),
-              ),
             Positioned(
               bottom: 7,
               child: weight != null

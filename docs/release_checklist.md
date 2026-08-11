@@ -1,5 +1,16 @@
 # 앱스토어 / 구글플레이 출시 체크리스트
 
+## 현재 출시 후보
+
+- 앱 버전: 1.0.4+5
+- 앱 이름: 한결
+- 번들 ID / 패키지명: com.nanimi74.hangyeol
+- 개인정보처리방침 공개 파일: docs/privacy.html
+- 서비스 이용약관 공개 파일: docs/terms.html
+- GitHub Pages를 docs 폴더 기준으로 켜면 사용할 URL:
+  - https://nanimi74.github.io/cancer-monitor/privacy.html
+  - https://nanimi74.github.io/cancer-monitor/terms.html
+
 ## 공통
 
 - 서비스 이용약관 작성
@@ -12,15 +23,20 @@
 - 회원탈퇴 및 데이터 삭제 기능
 - 문의 채널
 - 앱 버전 표시
+- 사용자 노출 버전은 공개 버전명만 표시하고 내부 빌드 번호는 숨김
 - 알림 권한 설명
 - 걸음수 연동 권한 설명
 - 스토어 등록용 스크린샷
 - 앱 설명, 키워드, 카테고리, 연령 등급
 - QA: 권한 거부, 네트워크 오류, 탈퇴, 로그아웃, 둘러보기 모드
+- Firebase Console에서 Firestore App Check 적용 상태 확인
+- Firebase Console에서 Authentication 제공자별 운영 설정 확인
+- Firebase Console에서 Firestore Rules 배포 상태 확인
 
 ## App Store
 
 - App Privacy 항목 작성
+- Xcode Archive 생성 후 Privacy Report 확인
 - 건강/의료 데이터 수집 및 사용 목적 명시
 - HealthKit 사용 목적 명시
 - HealthKit 데이터는 광고, 마케팅, 사용자 추적에 사용하지 않음
@@ -32,11 +48,20 @@
 
 - Data safety 양식 작성
 - Health Connect 권한 사용 목적 제출
+- Android Health Connect 권한은 `READ_STEPS`만 사용하며, `ACTIVITY_RECOGNITION`은 요청하지 않음
+- Play Console Health Connect 선언에서 `Steps`만 선택하고 `StepsCadence`/케이던스/걸음 빈도 데이터는 선택하지 않음
+- Health Connect 사용 목적은 증상 기록의 운동량 자동 입력과 회차별 기록 요약 보조로 제한
 - 민감 건강정보 및 Health Connect 데이터 처리 목적 명시
 - Claude API 등 외부 AI 처리자에게 전송되는 건강정보 처리 목적과 보관 정책 명시
 - 권한은 기능 사용 시점에 요청
 - 앱 내 개인정보처리방침 링크 제공
 - 계정 및 데이터 삭제 URL 또는 앱 내 삭제 플로우 제공
+- Play Console 업로드 전 Android release keystore 설정
+- 새 App Bundle 업로드 전 `versionCode`가 이전 업로드보다 높은지 확인
+- 비공개 테스트 버전업 시 PR의 `pubspec.yaml` 버전과 업로드할 AAB 버전이 일치하는지 확인
+- Health Connect 권한 부족 시 설정 화면으로 이동하는지 확인
+- Health Connect 미설치/업데이트 필요 시 Play Store로 이동하는지 확인
+- Health Connect 설정/설치 화면 이동 실패 시 수동입력 유지 및 안내 토스트가 표시되는지 확인
 
 ## 법적 문서에 포함할 항목
 

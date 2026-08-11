@@ -1,1 +1,50 @@
-{"flutter":{"platforms":{"android":{"buildConfigurations":{".":{"projectId":"cancer-monitor-f40ab","appId":"1:210055151747:android:7a79ec2ada7e7310e49bb6","fileOutput":"android/app/google-services.json"}}},"ios":{"buildConfigurations":{"Debug":{"projectId":"cancer-monitor-f40ab","appId":"1:210055151747:ios:16d21204de8a429be49bb6","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}}},"dart":{"lib/firebase_options.dart":{"projectId":"cancer-monitor-f40ab","configurations":{"android":"1:210055151747:android:7a79ec2ada7e7310e49bb6","ios":"1:210055151747:ios:16d21204de8a429be49bb6"}}}}}}
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "buildConfigurations": {
+          ".": {
+            "projectId": "cancer-monitor-f40ab",
+            "appId": "1:210055151747:android:7a79ec2ada7e7310e49bb6",
+            "fileOutput": "android/app/google-services.json"
+          }
+        }
+      },
+      "ios": {
+        "buildConfigurations": {
+          "Debug": {
+            "projectId": "cancer-monitor-f40ab",
+            "appId": "1:210055151747:ios:16d21204de8a429be49bb6",
+            "uploadDebugSymbols": false,
+            "fileOutput": "ios/Runner/GoogleService-Info.plist"
+          }
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "cancer-monitor-f40ab",
+          "configurations": {
+            "android": "1:210055151747:android:7a79ec2ada7e7310e49bb6",
+            "ios": "1:210055151747:ios:16d21204de8a429be49bb6"
+          }
+        }
+      }
+    }
+  }
+}

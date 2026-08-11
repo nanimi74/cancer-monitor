@@ -28,6 +28,8 @@ class AuthSession {
 }
 
 abstract class AuthService {
+  Future<AuthSession?> currentSession();
+
   Future<AuthSession> signInWithEmail({
     required String email,
     required String password,
@@ -44,6 +46,9 @@ abstract class AuthService {
 
 class MockAuthService implements AuthService {
   const MockAuthService();
+
+  @override
+  Future<AuthSession?> currentSession() async => null;
 
   @override
   Future<AuthSession> signInWithEmail({
