@@ -65,8 +65,8 @@ class _SymptomScreenState extends State<SymptomScreen>
   @override
   void didUpdateWidget(covariant SymptomScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _stepSyncEnabled = widget.stepSyncEnabled;
     if (oldWidget.stepSyncEnabled != widget.stepSyncEnabled) {
-      _stepSyncEnabled = widget.stepSyncEnabled;
       _scheduleTodayLinkedStepsRefresh();
     }
     if (oldWidget.initialRecords != widget.initialRecords) {

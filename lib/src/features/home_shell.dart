@@ -248,7 +248,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     try {
       return await _userDataRepository.ensureActiveStepDevice(userId, deviceId);
     } catch (_) {
-      return deviceId;
+      return '';
     }
   }
 
@@ -287,27 +287,46 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     _activeStepDeviceSubscriptionUserId = null;
   }
 
-  void _setStepSyncEnabled(bool value) {
+  Future<void> _setStepSyncEnabled(bool value) async {
     final deviceId = _deviceId;
     if (deviceId == null || deviceId.isEmpty) return;
+    final previousEnabled = _stepSyncEnabled;
+    final previousActiveDeviceId = _activeStepDeviceId;
+    final nextActiveDeviceId = value
+        ? deviceId
+        : previousActiveDeviceId == deviceId
+            ? ''
+            : previousActiveDeviceId;
     setState(() {
       _stepSyncEnabled = value;
-      if (value) {
-        _activeStepDeviceId = deviceId;
-      } else if (_activeStepDeviceId == deviceId) {
-        _activeStepDeviceId = '';
-      }
+      _activeStepDeviceId = nextActiveDeviceId;
     });
     _cacheCurrentSnapshot();
     if (!_canPersist) return;
-    _queueWrite(
-      () => value
-          ? _userDataRepository.claimActiveStepDevice(widget.userId!, deviceId)
-          : _userDataRepository.releaseActiveStepDevice(
-              widget.userId!,
-              deviceId,
-            ),
-    );
+    try {
+      await _queueWrite(
+        () => value
+            ? _userDataRepository.claimActiveStepDevice(
+                widget.userId!,
+                deviceId,
+              )
+            : _userDataRepository.releaseActiveStepDevice(
+                widget.userId!,
+                deviceId,
+              ),
+      );
+    } catch (_) {
+      if (!mounted ||
+          _stepSyncEnabled != value ||
+          _activeStepDeviceId != nextActiveDeviceId) {
+        return;
+      }
+      setState(() {
+        _stepSyncEnabled = previousEnabled;
+        _activeStepDeviceId = previousActiveDeviceId;
+      });
+      _cacheCurrentSnapshot();
+    }
   }
 
   void _saveSettings() {

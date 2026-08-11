@@ -1445,6 +1445,49 @@ void main() {
     expect(repository.claimedStepDeviceId, 'viewer-device');
   });
 
+  testWidgets('failed step device takeover restores the previous device',
+      (WidgetTester tester) async {
+    final repository = _DeviceScopedSettingsRepository(
+      activeStepDeviceId: 'source-device',
+      failStepDeviceClaim: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'viewer-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+          stepSyncService: _FakeStepSyncService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('마이페이지').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('걸음수 연동 권한'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final stepSwitch = find.byKey(const ValueKey('step-sync-switch'));
+    await tester.tap(stepSwitch);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('변경'));
+    await tester.pumpAndSettle();
+
+    expect(repository.claimedStepDeviceId, isNull);
+    await tester.tap(stepSwitch);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('active step device change turns previous device off in app',
       (WidgetTester tester) async {
     final repository = _DeviceScopedSettingsRepository(
@@ -1859,10 +1902,12 @@ class _DeviceScopedSettingsRepository extends UserDataRepository {
     this.settingsByDevice = const {},
     this.medications = const [],
     String activeStepDeviceId = '',
+    this.failStepDeviceClaim = false,
   }) : _activeStepDeviceId = activeStepDeviceId;
 
   final Map<String, UserSettings> settingsByDevice;
   final List<Medication> medications;
+  final bool failStepDeviceClaim;
   final _activeStepDeviceController = StreamController<String>.broadcast();
   String _activeStepDeviceId;
   String? savedDeviceId;
@@ -1908,6 +1953,7 @@ class _DeviceScopedSettingsRepository extends UserDataRepository {
 
   @override
   Future<void> claimActiveStepDevice(String userId, String deviceId) async {
+    if (failStepDeviceClaim) throw StateError('claim failed');
     claimedStepDeviceId = deviceId;
     emitActiveStepDevice(deviceId);
   }

@@ -77,9 +77,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (oldWidget.notificationEnabled != widget.notificationEnabled) {
       _notificationEnabled = widget.notificationEnabled;
     }
-    if (oldWidget.stepSyncEnabled != widget.stepSyncEnabled) {
-      _stepSyncEnabled = widget.stepSyncEnabled;
-    }
+    _stepSyncEnabled = widget.stepSyncEnabled;
     if (oldWidget.initialProfile != widget.initialProfile) {
       _profileInfo = widget.initialProfile == null
           ? null
