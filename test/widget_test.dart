@@ -236,6 +236,28 @@ void main() {
     expect(find.text('증상 관리'), findsOneWidget);
   });
 
+  testWidgets('daily condition notification opens symptom tab',
+      (WidgetTester tester) async {
+    final notificationService = _FakeNotificationPermissionService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: true,
+          notificationPermissionService: notificationService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('복약관리').last);
+    await tester.pumpAndSettle();
+
+    notificationService.emitPayload('condition:daily');
+    await tester.pumpAndSettle();
+
+    expect(find.text('증상 관리'), findsOneWidget);
+  });
+
   testWidgets('medication add is disabled until required profile exists',
       (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -1251,6 +1273,7 @@ void main() {
   testWidgets('home shell keeps notification setting scoped to device',
       (WidgetTester tester) async {
     final repository = _DeviceScopedSettingsRepository();
+    final notificationService = _FakeNotificationPermissionService();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1259,7 +1282,7 @@ void main() {
           userId: 'user-1',
           deviceId: 'ios-device',
           userDataRepository: repository,
-          notificationPermissionService: _FakeNotificationPermissionService(),
+          notificationPermissionService: notificationService,
         ),
       ),
     );
@@ -1282,6 +1305,32 @@ void main() {
 
     expect(repository.savedDeviceId, 'ios-device');
     expect(repository.savedSettings?.notificationEnabled, isTrue);
+    expect(notificationService.syncedDailyConditionStates.last, isTrue);
+  });
+
+  testWidgets('home shell restores daily condition reminder for this device',
+      (WidgetTester tester) async {
+    final repository = _DeviceScopedSettingsRepository(
+      settingsByDevice: const {
+        'ios-device': UserSettings(notificationEnabled: true),
+      },
+    );
+    final notificationService = _FakeNotificationPermissionService();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'ios-device',
+          userDataRepository: repository,
+          notificationPermissionService: notificationService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(notificationService.syncedDailyConditionStates.last, isTrue);
   });
 
   testWidgets('home shell reads different settings for each device',
@@ -1574,6 +1623,7 @@ class _FakeNotificationPermissionService
     implements NotificationPermissionService {
   final _payloadController = StreamController<String>.broadcast();
   final syncedMedicationBatches = <List<Medication>>[];
+  final syncedDailyConditionStates = <bool>[];
 
   void emitPayload(String payload) {
     _payloadController.add(payload);
@@ -1584,6 +1634,11 @@ class _FakeNotificationPermissionService
 
   @override
   Future<bool> requestPermission() async => true;
+
+  @override
+  Future<void> syncDailyConditionReminder({required bool enabled}) async {
+    syncedDailyConditionStates.add(enabled);
+  }
 
   @override
   Future<void> syncMedicationReminders(Iterable<Medication> medications) async {

@@ -12,6 +12,7 @@ abstract interface class NotificationPermissionService {
   Stream<String> get notificationPayloads;
 
   Future<bool> requestPermission();
+  Future<void> syncDailyConditionReminder({required bool enabled});
   Future<void> syncMedicationReminders(Iterable<Medication> medications);
   Future<void> cancelMedicationReminders(int medicationId);
   Future<int> pendingMedicationReminderCount();
@@ -34,6 +35,10 @@ class LocalNotificationPermissionService
   static const _androidChannelId = 'medication_reminders';
   static const _androidChannelName = '복약 알림';
   static const _androidChannelDescription = '등록한 약물의 섭취 시간을 알려줍니다.';
+  static const _dailyConditionReminderId = 900000001;
+  static const _dailyConditionChannelId = 'daily_condition_reminder';
+  static const _dailyConditionChannelName = '컨디션 기록 알림';
+  static const _dailyConditionChannelDescription = '매일 저녁 컨디션 기록을 안내합니다.';
   static const _iosScheduleHorizonDays = 14;
 
   Future<void> _ensureInitialized() async {
@@ -119,6 +124,41 @@ class LocalNotificationPermissionService
 
   @override
   Stream<String> get notificationPayloads => _notificationPayloads.stream;
+
+  @override
+  Future<void> syncDailyConditionReminder({required bool enabled}) async {
+    await _ensureInitialized();
+    await _ensureTimezoneInitialized();
+    await _notificationsPlugin.cancel(id: _dailyConditionReminderId);
+    if (!enabled) return;
+
+    await _notificationsPlugin.zonedSchedule(
+      id: _dailyConditionReminderId,
+      title: '오늘 컨디션 기록',
+      body: '오늘 몸 상태는 어떠셨나요? 한결에 가볍게 남겨보세요.',
+      scheduledDate: _nextTime(19, 0),
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _dailyConditionChannelId,
+          _dailyConditionChannelName,
+          channelDescription: _dailyConditionChannelDescription,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          presentBanner: true,
+          presentList: true,
+          interruptionLevel: InterruptionLevel.active,
+        ),
+      ),
+      androidScheduleMode: await _androidScheduleMode(),
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: 'condition:daily',
+    );
+  }
 
   @override
   Future<void> syncMedicationReminders(Iterable<Medication> medications) async {

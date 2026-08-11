@@ -160,6 +160,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         }
       });
       unawaited(_syncMedicationNotifications());
+      unawaited(_syncDailyConditionReminder());
       unawaited(
         _userDataRepository.saveCachedSnapshot(
           userId,
@@ -198,6 +199,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           }
         });
         unawaited(_syncMedicationNotifications());
+        unawaited(_syncDailyConditionReminder());
         return;
       }
       setState(() {
@@ -213,6 +215,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         _symptomRecords = const [];
         _index = _profileTabIndex;
       });
+      unawaited(_syncDailyConditionReminder());
     } finally {
       if (mounted && widget.userId == userId) {
         setState(() => _loadingUserData = false);
@@ -322,6 +325,17 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _syncDailyConditionReminder() async {
+    if (widget.isPreview) return;
+    try {
+      await _notificationPermissionService.syncDailyConditionReminder(
+        enabled: _notificationEnabled,
+      );
+    } catch (_) {
+      // 컨디션 알림 예약 실패가 앱 사용을 막지 않도록 합니다.
+    }
+  }
+
   Future<void> _consumeLaunchNotificationPayload() async {
     if (widget.isPreview) return;
     final String? payload;
@@ -335,7 +349,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   }
 
   void _handleNotificationPayload(String payload) {
-    if (!payload.startsWith('medication:')) return;
+    if (!_opensSymptomScreen(payload)) return;
     if (_loadingUserData) {
       _pendingNotificationPayload = payload;
       return;
@@ -345,10 +359,15 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   bool _applyPendingNotificationDestination() {
     final payload = _pendingNotificationPayload;
-    if (payload == null || !payload.startsWith('medication:')) return false;
+    if (payload == null || !_opensSymptomScreen(payload)) return false;
     _pendingNotificationPayload = null;
     _index = _symptomTabIndex;
     return true;
+  }
+
+  bool _opensSymptomScreen(String payload) {
+    return payload.startsWith('medication:') ||
+        payload.startsWith('condition:');
   }
 
   bool _hasActiveMedicationReminders(List<Medication> medications) {
@@ -609,6 +628,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             _notificationEnabled = value;
             _saveSettings();
             unawaited(_syncMedicationNotifications(announce: value));
+            unawaited(_syncDailyConditionReminder());
           }),
           onStepSyncChanged: (value) => setState(() {
             _stepSyncEnabled = value;
@@ -633,6 +653,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             _notificationEnabled = value;
             _saveSettings();
             unawaited(_syncMedicationNotifications(announce: value));
+            unawaited(_syncDailyConditionReminder());
           }),
           onMedicationsChanged: (medications) => setState(() {
             _medications = medications;
