@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/theme/app_theme.dart';
 import '../services/health/step_sync_service.dart';
@@ -34,11 +35,34 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
+  static const _deviceStepSyncEnabledKey = 'device_step_sync_enabled_v1';
+
   late var _hasRequiredInfo = widget.hasRequiredInfo;
   late var _index = _hasRequiredInfo ? 3 : 0;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
   double? _heightCm;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDeviceStepSyncSetting();
+  }
+
+  Future<void> _loadDeviceStepSyncSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(
+      () => _stepSyncEnabled =
+          prefs.getBool(_deviceStepSyncEnabledKey) ?? false,
+    );
+  }
+
+  Future<void> _setDeviceStepSyncEnabled(bool value) async {
+    setState(() => _stepSyncEnabled = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_deviceStepSyncEnabledKey, value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,8 +191,7 @@ class _HomeShellState extends State<HomeShell> {
           stepSyncEnabled: _stepSyncEnabled,
           onNotificationPermissionChanged: (value) =>
               setState(() => _notificationEnabled = value),
-          onStepSyncChanged: (value) =>
-              setState(() => _stepSyncEnabled = value),
+          onStepSyncChanged: _setDeviceStepSyncEnabled,
           onRequiredInfoChanged: (value) =>
               setState(() => _hasRequiredInfo = value),
           onHeightChanged: (value) => setState(() => _heightCm = value),
@@ -191,8 +214,7 @@ class _HomeShellState extends State<HomeShell> {
           isPreview: widget.isPreview,
           stepSyncEnabled: _stepSyncEnabled,
           stepSyncService: widget.stepSyncService,
-          onStepSyncChanged: (value) =>
-              setState(() => _stepSyncEnabled = value),
+          onStepSyncChanged: _setDeviceStepSyncEnabled,
         ),
         const AnalysisScreen(),
       ];
