@@ -611,6 +611,10 @@
     }
 
     .bmi-box .small {
+      line-height: 1.45;
+    }
+
+    .bmi-box #bmiMeta {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -857,9 +861,8 @@
 
     .today-dot {
       position: absolute;
-      top: 27px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 17px;
+      left: calc(50% + 18px);
       width: 7px;
       height: 7px;
       border-radius: 999px;
@@ -881,12 +884,45 @@
       box-shadow: none;
     }
 
+    .mini-badge.cycle-1 {
+      background: #fce7f3;
+      color: #db2777;
+    }
+
+    .mini-badge.cycle-2 {
+      background: #e7f8ef;
+      color: #059669;
+    }
+
+    .mini-badge.cycle-3 {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .mini-badge.cycle-4 {
+      background: #e0f7f4;
+      color: #0f766e;
+    }
+
+    .mini-badge.cycle-5 {
+      background: #e0f7fa;
+      color: #0891b2;
+    }
+
+    .mini-badge.cycle-6 {
+      background: #f3e8ff;
+      color: #7c3aed;
+    }
+
     .mini-badge.side {
       background: #eef8f3;
       color: #159060;
       padding: 2px 5px;
       font-size: 10px;
       font-weight: 500;
+      line-height: 1.18;
+      text-align: center;
+      white-space: nowrap;
       border-radius: 999px;
     }
 
@@ -1621,6 +1657,19 @@
       font-weight: 700;
     }
 
+    .analysis-source-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 8px;
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #c2410c;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
     .analysis-loading {
       min-height: 240px;
       display: grid;
@@ -1782,7 +1831,16 @@
     .analysis-text p {
       margin: 0;
       word-break: keep-all;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
+    }
+
+    .analysis-nowrap {
+      white-space: nowrap;
+    }
+
+    .analysis-text strong {
+      color: inherit;
+      font-weight: 800;
     }
 
     .previous-box {
@@ -1843,6 +1901,7 @@
     .analysis-detail-list {
       display: none;
       gap: 10px;
+      width: 100%;
     }
 
     .analysis-detail-list.show {
@@ -1850,6 +1909,8 @@
     }
 
     .analysis-note-card {
+      box-sizing: border-box;
+      width: 100%;
       border: 1px solid #f4dfae;
       border-left: 3px solid #f59e0b;
       border-radius: 13px;
@@ -2055,6 +2116,59 @@
 
     .toast.show {
       opacity: 1;
+    }
+
+    .alert-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 230;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(17, 24, 39, .28);
+      padding: 20px;
+    }
+
+    .alert-backdrop.show {
+      display: flex;
+    }
+
+    .alert-dialog {
+      width: min(420px, 100%);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(31, 41, 55, .2);
+      padding: 22px;
+    }
+
+    .alert-dialog h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    .alert-dialog p {
+      margin: 0;
+      color: var(--sub);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .alert-code {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--accent-line);
+      border-radius: 12px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .alert-dialog .btn {
+      margin-top: 18px;
+      width: 100%;
     }
 
     .bottom-sheet-backdrop {
@@ -2728,7 +2842,7 @@
             <span class="entry-feature-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="16" rx="3"></rect><path d="M8 3v4"></path><path d="M16 3v4"></path><path d="M5 10h14"></path><path d="M9 15h.01"></path><path d="M13 15h.01"></path></svg>
             </span>
-            <strong>증상관리</strong><span>식사, 배변, 부작용을 기록해요.</span>
+            <strong>증상관리</strong><span>식사, 배변, 운동량, 부작용을 기록해요.</span>
           </div>
           <div class="entry-feature-item">
             <span class="entry-feature-icon" aria-hidden="true">
@@ -2986,20 +3100,21 @@
               </div>
               <div class="policy-content">
                 <div class="policy-intro">
-                  항암기록관리 서비스는 사용자의 항암 치료 기록을 정리하고 외래 진료 전 확인할 수 있도록 돕기 위해 필요한 최소한의 개인정보와 건강 관련 기록을 처리합니다. 본 문서는 앱 출시 전 검토를 위한 초안입니다.
+                  항암기록관리 서비스는 항암치료 중 일상 기록을 관리하고 외래 진료 전 상담 준비를 돕기 위해 필요한 최소한의 정보를 처리합니다.
                 </div>
                 <div class="policy-section">
-                  <h4>1. 수집하는 정보</h4>
+                  <h4>1. 처리하는 정보</h4>
                   <ul>
-                    <li>회원 정보: Firebase 로그인을 위한 이메일, 사용자 식별자, 로그인 제공자 정보</li>
-                    <li>사용자 정보: 성별, 생년월일, 키, 암종, 병기, 진단일, 치료 정보, 기타 참고 정보</li>
-                    <li>건강 기록: 체중, 복약 정보, 항암 회차/일차, 식사량, 음수량, 배변, 주요 부작용, 주요증상 텍스트</li>
-                    <li>권한 및 설정: 알림 허용 여부, 걸음수 연동 허용 여부, 복약 알림 시간</li>
+                    <li>회원 및 인증 정보: 이메일, 로그인 제공자, Firebase UID</li>
+                    <li>사용자 정보: 성별, 생년월일, 암종, 병기, 진단일, 전이 여부, 항암치료 종류, 치료 시작일, 키, 기타정보</li>
+                    <li>기록 정보: 복용 약물, 복약 알림 시간, 체중, BMI 계산값, 항암 회차/진행일차, 식사량과 식사 메모, 음수량, 걸음수, 배변 여부와 상태, 주요 부작용, 주요 증상 텍스트</li>
+                    <li>권한 정보: 알림 권한 상태, 걸음수 연동 권한 상태</li>
                   </ul>
                 </div>
                 <div class="policy-section">
                   <h4>2. 이용 목적</h4>
-                  <p>수집한 정보는 회원 인증, 항암 치료 기록 저장, 복약 알림, 체중 변화 확인, 증상 기록 관리, 회차별 AI 분석 요약, 외래 상담 준비용 기록 확인에 사용됩니다. 서비스는 사용자의 기록을 바탕으로 참고 정보를 제공하며 의학적 진단이나 치료 결정을 대체하지 않습니다.</p>
+                  <p>수집한 정보는 회원 인증, 기록 저장과 조회, 복약 알림, 체중 변화 확인, 증상 기록 관리, 회차별 AI 분석, 외래 상담 준비, 문의 응대와 서비스 안정성 개선을 위해 사용합니다. 광고, 마케팅, 사용자 추적, 정보 판매 목적으로 사용하지 않습니다.</p>
+                  <p>회원별 기록은 로그인 계정 기준으로 분리 저장하며, 다른 사용자가 접근할 수 없도록 서버 보안 규칙을 적용합니다. 둘러보기 모드에서는 실제 건강정보와 기록을 저장하지 않습니다.</p>
                 </div>
                 <div class="policy-section">
                   <h4>3. 알림 권한</h4>
@@ -3007,23 +3122,37 @@
                 </div>
                 <div class="policy-section">
                   <h4>4. 걸음수 연동</h4>
-                  <p>걸음수 연동은 사용자가 명시적으로 허용한 경우에만 휴대폰의 걸음수를 증상 기록에 불러오기 위해 사용됩니다. 실제 앱에서는 iOS HealthKit 또는 Android Health Connect를 통해 걸음수를 불러오며, 권한 요청은 사용자가 걸음수 연동을 켤 때만 진행됩니다. 연동하지 않는 경우 사용자는 걸음수를 직접 입력할 수 있습니다. 앱은 걸음수 데이터를 광고, 추적, 제3자 판매 목적으로 사용하지 않습니다.</p>
+                  <p>걸음수 연동은 사용자가 마이페이지에서 직접 켤 때만 권한을 요청합니다. iOS에서는 HealthKit, Android에서는 Health Connect를 통해 휴대폰의 걸음수를 불러와 증상관리의 운동량 입력에 사용합니다. 걸음수 데이터는 광고, 마케팅, 사용자 추적 목적으로 사용하지 않으며, 사용자는 언제든 설정에서 연동을 끌 수 있습니다.</p>
                 </div>
                 <div class="policy-section">
                   <h4>5. AI 분석 활용</h4>
-                  <p>AI 분석은 사용자 정보, 체중 기록, 증상 기록을 바탕으로 식사량, 음수량, 운동량, 배변, 부작용을 요약합니다. 분석 결과는 참고용이며, 진단명 단정, 처방 변경, 치료 중단 권고를 제공하지 않습니다.</p>
+                  <p>AI 분석은 사용자가 AI분석 화면에서 분석을 요청할 때만 실행됩니다. 앱은 외부 AI 처리자를 직접 호출하지 않고 서버를 경유해 분석을 요청하며, 분석에 필요한 최소 건강정보만 전송합니다. 이름, 이메일, Firebase UID, 로그인 제공자 정보는 AI 분석 요청에 포함하지 않습니다.</p>
+                  <p>AI 분석은 공신력 있는 암 치료 부작용 자료에서 일반적으로 인정되는 범위 안에서만 증상 관련 가능성을 표현하도록 설계합니다. 기록만으로 관련성을 충분히 판단하기 어려운 경우 원인을 단정하지 않고 제한적으로 안내합니다.</p>
+                  <p>AI 분석 결과는 참고용 정보이며 의학적 진단, 처방, 치료 변경, 응급 판단을 대체하지 않습니다. 모든 증상과 건강 관련 결정은 담당 의료진과 상의해야 합니다.</p>
                 </div>
                 <div class="policy-section">
-                  <h4>6. 보관 및 삭제</h4>
-                  <p>사용자의 기록은 서비스 제공 기간 동안 보관되며, 회원탈퇴 또는 데이터 삭제 요청 시 관련 법령상 보관이 필요한 항목을 제외하고 삭제됩니다. 사용자는 앱 내 기능 또는 문의하기를 통해 개인정보 열람, 수정, 삭제를 요청할 수 있습니다.</p>
+                  <h4>6. 제3자 제공 및 처리 위탁</h4>
+                  <p>본 앱은 서비스 제공을 위해 인증, 데이터 저장, 서버 처리, AI 분석 등 외부 서비스를 사용할 수 있습니다. 외부 서비스에는 기능 제공에 필요한 최소 정보만 전달하며, 법령에 따른 경우를 제외하고 사용자의 동의 없이 건강정보를 판매하거나 광고 목적으로 제공하지 않습니다.</p>
                 </div>
                 <div class="policy-section">
-                  <h4>7. 제3자 제공 및 위탁</h4>
-                  <p>서비스 운영을 위해 Firebase Authentication 등 인증 및 저장 인프라를 사용할 수 있습니다. 개인정보를 제3자에게 판매하지 않으며, 외부 서비스 이용 시에는 개인정보 보호와 보안에 필요한 조치를 적용합니다.</p>
+                  <h4>7. 국외 처리 가능성</h4>
+                  <p>외부 서비스 제공자의 서버 위치에 따라 정보가 국외에서 처리될 수 있습니다. 국외 처리 항목은 서비스 제공, 인증, 데이터 저장, AI 분석에 필요한 정보로 제한되며, 실제 출시 전 운영 리전과 보관 기간을 기준으로 앱 내 고지를 최신 상태로 유지합니다.</p>
                 </div>
                 <div class="policy-section">
-                  <h4>8. 문의</h4>
-                  <p>개인정보 처리와 관련한 문의는 앱의 문의하기 메뉴를 통해 접수할 수 있습니다. 시행일과 사업자 정보, 개인정보 보호책임자 정보는 정식 배포 전 확정하여 고지합니다.</p>
+                  <h4>8. 보관 및 삭제</h4>
+                  <p>회원 정보와 기록은 회원이 서비스를 이용하는 기간 동안 보관합니다. 사용자가 기록을 삭제하거나 회원탈퇴를 요청하면 관련 계정과 앱 내 기록 삭제를 처리합니다. 단, 관계 법령 준수, 보안 사고 대응, 분쟁 해결을 위해 필요한 최소 정보는 정해진 기간 동안 보관될 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>9. 이용자 권리</h4>
+                  <p>사용자는 앱에서 본인의 정보를 확인, 수정, 삭제할 수 있으며 알림 권한, 걸음수 연동 권한, AI 분석 이용을 언제든 중단할 수 있습니다. 개인정보 관련 문의와 삭제 요청은 앱 내 문의하기 또는 개인정보 보호 문의처로 요청할 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>10. 아동 이용</h4>
+                  <p>본 앱은 항암치료 기록 관리가 필요한 사용자와 보호자가 이용할 수 있습니다. 만 14세 미만 아동의 개인정보를 처리하는 경우 법정대리인의 동의가 필요하며, 법정대리인은 아동의 개인정보 열람, 수정, 삭제, 처리 정지를 요청할 수 있습니다.</p>
+                </div>
+                <div class="policy-section">
+                  <h4>11. 문의</h4>
+                  <p>개인정보 처리와 관련한 문의는 앱의 문의하기 메뉴 또는 lab4nim@gmail.com으로 접수할 수 있습니다.</p>
                 </div>
               </div>
             </div>
@@ -3034,7 +3163,7 @@
           <div class="section-head">
             <div>
               <h2>약물 관리</h2>
-              <p>복용 약물을 등록하고 개별 약물의 섭취 시간 알림을 설정합니다.</p>
+              <p>복용 약물을 등록하고 섭취 시간 알림을 설정합니다.</p>
             </div>
             <button class="btn" id="addMed">약물 등록</button>
           </div>
@@ -3056,7 +3185,7 @@
           <div class="banner">
             <div class="bmi-box" id="bmiBox">
               <div class="bmi-status-line" id="bmiStatusLine">현재 BMI <span class="bmi-number" id="bmiValue">22.8</span> · <span id="bmiTag">정상</span></div>
-              <div id="bmiText" class="small">BMI가 정상이더라도 체중 변화, 식사량, 수분섭취를 함께 확인해 주세요.</div>
+              <div id="bmiText" class="small">체중 변화와 식사·수분섭취를 함께 확인해 주세요.</div>
               <div class="small" id="bmiMeta">최근 체중 59.8kg · 마지막 입력일 2026-06-02</div>
               <div class="bmi-demo-tabs" aria-label="BMI 상태 예시">
                 <button class="bmi-demo-btn active" type="button" data-bmi-demo="normal">정상</button>
@@ -3101,14 +3230,14 @@
               <div class="chart" id="weightChart"></div>
             </div>
           </div>
-          <div class="weight-disclaimer">BMI와 체중 변화 안내는 참고용 정보이며, 의학적 진단이나 치료 결정을 대체하지 않습니다.</div>
+          <div class="weight-disclaimer">BMI와 체중 변화 안내는 참고용 정보이며,<br>의학적 진단이나 치료 결정을 대체하지 않습니다.</div>
         </section>
 
         <section class="view active" id="symptom">
           <div class="section-head">
             <div>
               <h2>증상 관리</h2>
-              <p>항암 회차, 식사량, 음수량, 운동량, 배변, 주요 부작용을 기록합니다.</p>
+              <p>회차별 생활반응과 주요 부작용을 기록합니다.</p>
             </div>
           </div>
           <div class="required-info-banner" data-required-info-banner></div>
@@ -3139,7 +3268,7 @@
           <div class="section-head">
             <div>
               <h2>AI분석</h2>
-              <p>동일 항암 회차의 기록을 요약하고 분석합니다. 회차가 쌓일수록 이전 회차와의 비교 분석을 제공합니다.</p>
+              <p>동일 항암 회차의 기록을 요약하고 분석합니다.<br>회차가 쌓일수록 이전 회차와의 비교 분석을 제공합니다.</p>
             </div>
           </div>
           <div class="required-info-banner" data-required-info-banner></div>
@@ -3195,16 +3324,26 @@
           <div class="grid two">
             <div class="field">
               <label class="required" for="medDose">복용량</label>
-              <input id="medDose" type="text" maxlength="30" placeholder="예: 1정">
+              <input id="medDose" type="text" inputmode="decimal" maxlength="6" placeholder="예: 1">
             </div>
             <div class="field">
-              <label class="required" for="medFrequency">복용 주기</label>
-              <select id="medFrequency">
-                <option value="매일">매일</option>
-                <option value="필요시">필요시</option>
-                <option value="직접입력">직접입력</option>
+              <label class="required" for="medDoseUnit">복용 단위</label>
+              <select id="medDoseUnit">
+                <option value="정">정</option>
+                <option value="알">알</option>
+                <option value="포">포</option>
+                <option value="ml">ml</option>
+                <option value="mg">mg</option>
               </select>
             </div>
+          </div>
+          <div class="field">
+            <label class="required" for="medFrequency">복용 주기</label>
+            <select id="medFrequency">
+              <option value="매일">매일</option>
+              <option value="필요시">필요시</option>
+              <option value="직접입력">직접입력</option>
+            </select>
           </div>
           <div class="field weekday-field" id="medWeekdayField">
             <label class="required">복용 요일</label>
@@ -3256,15 +3395,13 @@
         <button class="btn secondary" data-close-modal="symptomModal">닫기</button>
       </div>
       <div class="modal-body">
-        <div class="grid two">
-          <div class="field">
-            <label class="required" for="cycleNo">항암 회차</label>
-            <input id="cycleNo" type="number" min="1" max="100" inputmode="numeric" placeholder="진행회차를 숫자로 입력하세요.">
-          </div>
-          <div class="field">
-            <label class="required" for="cycleDay">진행일차</label>
-            <input id="cycleDay" type="number" min="1" max="100" inputmode="numeric" placeholder="진행일차를 숫자로 입력하세요.">
-          </div>
+        <div class="field">
+          <label class="required" for="cycleNo">항암 회차</label>
+          <input id="cycleNo" type="number" min="1" max="100" inputmode="numeric" placeholder="진행회차를 숫자로 입력하세요.">
+        </div>
+        <div class="field">
+          <label class="required" for="cycleDay">진행일차</label>
+          <input id="cycleDay" type="number" min="1" max="100" inputmode="numeric" placeholder="진행일차를 숫자로 입력하세요.">
         </div>
         <div class="field">
           <label class="required" for="meal">식사량</label>
@@ -3354,6 +3491,15 @@
 
   <div class="toast" id="toast"></div>
 
+  <div class="alert-backdrop" id="errorDialog" aria-hidden="true">
+    <div class="alert-dialog" role="alertdialog" aria-modal="true" aria-labelledby="errorDialogTitle">
+      <h3 id="errorDialogTitle">AI 분석을 완료하지 못했어요</h3>
+      <p id="errorDialogMessage">일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</p>
+      <div class="alert-code" id="errorDialogCode">오류 코드: unknown</div>
+      <button class="btn" id="errorDialogClose" type="button">확인</button>
+    </div>
+  </div>
+
   <div class="bottom-sheet-backdrop" id="selectSheet" aria-hidden="true">
     <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="selectSheetTitle">
       <div class="bottom-sheet-head">
@@ -3377,7 +3523,7 @@
           <button class="date-nav" id="dateNextMonth" type="button">›</button>
         </div>
         <div class="date-jump">
-          <input id="dateYearInput" type="number" min="1900" max="2100" aria-label="연도">
+          <input id="dateYearInput" type="number" min="1906" max="2026" aria-label="연도">
           <input id="dateMonthInput" type="number" min="1" max="12" aria-label="월">
         </div>
         <div class="date-grid" id="dateGrid"></div>
@@ -3484,6 +3630,21 @@
       setTimeout(() => toast.classList.remove("show"), 2200);
     }
 
+    function showErrorDialog({ title, message, code }) {
+      const dialog = document.getElementById("errorDialog");
+      document.getElementById("errorDialogTitle").textContent = title || "오류가 발생했어요";
+      document.getElementById("errorDialogMessage").textContent = message || "잠시 후 다시 시도해 주세요.";
+      document.getElementById("errorDialogCode").textContent = `오류 코드: ${code || "unknown"}`;
+      dialog.classList.add("show");
+      dialog.setAttribute("aria-hidden", "false");
+    }
+
+    function closeErrorDialog() {
+      const dialog = document.getElementById("errorDialog");
+      dialog.classList.remove("show");
+      dialog.setAttribute("aria-hidden", "true");
+    }
+
     function escapeHtml(value) {
       return String(value)
         .replaceAll("&", "&amp;")
@@ -3575,6 +3736,22 @@
       month: 0
     };
 
+    function dateBoundsForInput(input) {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      if (input?.id === "birthDate") {
+        return { minYear: currentYear - 120, maxYear: currentYear };
+      }
+      return { minYear: 1990, maxYear: currentYear };
+    }
+
+    function clampDateState() {
+      const bounds = dateBoundsForInput(dateState.activeInput);
+      dateState.year = Math.min(Math.max(dateState.year, bounds.minYear), bounds.maxYear);
+      dateState.month = Math.min(Math.max(dateState.month, 0), 11);
+      return bounds;
+    }
+
     function formatDateValue(value) {
       if (!value) return "날짜 선택";
       const [year, month, day] = value.split("-");
@@ -3599,11 +3776,16 @@
       const title = document.getElementById("dateCurrentMonth");
       const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
       const selectedValue = dateState.activeInput?.value;
+      const bounds = clampDateState();
       const firstDay = (new Date(dateState.year, dateState.month, 1).getDay() + 6) % 7;
       const daysInMonth = new Date(dateState.year, dateState.month + 1, 0).getDate();
+      const yearInput = document.getElementById("dateYearInput");
 
       title.textContent = `${dateState.year}년 ${dateState.month + 1}월`;
-      document.getElementById("dateYearInput").value = dateState.year;
+      yearInput.min = bounds.minYear;
+      yearInput.max = bounds.maxYear;
+      yearInput.placeholder = `${bounds.minYear}~${bounds.maxYear}`;
+      yearInput.value = dateState.year;
       document.getElementById("dateMonthInput").value = dateState.month + 1;
       grid.innerHTML = "";
       weekdays.forEach(day => {
@@ -3822,7 +4004,7 @@
           label: "저체중 위험",
           emoji: "⚠️",
           className: "risk",
-          text: "식사량 저하나 체중 감소가 지속되면 의료진에게 공유해 주세요."
+          text: "식사량과 체중 감소 추이를 의료진에게 공유해 주세요."
         };
       }
       if (bmi < 25) {
@@ -3830,7 +4012,7 @@
           label: "정상",
           emoji: "✅",
           className: "normal",
-          text: "BMI가 정상이더라도 체중 변화, 식사량, 수분섭취를 함께 확인해 주세요."
+          text: "체중 변화와 식사·수분섭취를 함께 확인해 주세요."
         };
       }
       return {
@@ -3889,6 +4071,7 @@
       const [latestDate, latestWeight] = entries[entries.length - 1];
       const [baselineDate, baselineWeight] = entries[0];
       const change = weightChangePercent(baselineWeight, latestWeight);
+      const weightDelta = latestWeight - baselineWeight;
       const latestBmi = latestWeight / ((state.profile.heightCm / 100) ** 2);
       const absChange = Math.abs(change);
       const periodDays = Math.max(1, Math.round((new Date(`${latestDate}T00:00:00`) - new Date(`${baselineDate}T00:00:00`)) / 86400000));
@@ -3896,25 +4079,25 @@
       if (change <= -5) {
         return {
           type: "loss5",
-          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. <span class="highlight">5% 이상 감소</span> 기준에 해당해 <span class="action">의료진과 상담해 주세요.</span>`
+          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. <span class="highlight">5% 이상 감소</span> 기준에 해당해<br><span class="action">의료진과 상담해 주세요.</span>`
         };
       }
       if (latestBmi < 20 && change <= -2) {
         return {
           type: "lowBmiLoss",
-          html: `BMI 20 미만에서 최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. <span class="action">의료진과 상담해 주세요.</span>`
+          html: `BMI 20 미만에서 최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다.<br><span class="action">의료진과 상담해 주세요.</span>`
         };
       }
       if (change <= -3) {
         return {
           type: "rapidLoss",
-          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. 식사량 저하가 함께 있으면 <span class="action">의료진과 상담해 주세요.</span>`
+          html: `최근 ${periodDays}일 <span class="highlight">${absChange.toFixed(1)}% 감소</span>가 확인됩니다. 식사량 저하가 함께 있으면<br><span class="action">의료진과 상담해 주세요.</span>`
         };
       }
-      if (change >= 3) {
+      if (periodDays <= 7 && (change >= 3 || weightDelta >= 1.5)) {
         return {
           type: "rapidGain",
-          html: `최근 ${periodDays}일 <span class="highlight">${change.toFixed(1)}% 증가</span>가 확인됩니다. 부종이나 복부팽만이 있으면 <span class="action">의료진과 상담해 주세요.</span>`
+          html: `최근 ${periodDays}일 <span class="highlight">${change.toFixed(1)}% 증가</span>가 확인됩니다.<br>부종, 복부팽만, 숨참이 있으면 확인이 필요합니다.<br><span class="action">의료진과 상담해 주세요.</span>`
         };
       }
       return null;
@@ -3927,6 +4110,28 @@
       const info = weightAdviceInfo();
       advice.classList.toggle("show", Boolean(info));
       text.innerHTML = info ? info.html : "";
+    }
+
+    function getCycleBadgeStyle(cycleNo) {
+      const cycle = Number(cycleNo || 1);
+      const fixedTones = {
+        1: ["#fce7f3", "#db2777"],
+        2: ["#e7f8ef", "#059669"],
+        3: ["#eff6ff", "#2563eb"],
+        4: ["#e0f7f4", "#0f766e"],
+        5: ["#e0f7fa", "#0891b2"],
+        6: ["#f3e8ff", "#7c3aed"],
+      };
+      const fixedTone = fixedTones[cycle];
+      if (fixedTone) {
+        return `background:${fixedTone[0]};color:${fixedTone[1]};`;
+      }
+      const hue = ((cycle <= 0 ? 1 : cycle) * 67 + 211) % 360;
+      return `background:hsl(${hue} 70% 95%);color:hsl(${hue} 72% 38%);`;
+    }
+
+    function sideEffectBadgeStyle(effect) {
+      return String(effect || "").length >= 4 ? 'style="font-size:9px;"' : "";
     }
 
     function buildCalendar(containerId, type) {
@@ -3971,10 +4176,10 @@
         } else {
           const record = visibleSymptoms()[key];
           if (record) {
-            button.innerHTML += `<span class="mini-badge">${record.cycleNo}-${record.cycleDay}</span>`;
+            button.innerHTML += `<span class="mini-badge" style="${getCycleBadgeStyle(record.cycleNo)}">${record.cycleNo}-${record.cycleDay}</span>`;
             const visibleEffects = record.sideEffects.filter(effect => effect !== "없음").slice(0, 3);
             if (visibleEffects.length) {
-              button.innerHTML += `<span class="calendar-side-badges">${visibleEffects.map(effect => `<span class="mini-badge side">${effect}</span>`).join("")}</span>`;
+              button.innerHTML += `<span class="calendar-side-badges">${visibleEffects.map(effect => `<span class="mini-badge side" ${sideEffectBadgeStyle(effect)}>${effect}</span>`).join("")}</span>`;
             }
           }
           button.addEventListener("click", () => selectSymptomDate(key));
@@ -4266,13 +4471,24 @@
       renderMedReminderRows(reminders);
     }
 
+    function parseMedDose(dose = "") {
+      const trimmed = String(dose).trim();
+      if (!trimmed) return { amount: "", unit: "정" };
+      const match = trimmed.match(/^([0-9]+(?:\.[0-9]+)?)(.*)$/);
+      if (!match) return { amount: trimmed, unit: "정" };
+      const unit = ["정", "알", "포", "ml", "mg"].includes(match[2].trim()) ? match[2].trim() : "정";
+      return { amount: match[1], unit };
+    }
+
     function resetMedForm() {
       document.getElementById("medName").value = "";
       document.getElementById("medDose").value = "";
+      document.getElementById("medDoseUnit").value = "정";
       document.getElementById("medFrequency").value = "매일";
       setMedWeekdays([]);
       document.getElementById("medReminder").checked = true;
       document.getElementById("medMemo").value = "";
+      updateSheetButton(document.getElementById("medDoseUnit"));
       updateSheetButton(document.getElementById("medFrequency"));
       updateMedWeekdayVisibility();
       renderMedReminderRows(defaultMedReminders);
@@ -4288,12 +4504,15 @@
 
       resetMedForm();
       if (med) {
+        const parsedDose = parseMedDose(med.dose);
         document.getElementById("medName").value = med.name;
-        document.getElementById("medDose").value = med.dose;
+        document.getElementById("medDose").value = parsedDose.amount;
+        document.getElementById("medDoseUnit").value = parsedDose.unit;
         document.getElementById("medFrequency").value = med.frequency;
         setMedWeekdays(med.weekdays || []);
         document.getElementById("medReminder").checked = med.reminder;
         document.getElementById("medMemo").value = med.memo;
+        updateSheetButton(document.getElementById("medDoseUnit"));
         updateSheetButton(document.getElementById("medFrequency"));
         updateMedWeekdayVisibility();
         renderMedReminderRows(med.reminders || [{ label: "알림", time: med.time || "09:00" }]);
@@ -4310,15 +4529,21 @@
         return;
       }
       const name = document.getElementById("medName").value.trim();
-      const dose = document.getElementById("medDose").value.trim();
+      const doseAmount = document.getElementById("medDose").value.trim();
+      const doseUnit = document.getElementById("medDoseUnit").value;
+      const dose = `${doseAmount}${doseUnit}`;
       const frequency = document.getElementById("medFrequency").value;
       const weekdays = selectedMedWeekdays();
       const reminder = document.getElementById("medReminder").checked;
       const reminders = currentMedReminders();
       const memo = document.getElementById("medMemo").value.trim();
 
-      if (!name || !dose || !frequency || reminders.some(item => !item.label || !item.time)) {
+      if (!name || !doseAmount || !frequency || reminders.some(item => !item.label || !item.time)) {
         showToast("약물명, 복용량, 복용 주기, 알림 시간을 입력해 주세요.");
+        return;
+      }
+      if (Number.isNaN(Number(doseAmount)) || Number(doseAmount) <= 0) {
+        showToast("복용량은 숫자로 입력해 주세요.");
         return;
       }
       if (frequency === "직접입력" && !weekdays.length) {
@@ -4455,13 +4680,23 @@
       const currentAvgSteps = currentSteps.length ? Math.round(currentSteps.reduce((sum, value) => sum + value, 0) / currentSteps.length) : null;
 
       const messages = {
-        meal: `이전 회차의 식사 저하 기록 ${prevLowMeals}일과 비교해 이번 회차의 섭취 패턴을 확인했습니다.`,
-        water: `이전 회차의 500ml 이하 기록 ${prevLowWater}일과 비교해 수분섭취 변화가 확인됩니다.`,
-        activity: prevAvgSteps && currentAvgSteps ? `이전 평균 ${prevAvgSteps.toLocaleString()}보 대비 이번 평균 ${currentAvgSteps.toLocaleString()}보입니다.` : "이전 회차와 비교할 걸음수 기록이 제한적입니다.",
-        bowel: `이전 회차의 배변 이상 ${prevBowelIssues}일과 비교해 이번 회차 배변 상태를 확인했습니다.`,
-        effects: `이전 주요 부작용 ${prevEffects.length ? prevEffects.join(", ") : "없음"} 대비 이번 회차는 ${currentEffects.length ? currentEffects.join(", ") : "특이 부작용 없음"}입니다.`
+        meal: prevLowMeals
+          ? `이전 회차에도 **섭취 저하 패턴**이 있었음. 이번 회차에서 더 빠르게 낮아지면 구토·오심 동반 여부 공유 필요.`
+          : `이전 회차보다 식사 저하가 두드러지면 **새로운 섭취 변화**로 볼 수 있음. 동반 증상 확인 필요.`,
+        water: prevLowWater
+          ? `이전 회차에도 낮은 수분섭취가 있어 **저수분 패턴 반복** 확인 필요. 구토·설사 동반 여부 공유 권장.`
+          : `이전보다 수분섭취가 낮아졌다면 **새로운 저수분 흐름**. 부족 기록 반복 여부 확인 필요.`,
+        activity: prevAvgSteps && currentAvgSteps
+          ? `이전 평균 ${prevAvgSteps.toLocaleString()}보 대비 활동량 변화 확인. 저활동이 빨라지면 **컨디션 저하 신호**로 공유 필요.`
+          : "걸음수 비교 기록은 제한적. 이번 회차의 저활동 반복 여부 확인 필요.",
+        bowel: prevBowelIssues
+          ? `이전 회차에도 배변 이상이 있어 **배변 리듬 변동성 반복** 확인 필요. 변 상태 방향 변화가 상담 포인트.`
+          : `이전보다 배변 리듬 변화가 두드러지면 **새로운 변 상태 변화**. 식사·수분 저하 동반 여부 확인 필요.`,
+        effects: prevEffects.length
+          ? `이전 회차와 비교해 이번 증상이 **반복 또는 다른 방향으로 진행되는지** 확인 필요. 식사·수분·활동 변화와 함께 공유 권장.`
+          : `이전보다 부작용 기록이 늘면 **새로운 증상 흐름**. 반복성, 강도 변화, 일상 영향 확인 필요.`
       };
-      return limitText(messages[label], 150);
+      return limitText(messages[label], 190);
     }
 
     function summarizeAnalysis(cycleNo) {
@@ -4475,25 +4710,26 @@
       const avgSteps = steps.length ? Math.round(steps.reduce((sum, value) => sum + value, 0) / steps.length) : null;
       const bowelIssues = records.filter(record => record.bowel === "있음" && record.stoolStatus && record.stoolStatus !== "정상");
       const notes = records.map(record => record.note).filter(Boolean);
+      const mealMemos = records.flatMap(record => [record.breakfastMemo, record.lunchMemo, record.dinnerMemo, record.extraMealMemo]).filter(Boolean);
       const profileAge = ageFromBirthDate(profileValue("birthDate"));
       const profileMeta = `만 ${profileAge}세, ${profileValue("cancerType")} ${profileValue("stage")}, 최근 체중 ${latestWeightText()}`;
 
       const mealSummary = limitText(lowMeals.length
-        ? `${lowMeals.map(record => `${record.cycleDay}일차`).join(", ")}에 식사량 저하가 기록되었습니다. 섭취 음식, 체중 변화와 함께 상담 시 전달해 주세요.`
-        : `이번 회차 식사량은 큰 저하 없이 기록되었습니다. 기타 식사와 섭취 다양성도 함께 확인해 주세요.`, 150);
+        ? `평소 수준에서 낮아지는 **섭취 저하 흐름**. ${mealMemos.length ? "메뉴 다양성과 식사 유지 가능성을 함께 보면 상담 포인트가 분명해짐." : "구토·오심과 겹치는지 확인 필요."}`
+        : `${mealMemos.length ? "**식사량은 비교적 유지 중**이며 섭취 다양성도 확인 가능. " : "**평소 수준의 식사량 유지**. "}식욕 저하 새 발생 여부 관찰 필요.`, 190);
       const waterSummary = limitText(lowWater.length
-        ? `${lowWater.length}일에서 500ml 이하 수분섭취가 기록되었습니다. 구토, 설사, 발열 동반 여부를 확인해 주세요.`
-        : `수분섭취는 기록 범위 내에서 큰 부족 신호가 두드러지지 않습니다.`, 150);
+        ? `500ml 이하 수분섭취가 반복되는 **저수분 패턴**. 구토·설사가 함께 있으면 실제 수분 유지 확인 필요.`
+        : `수분섭취는 기록 범위 안에서 **큰 부족 신호가 두드러지지 않음**. 오심·구토 동반 시 유지 여부 확인 필요.`, 190);
       const activitySummary = limitText(avgSteps
-        ? `평균 활동량은 약 ${avgSteps.toLocaleString()}보입니다. 피로, 어지러움과 함께 감소하는지 확인해 주세요.`
-        : `걸음수 기록이 부족해 활동량 변화 판단이 제한됩니다.`, 150);
+        ? `평균 활동량은 약 **${avgSteps.toLocaleString()}보**. 걸음수 흐름으로 활동 회복 또는 제한 신호 확인 가능.`
+        : `걸음수 기록이 부족해 **활동량 변화 판단은 제한적**. 저활동 반복 여부를 이어서 확인 필요.`, 190);
       const bowelSummary = limitText(bowelIssues.length
-        ? `${bowelIssues.map(record => `${record.cycleDay}일차 ${record.stoolStatus}`).join(", ")} 기록이 있어 외래 시 전달하면 좋습니다.`
-        : `배변 기록에서 뚜렷한 이상 신호는 확인되지 않습니다.`, 150);
+        ? `평소와 다른 변 상태로 **배변 리듬 변동성** 관찰. 식사·수분 변화와 함께 확인 필요.`
+        : `배변 기록에서는 **뚜렷한 이상 신호가 두드러지지 않음**. 설사·변비 새 발생 여부 확인 필요.`, 190);
       const sideEffectSummary = limitText(sideEffects.length
-        ? `주요 부작용은 ${sideEffects.slice(0, 6).join(", ")}입니다. 반복되거나 악화된 증상은 상담 시 전달해 주세요.`
-        : `주요 부작용은 없음으로 기록되었거나 특이 기록이 없습니다.`, 150);
-      const aiComment = limitText(`${profileMeta} 기준으로 이번 ${cycleNo}회차는 ${sideEffects.length ? `${sideEffects[0]} 등 증상` : "증상 기록"}과 식사, 수분, 활동량을 함께 확인해야 합니다. 외래 시 변화가 컸던 날짜와 부작용을 전달해 주세요.`, 240);
+        ? `주요 부작용은 증상명보다 **반복성과 진행 방향**이 중요함. 식사·수분·활동 변화와 함께 나타나면 공유 필요.`
+        : `주요 부작용은 없음이거나 특이 기록이 적음. **컨디션 변화와 식사·수분 흐름**을 함께 확인 필요.`, 190);
+      const aiComment = limitText(`${profileMeta} 기준으로 이번 ${cycleNo}회차는 식사, 수분, 활동량, 배변, 부작용이 함께 변하는 흐름을 보는 것이 중요합니다. ${sideEffects.length ? `특히 **${sideEffects[0]} 등 반복 증상**이 섭취나 활동 저하와 맞물리면 외래 상담 때 조절 필요성을 전달하면 좋습니다.` : "**큰 부작용 신호가 적은 편**이라도 체중, 식사량, 수분섭취가 함께 유지되는지 확인하면 좋습니다."}\n\n다음 상담 전에는 반복되는 불편감과 함께 낮아진 항목을 중심으로 정리해 두면 도움이 됩니다.`, 400);
       const encouragement = "오늘도 기록을 이어가고 계신 것만으로도 충분히 잘하고 있어요. 💜";
 
       return {
@@ -4506,7 +4742,7 @@
           { key: "water", icon: "💧", title: "음수량", tone: "water", current: waterSummary, previous: previousComparisonText("water", records, previous) },
           { key: "activity", icon: "🚶", title: "운동량", tone: "activity", current: activitySummary, previous: previousComparisonText("activity", records, previous) },
           { key: "bowel", icon: "🚽", title: "배변", tone: "bowel", current: bowelSummary, previous: previousComparisonText("bowel", records, previous) },
-          { key: "effects", icon: "⚠️", title: "특이사항 및 부작용", tone: "effects", current: sideEffectSummary, previous: previousComparisonText("effects", records, previous) }
+          { key: "effects", icon: "⚠️", title: "특이사항", tone: "effects", current: sideEffectSummary, previous: previousComparisonText("effects", records, previous) }
         ],
         aiComment,
         encouragement,
@@ -4526,31 +4762,34 @@
       `;
     }
 
-    function analysisParagraphHtml(value, options = {}) {
-      const text = String(value || "").trim();
-      if (!text) return "<p>기록 없음</p>";
-      const sentences = text
+    function analysisInlineHtml(value) {
+      const unitPattern = /(\d+(?:\.\u2060?\d+)?[\u2060\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)?[\u2060\s]*[~～-][\u2060\s]*\d+(?:\.\u2060?\d+)?[\u2060\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음)|\d+(?:\.\u2060?\d+)?[\u2060\s]*(?:ml|mL|ML|L|l|kg|%|보|걸음))/g;
+      return escapeHtml(value)
+        .replace(unitPattern, '<span class="analysis-nowrap">$1</span>')
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    }
+
+    function normalizeAnalysisText(value) {
+      const compacted = String(value || "")
+        .replace(/(\d)\.\s+(?=\d)/g, "$1.")
         .replace(/\s+/g, " ")
-        .replace(/(습니다\.|주세요\.|입니다\.|[.!?。！？])\s+/g, "$1\n")
-        .split("\n")
-        .map(sentence => sentence.trim())
-        .filter(Boolean);
-      if (options.eachSentence) {
-        return sentences.map(sentence => `<p>${escapeHtml(sentence)}</p>`).join("");
-      }
-      const chunks = [];
-      let current = "";
-      sentences.forEach(sentence => {
-        const next = current ? `${current} ${sentence}` : sentence;
-        if (current && next.length > (options.maxLineLength || 64)) {
-          chunks.push(current);
-          current = sentence;
-        } else {
-          current = next;
-        }
-      });
-      if (current) chunks.push(current);
-      return chunks.map(chunk => `<p>${escapeHtml(chunk)}</p>`).join("");
+        .trim();
+      return compacted
+        .replace(
+          /(\d+(?:\.\d+)?)(\s*)([~～-])(\s*)(\d+(?:\.\d+)?)(\s*)(ml|mL|ML|L|l|kg|%|보|걸음)/g,
+          (_match, start, _space1, separator, _space2, end, _space3, unit) =>
+            `${start}\u2060${separator}\u2060${end}\u2060${unit}`
+        )
+        .replace(
+          /(\d+(?:\.\d+)?)(\s*)(ml|mL|ML|L|l|kg|%|보|걸음)/g,
+          (_match, value, _space, unit) => `${value}\u2060${unit}`
+        )
+        .replace(/(\d)\.(?=\d)/g, "$1.\u2060");
+    }
+
+    function analysisInlineParagraphHtml(value, fallback = "기록 없음") {
+      const text = normalizeAnalysisText(value);
+      return `<p>${analysisInlineHtml(text || fallback)}</p>`;
     }
 
     function analysisItemHtml(item, hasPrevious) {
@@ -4558,11 +4797,11 @@
         <div class="analysis-item">
           <h4><span class="analysis-item-icon">${item.icon}</span>${escapeHtml(item.title)}</h4>
           <div class="analysis-panel ${item.tone}">
-            <div class="analysis-text">${analysisParagraphHtml(item.current, { eachSentence: true })}</div>
+            <div class="analysis-text">${analysisInlineParagraphHtml(item.current)}</div>
             ${hasPrevious && item.previous ? `
               <div class="previous-box">
                 <span class="previous-label">📊 이전 비교</span>
-                <div class="analysis-text">${analysisParagraphHtml(item.previous, { eachSentence: true })}</div>
+                <div class="analysis-text">${analysisInlineParagraphHtml(item.previous)}</div>
               </div>
             ` : ""}
           </div>
@@ -4596,13 +4835,11 @@
         renderAnalysisComplete(cycleNo);
       } catch (error) {
         console.error(error);
-        result.innerHTML = `
-          <div class="analysis-card">
-            <div class="analysis-title">AI 분석 결과</div>
-            <p class="small">분석 결과를 생성하는 중 오류가 발생했습니다. 기록 데이터를 다시 확인해 주세요.</p>
-          </div>
-        `;
-        result.classList.remove("hidden");
+        showErrorDialog({
+          title: "AI 분석을 완료하지 못했어요",
+          message: "분석 결과를 생성하는 중 오류가 발생했습니다. 기록 데이터를 확인한 뒤 다시 시도해 주세요.",
+          code: "prototype/analysis-render"
+        });
       }
     }
 
@@ -4630,7 +4867,7 @@
               <div class="analysis-item">
                 <h4><span class="analysis-item-icon">AI</span>AI 코멘트 (참고용)</h4>
                 <div class="ai-comment-card">
-                  <div class="analysis-text">${analysisParagraphHtml(summary.aiComment, { maxLineLength: 72 })}</div>
+                  <div class="analysis-text">${analysisInlineParagraphHtml(summary.aiComment, "")}</div>
                   <p class="ai-encouragement">${escapeHtml(summary.encouragement)}</p>
                 </div>
               </div>
@@ -4727,6 +4964,13 @@
         saveWeightButton.classList.toggle("dimmed", disabled);
         saveWeightButton.setAttribute("aria-disabled", String(disabled));
       }
+      const symptomWriteButton = document.getElementById("symptomWriteBtn");
+      if (symptomWriteButton) {
+        const disabled = state.isPreview || shouldShow;
+        symptomWriteButton.disabled = disabled;
+        symptomWriteButton.classList.toggle("dimmed", disabled);
+        symptomWriteButton.setAttribute("aria-disabled", String(disabled));
+      }
       syncSaveButtons();
     }
 
@@ -4772,6 +5016,11 @@
     }
 
     function saveProfileData() {
+      if (state.isPreview) {
+        showToast("회원만 이용할 수 있습니다.");
+        closeProfilePanels();
+        return;
+      }
       state.profile.heightCm = Number(document.getElementById("height").value) || 162;
       updateBmi();
       renderProfileStatus();
@@ -4866,6 +5115,10 @@
     document.getElementById("emailLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
     document.getElementById("appleLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
     document.getElementById("googleLoginBtn")?.addEventListener("click", () => enterApp({ preview: false }));
+    document.getElementById("errorDialogClose")?.addEventListener("click", closeErrorDialog);
+    document.getElementById("errorDialog")?.addEventListener("click", event => {
+      if (event.target.id === "errorDialog") closeErrorDialog();
+    });
     document.getElementById("loginBtn").addEventListener("click", showEntryScreen);
     document.getElementById("logoutBtn").addEventListener("click", showEntryScreen);
     document.getElementById("previewExitBtn")?.addEventListener("click", showEntryScreen);
@@ -4884,6 +5137,10 @@
     });
     document.querySelectorAll("[data-profile-panel]").forEach(button => {
       button.addEventListener("click", () => {
+        if (state.isPreview && button.dataset.profilePanel === "profileInfoPanel") {
+          showToast("회원만 이용할 수 있습니다.");
+          return;
+        }
         const panelId = button.dataset.profilePanel;
         document.getElementById("profileHome")?.classList.add("hidden");
         document.querySelectorAll(".profile-panel").forEach(panel => {
@@ -5090,10 +5347,11 @@
     });
     document.getElementById("dateYearInput").addEventListener("change", event => {
       const year = Number(event.target.value);
-      if (year >= 1900 && year <= 2100) {
+      const bounds = dateBoundsForInput(dateState.activeInput);
+      if (year >= bounds.minYear && year <= bounds.maxYear) {
         dateState.year = year;
-        renderDateCalendar();
       }
+      renderDateCalendar();
     });
     document.getElementById("dateMonthInput").addEventListener("change", event => {
       const month = Number(event.target.value);
