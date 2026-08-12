@@ -242,14 +242,33 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     UserDataSnapshot snapshot,
   ) async {
     final activeDeviceId = snapshot.activeStepDeviceId;
-    if (activeDeviceId.isNotEmpty || !snapshot.settings.stepSyncEnabled) {
-      return activeDeviceId;
-    }
+    if (activeDeviceId.isNotEmpty) return activeDeviceId;
     try {
-      return await _userDataRepository.ensureActiveStepDevice(userId, deviceId);
+      final linkedDeviceId = _latestLinkedStepDeviceId(snapshot.symptoms);
+      if (linkedDeviceId.isNotEmpty) {
+        final restoredDeviceId = await _userDataRepository
+            .restoreActiveStepDeviceFromLinkedRecord(userId, linkedDeviceId);
+        if (restoredDeviceId.isNotEmpty) return restoredDeviceId;
+      }
+      if (snapshot.settings.stepSyncEnabled) {
+        return await _userDataRepository.ensureActiveStepDevice(
+          userId,
+          deviceId,
+        );
+      }
+      return '';
     } catch (_) {
       return '';
     }
+  }
+
+  String _latestLinkedStepDeviceId(List<SymptomRecord> records) {
+    for (final record in records.reversed) {
+      if (record.stepsSource == '연동' && record.stepsDeviceId.isNotEmpty) {
+        return record.stepsDeviceId;
+      }
+    }
+    return '';
   }
 
   void _watchActiveStepDevice(String userId) {
