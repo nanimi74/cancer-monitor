@@ -164,6 +164,35 @@ class UserDataRepository {
     });
   }
 
+  Future<String> restoreActiveStepDeviceFromLinkedRecord(
+    String userId,
+    String linkedDeviceId,
+  ) async {
+    final paths = UserDataPaths(userId);
+    final userRef = _db.doc(paths.userDocument);
+    final linkedDeviceRef = _db.doc(paths.deviceDocument(linkedDeviceId));
+    return _db.runTransaction((transaction) async {
+      final userSnapshot = await transaction.get(userRef);
+      final activeDeviceId =
+          _string(userSnapshot.data()?['activeStepDeviceId']);
+      if (activeDeviceId.isNotEmpty) return activeDeviceId;
+
+      final linkedDeviceSnapshot = await transaction.get(linkedDeviceRef);
+      if (linkedDeviceSnapshot.data()?['stepSyncEnabled'] != true) return '';
+
+      transaction.set(
+        userRef,
+        {
+          'schemaVersion': 1,
+          'activeStepDeviceId': linkedDeviceId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      return linkedDeviceId;
+    });
+  }
+
   Future<void> claimActiveStepDevice(String userId, String deviceId) async {
     final paths = UserDataPaths(userId);
     final userRef = _db.doc(paths.userDocument);
