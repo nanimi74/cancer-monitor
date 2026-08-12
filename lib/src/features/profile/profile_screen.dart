@@ -115,9 +115,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showMessage('둘러보기에서는 권한 요청을 진행하지 않습니다.');
       return;
     }
-    final confirmed = await _confirmStepSyncChange();
+    if (widget.hasOtherActiveStepDevice) {
+      final deviceChangeConfirmed =
+          await _confirmStepSyncChange(replacingDevice: true);
+      if (!mounted) return;
+      if (deviceChangeConfirmed != true) {
+        _showMessage('걸음수 연동 권한 요청이 취소되었습니다.');
+        return;
+      }
+    }
+    final permissionConfirmed =
+        await _confirmStepSyncChange(replacingDevice: false);
     if (!mounted) return;
-    if (confirmed != true) {
+    if (permissionConfirmed != true) {
       _showMessage('걸음수 연동 권한 요청이 취소되었습니다.');
       return;
     }
@@ -125,6 +135,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _stepSyncPermissionInProgress = true);
     try {
       final granted = await _stepSyncService.requestPermission();
+      if (!mounted) return;
+      if (granted && await _stepSyncService.readTodaySteps() == null) {
+        throw const StepSyncPermissionException(
+          '걸음수 읽기 권한을 확인할 수 없습니다.',
+        );
+      }
       if (!mounted) return;
       setState(() => _stepSyncEnabled = granted);
       widget.onStepSyncChanged?.call(granted);
@@ -152,8 +168,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<bool?> _confirmStepSyncChange() {
-    final replacingDevice = widget.hasOtherActiveStepDevice;
+  Future<bool?> _confirmStepSyncChange({required bool replacingDevice}) {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

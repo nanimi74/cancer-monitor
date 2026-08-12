@@ -1293,33 +1293,27 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       return;
     }
     final replacingDevice = widget.hasOtherActiveStepDevice;
+    if (replacingDevice) {
+      final deviceChangeConfirmed =
+          await _confirmStepSyncChange(replacingDevice: true);
+      if (!mounted || deviceChangeConfirmed != true) return;
+    }
     if (!_stepSyncEnabled || replacingDevice) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(replacingDevice ? '걸음수 연동 기기 변경' : '걸음수 연동 권한'),
-          content: Text(
-            replacingDevice
-                ? '다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'
-                : 'Health Connect의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(replacingDevice ? '변경' : '켜기'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted || confirmed != true) return;
+      final permissionConfirmed =
+          await _confirmStepSyncChange(replacingDevice: false);
+      if (!mounted || permissionConfirmed != true) return;
     }
     setState(() => _stepSyncInProgress = true);
     try {
       final granted = await widget.stepSyncService.requestPermission();
+      if (!mounted) return;
+      final syncedSteps =
+          granted ? await widget.stepSyncService.readTodaySteps() : null;
+      if (granted && syncedSteps == null) {
+        throw const StepSyncPermissionException(
+          '걸음수 읽기 권한을 확인할 수 없습니다.',
+        );
+      }
       if (!mounted) return;
       final preserveExistingSteps = replacingDevice &&
           widget.initialRecord != null &&
@@ -1336,9 +1330,7 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
       widget.onStepSyncChanged(granted);
       if (granted) {
         if (!preserveExistingSteps) {
-          final steps = await widget.stepSyncService.readTodaySteps();
-          if (!mounted) return;
-          if (steps != null) _steps.text = steps.toString();
+          _steps.text = syncedSteps.toString();
         }
         _showMessage('걸음수 연동 권한이 허용되었습니다.');
       } else {
@@ -1369,6 +1361,30 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
     } finally {
       if (mounted) setState(() => _stepSyncInProgress = false);
     }
+  }
+
+  Future<bool?> _confirmStepSyncChange({required bool replacingDevice}) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(replacingDevice ? '걸음수 연동 기기 변경' : '걸음수 연동 권한'),
+        content: Text(
+          replacingDevice
+              ? '다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'
+              : 'Health Connect의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(replacingDevice ? '변경' : '켜기'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _disableStepSyncForRecord() {

@@ -757,12 +757,19 @@ void main() {
     );
     await tester.tap(find.text('변경'));
     await tester.pumpAndSettle();
+    expect(
+      find.text(
+          'Health Connect의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('켜기'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
 
     expect(stepSyncChanged, isTrue);
-    expect(stepSyncService.readCount, 0);
+    expect(stepSyncService.readCount, 1);
     expect(updatedRecords, isNotNull);
     expect(updatedRecords!.single.steps, 2400);
     expect(updatedRecords!.single.stepsDeviceId, 'source-device');
@@ -1442,7 +1449,54 @@ void main() {
     await tester.tap(find.text('변경'));
     await tester.pumpAndSettle();
 
+    expect(repository.claimedStepDeviceId, isNull);
+    expect(
+      find.text(
+          'Health Connect의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('켜기'));
+    await tester.pumpAndSettle();
+
     expect(repository.claimedStepDeviceId, 'viewer-device');
+  });
+
+  testWidgets('step device takeover stays off when steps cannot be read',
+      (WidgetTester tester) async {
+    final repository = _DeviceScopedSettingsRepository(
+      activeStepDeviceId: 'source-device',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'viewer-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+          stepSyncService: _NullStepSyncService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('마이페이지').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('걸음수 연동 권한'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('step-sync-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('변경'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('켜기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('걸음수 권한이 필요해요'), findsOneWidget);
+    expect(repository.claimedStepDeviceId, isNull);
   });
 
   testWidgets('legacy linked record restores its active device before takeover',
@@ -1559,6 +1613,8 @@ void main() {
     await tester.tap(stepSwitch);
     await tester.pumpAndSettle();
     await tester.tap(find.text('변경'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('켜기'));
     await tester.pumpAndSettle();
 
     expect(repository.claimedStepDeviceId, isNull);
