@@ -830,7 +830,7 @@ void main() {
         ?.call();
     await tester.pumpAndSettle();
 
-    final linkButton = find.byKey(const ValueKey('step-sync-panel-action'));
+    final linkButton = find.widgetWithText(TextButton, '연동하기');
     await tester.scrollUntilVisible(
       linkButton,
       300,
@@ -851,6 +851,15 @@ void main() {
     expect(find.text('취소'), findsOneWidget);
     expect(find.text('변경'), findsOneWidget);
     await tester.tap(find.text('변경'));
+    await tester.pumpAndSettle();
+    expect(stepSyncService.requestCount, 0);
+    expect(stepSyncService.readCount, 0);
+    expect(
+      find.text('활동량 변화를 기록하기 위해\nHealthKit에서 걸음 수만 읽습니다.'),
+      findsOneWidget,
+    );
+    expect(find.text('취소'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, '걸음수 연동'));
     await tester.pumpAndSettle();
     expect(stepSyncService.requestCount, 1);
     expect(stepSyncService.readCount, 1);
@@ -1518,20 +1527,20 @@ void main() {
 
     await tester.tap(find.text('마이페이지').last);
     await tester.pumpAndSettle();
-    final stepAction = find.byKey(const ValueKey('step-sync-action'));
+    final stepSwitch = find.byKey(const ValueKey('step-sync-switch'));
     await tester.scrollUntilVisible(
-      stepAction,
+      stepSwitch,
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(stepAction);
+    await tester.ensureVisible(stepSwitch);
     await tester.pumpAndSettle();
     expect(
-      find.text('활동량 변화를 기록하기 위해\nHealthKit에서 걸음 수만 읽습니다.'),
+      find.text('휴대폰의 걸음수를 불러와 증상관리에 사용합니다.'),
       findsOneWidget,
     );
 
-    await tester.tap(stepAction);
+    await tester.tap(stepSwitch);
     await tester.pumpAndSettle();
     expect(stepSyncService.requestCount, 0);
     expect(repository.claimedStepDeviceId, isNull);
@@ -1544,9 +1553,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(repository.claimedStepDeviceId, isNull);
 
-    await tester.tap(stepAction);
+    await tester.tap(stepSwitch);
     await tester.pumpAndSettle();
+    expect(
+      find.text('다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('변경'));
+    await tester.pumpAndSettle();
+
+    expect(stepSyncService.requestCount, 0);
+    expect(repository.claimedStepDeviceId, isNull);
+    expect(
+      find.text('활동량 변화를 기록하기 위해\nHealthKit에서 걸음 수만 읽습니다.'),
+      findsOneWidget,
+    );
+    expect(find.text('취소'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, '걸음수 연동'));
     await tester.pumpAndSettle();
 
     expect(stepSyncService.requestCount, 1);
@@ -1554,7 +1577,7 @@ void main() {
     expect(repository.claimedStepDeviceId, 'viewer-device');
   });
 
-  testWidgets('iOS step sync button requests HealthKit without a custom alert',
+  testWidgets('iOS step sync shows one-button notice before HealthKit request',
       (WidgetTester tester) async {
     final repository = _DeviceScopedSettingsRepository();
     final stepSyncService = _FakeStepSyncService();
@@ -1576,21 +1599,40 @@ void main() {
 
     await tester.tap(find.text('마이페이지').last);
     await tester.pumpAndSettle();
-    final stepAction = find.byKey(const ValueKey('step-sync-action'));
+    final stepSwitch = find.byKey(const ValueKey('step-sync-switch'));
     await tester.scrollUntilVisible(
-      stepAction,
+      stepSwitch,
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(stepAction);
+    await tester.ensureVisible(stepSwitch);
     await tester.pumpAndSettle();
-    await tester.tap(stepAction);
+    expect(
+      find.text('휴대폰의 걸음수를 불러와 증상관리에 사용합니다.'),
+      findsOneWidget,
+    );
+    await tester.tap(stepSwitch);
+    await tester.pumpAndSettle();
+
+    expect(stepSyncService.requestCount, 0);
+    expect(stepSyncService.readCount, 0);
+    expect(
+      find.text('활동량 변화를 기록하기 위해\nHealthKit에서 걸음 수만 읽습니다.'),
+      findsOneWidget,
+    );
+    expect(find.text('취소'), findsNothing);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('활동량 변화를 기록하기 위해\nHealthKit에서 걸음 수만 읽습니다.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, '걸음수 연동'));
     await tester.pumpAndSettle();
 
     expect(stepSyncService.requestCount, 1);
     expect(stepSyncService.readCount, 1);
     expect(repository.claimedStepDeviceId, 'ios-device');
-    expect(find.textContaining('걸음수 연동을 켜시겠습니까?'), findsNothing);
   });
 
   testWidgets('step device takeover stays off when steps cannot be read',
