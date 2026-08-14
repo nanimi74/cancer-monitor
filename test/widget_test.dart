@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:cancer_monitor/src/app/cancer_monitor_app.dart';
+import 'package:cancer_monitor/src/features/analysis/analysis_screen.dart';
 import 'package:cancer_monitor/src/features/home_shell.dart';
 import 'package:cancer_monitor/src/features/medication/medication_screen.dart';
 import 'package:cancer_monitor/src/features/symptom/symptom_screen.dart';
@@ -53,6 +54,91 @@ void main() {
     expect(caregiverSnapshot!.settings.notificationEnabled, isFalse);
     expect(caregiverSnapshot.settings.stepSyncEnabled, isFalse);
     expect(caregiverSnapshot.symptoms.single.steps, 2400);
+  });
+
+  test('AI consent cache is isolated by account and device', () async {
+    final repository = UserDataRepository();
+    await repository.saveCachedSnapshot(
+      'consented-user',
+      const UserDataSnapshot(
+        settings: UserSettings(aiAnalysisConsentGranted: true),
+      ),
+      deviceId: 'review-device',
+    );
+
+    final consentedSnapshot = await repository.loadCachedSnapshot(
+      'consented-user',
+      deviceId: 'review-device',
+    );
+    final newAccountSnapshot = await repository.loadCachedSnapshot(
+      'new-user',
+      deviceId: 'review-device',
+    );
+
+    expect(consentedSnapshot?.settings.aiAnalysisConsentGranted, isTrue);
+    expect(newAccountSnapshot, isNull);
+  });
+
+  testWidgets('AI analysis asks for consent before preparing user data',
+      (WidgetTester tester) async {
+    var prepareCount = 0;
+    var consentCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AnalysisScreen(
+            records: [_linkedTodayRecord('analysis-device')],
+            onPrepareAnalysis: () async {
+              prepareCount += 1;
+            },
+            onAiAnalysisConsentGranted: () {
+              consentCount += 1;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(ElevatedButton, '분석하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI 분석 동의'), findsOneWidget);
+    expect(find.textContaining('제공자: Anthropic'), findsOneWidget);
+    expect(prepareCount, 0);
+    expect(consentCount, 0);
+
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+
+    expect(prepareCount, 0);
+    expect(consentCount, 0);
+  });
+
+  testWidgets('AI analysis reuses consent granted on this account and device',
+      (WidgetTester tester) async {
+    var prepareCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AnalysisScreen(
+            records: [_linkedTodayRecord('analysis-device')],
+            aiAnalysisConsentGranted: true,
+            onPrepareAnalysis: () async {
+              prepareCount += 1;
+              throw StateError('stop before remote analysis');
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(ElevatedButton, '분석하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI 분석 동의'), findsNothing);
+    expect(prepareCount, 1);
   });
 
   testWidgets('does not show entry screen while restoring session',
