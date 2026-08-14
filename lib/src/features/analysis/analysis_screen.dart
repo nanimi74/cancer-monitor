@@ -19,6 +19,8 @@ class AnalysisScreen extends StatefulWidget {
     this.records = const [],
     this.weights = const [],
     this.onPrepareAnalysis,
+    this.aiAnalysisConsentGranted = false,
+    this.onAiAnalysisConsentGranted,
   });
 
   final bool hasRequiredInfo;
@@ -27,6 +29,8 @@ class AnalysisScreen extends StatefulWidget {
   final List<SymptomRecord> records;
   final List<WeightRecord> weights;
   final Future<void> Function()? onPrepareAnalysis;
+  final bool aiAnalysisConsentGranted;
+  final VoidCallback? onAiAnalysisConsentGranted;
 
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
@@ -69,6 +73,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   Future<void> _runAnalysis(int selectedCycleNo) async {
     if (!widget.hasRequiredInfo || widget.isPreview) {
       return;
+    }
+
+    if (!widget.aiAnalysisConsentGranted) {
+      final consented = await _confirmAiDataSharing();
+      if (!mounted || !consented) return;
+      widget.onAiAnalysisConsentGranted?.call();
     }
 
     setState(() {
@@ -122,6 +132,45 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       _result = result;
       _status = _AnalysisStatus.complete;
     });
+  }
+
+  Future<bool> _confirmAiDataSharing() async {
+    final accepted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'AI 분석 동의',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
+        ),
+        content: const SingleChildScrollView(
+          child: Text(
+            '선택한 회차 기록 일부를 AI 분석 제공자에게 전송합니다. 이름, 이메일, 계정 ID는 제외됩니다.\n\n제공자: Anthropic',
+            style: TextStyle(
+              color: AppColors.muted,
+              fontSize: 14,
+              height: 1.55,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('동의하고 분석'),
+          ),
+        ],
+      ),
+    );
+    return accepted == true;
   }
 
   Future<void> _showAnalysisErrorDialog(AiAnalysisException error) async {

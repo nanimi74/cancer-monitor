@@ -13,11 +13,13 @@ class UserSettings {
   const UserSettings({
     this.notificationEnabled = false,
     this.stepSyncEnabled = false,
+    this.aiAnalysisConsentGranted = false,
     this.medicationReminderEnabled = const {},
   });
 
   final bool notificationEnabled;
   final bool stepSyncEnabled;
+  final bool aiAnalysisConsentGranted;
   final Map<int, bool> medicationReminderEnabled;
 }
 
@@ -101,6 +103,7 @@ class UserDataRepository {
       'schemaVersion': 1,
       'notificationEnabled': settings.notificationEnabled,
       'stepSyncEnabled': settings.stepSyncEnabled,
+      'aiAnalysisConsentGranted': settings.aiAnalysisConsentGranted,
       'medicationReminderEnabled': {
         for (final entry in settings.medicationReminderEnabled.entries)
           entry.key.toString(): entry.value,
@@ -460,6 +463,7 @@ class UserDataRepository {
     return UserSettings(
       notificationEnabled: data['notificationEnabled'] == true,
       stepSyncEnabled: data['stepSyncEnabled'] == true,
+      aiAnalysisConsentGranted: data['aiAnalysisConsentGranted'] == true,
       medicationReminderEnabled: _boolMap(data['medicationReminderEnabled']),
     );
   }
@@ -470,6 +474,8 @@ class UserDataRepository {
       'settings': {
         'notificationEnabled': snapshot.settings.notificationEnabled,
         'stepSyncEnabled': snapshot.settings.stepSyncEnabled,
+        'aiAnalysisConsentGranted':
+            snapshot.settings.aiAnalysisConsentGranted,
         'medicationReminderEnabled': {
           for (final entry
               in snapshot.settings.medicationReminderEnabled.entries)

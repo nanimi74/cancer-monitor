@@ -63,6 +63,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   late var _index = _hasRequiredInfo ? _symptomTabIndex : _profileTabIndex;
   var _notificationEnabled = false;
   var _stepSyncEnabled = false;
+  var _aiAnalysisConsentGranted = false;
   var _activeStepDeviceId = '';
   late var _loadingUserData = _canPersist;
   double? _heightCm;
@@ -153,6 +154,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       if (!mounted || widget.userId != userId) return;
       setState(() {
         _notificationEnabled = remoteSnapshot.settings.notificationEnabled;
+        _aiAnalysisConsentGranted =
+            remoteSnapshot.settings.aiAnalysisConsentGranted;
         _activeStepDeviceId = activeStepDeviceId;
         _stepSyncEnabled = remoteSnapshot.settings.stepSyncEnabled &&
             activeStepDeviceId == deviceId;
@@ -188,6 +191,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         );
         setState(() {
           _notificationEnabled = cachedSnapshot.settings.notificationEnabled;
+          _aiAnalysisConsentGranted =
+              cachedSnapshot.settings.aiAnalysisConsentGranted;
           _activeStepDeviceId = cachedSnapshot.activeStepDeviceId.isEmpty &&
                   cachedSnapshot.settings.stepSyncEnabled
               ? deviceId
@@ -217,6 +222,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       setState(() {
         _notificationEnabled = false;
         _stepSyncEnabled = false;
+        _aiAnalysisConsentGranted = false;
         _activeStepDeviceId = '';
         _userProfile = null;
         _heightCm = null;
@@ -359,6 +365,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         UserSettings(
           notificationEnabled: _notificationEnabled,
           stepSyncEnabled: _stepSyncEnabled,
+          aiAnalysisConsentGranted: _aiAnalysisConsentGranted,
           medicationReminderEnabled: _medicationReminderEnabled,
         ),
         deviceId: deviceId,
@@ -414,6 +421,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           settings: UserSettings(
             notificationEnabled: _notificationEnabled,
             stepSyncEnabled: _stepSyncEnabled,
+            aiAnalysisConsentGranted: _aiAnalysisConsentGranted,
             medicationReminderEnabled: _medicationReminderEnabled,
           ),
           activeStepDeviceId: _activeStepDeviceId,
@@ -818,6 +826,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           records: _symptomRecords,
           weights: _weightRecords,
           onPrepareAnalysis: _prepareAnalysisData,
+          aiAnalysisConsentGranted: _aiAnalysisConsentGranted,
+          onAiAnalysisConsentGranted: () => setState(() {
+            _aiAnalysisConsentGranted = true;
+            _saveSettings();
+          }),
         ),
       ];
 }
