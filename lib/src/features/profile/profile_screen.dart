@@ -70,6 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       widget.stepSyncService ?? PlatformStepSyncService();
 
   bool get _hasRequiredInfo => _profileInfo != null;
+  bool get _isIOS => Theme.of(context).platform == TargetPlatform.iOS;
   String get _stepSyncProviderName =>
       stepSyncProviderName(Theme.of(context).platform);
 
@@ -126,12 +127,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
     }
-    final permissionConfirmed =
-        await _confirmStepSyncChange(replacingDevice: false);
-    if (!mounted) return;
-    if (permissionConfirmed != true) {
-      _showMessage('걸음수 연동 권한 요청이 취소되었습니다.');
-      return;
+    if (!_isIOS) {
+      final permissionConfirmed =
+          await _confirmStepSyncChange(replacingDevice: false);
+      if (!mounted) return;
+      if (permissionConfirmed != true) {
+        _showMessage('걸음수 연동 권한 요청이 취소되었습니다.');
+        return;
+      }
     }
 
     setState(() => _stepSyncPermissionInProgress = true);
@@ -454,13 +457,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           switchKey: const ValueKey('notification-permission-switch'),
           onChanged: _setNotificationPermission,
         ),
-        _ToggleCard(
-          title: '걸음수 연동 권한',
-          subtitle: '$_stepSyncProviderName 걸음수로 운동량을 자동 입력합니다.',
-          value: _stepSyncEnabled,
-          switchKey: const ValueKey('step-sync-switch'),
-          onChanged: _setStepSync,
-        ),
+        if (_isIOS)
+          _StepSyncActionCard(
+            enabled: _stepSyncEnabled,
+            inProgress: _stepSyncPermissionInProgress,
+            onPressed: () => _setStepSync(!_stepSyncEnabled),
+          )
+        else
+          _ToggleCard(
+            title: '걸음수 연동 권한',
+            subtitle: '$_stepSyncProviderName 걸음수로 운동량을 자동 입력합니다.',
+            value: _stepSyncEnabled,
+            switchKey: const ValueKey('step-sync-switch'),
+            onChanged: _setStepSync,
+          ),
         _MenuTile(
           title: '문의하기',
           subtitle: '서비스 이용 중 궁금한 점을 보냅니다.',
@@ -733,6 +743,55 @@ class _ToggleCard extends StatelessWidget {
               key: switchKey,
               value: value,
               onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StepSyncActionCard extends StatelessWidget {
+  const _StepSyncActionCard({
+    required this.enabled,
+    required this.inProgress,
+    required this.onPressed,
+  });
+
+  final bool enabled;
+  final bool inProgress;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              '걸음수 연동',
+              style: _profileTileTitleStyle,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              enabled
+                  ? '이 기기에서 HealthKit 걸음 수를 연동 중입니다.'
+                  : '활동량 변화를 기록하기 위해\nHealthKit에서 걸음 수만 읽습니다.',
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 13,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton(
+              key: const ValueKey('step-sync-action'),
+              onPressed: inProgress ? null : onPressed,
+              child: Text(
+                inProgress ? '요청 중' : (enabled ? '연동 끄기' : '걸음수 연동'),
+              ),
             ),
           ],
         ),
