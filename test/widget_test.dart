@@ -830,7 +830,7 @@ void main() {
         ?.call();
     await tester.pumpAndSettle();
 
-    final linkButton = find.widgetWithText(TextButton, '연동하기');
+    final linkButton = find.byKey(const ValueKey('step-sync-panel-action'));
     await tester.scrollUntilVisible(
       linkButton,
       300,
@@ -838,21 +838,23 @@ void main() {
     );
     await tester.tap(linkButton);
     await tester.pumpAndSettle();
+    expect(stepSyncService.requestCount, 0);
+    expect(stepSyncService.readCount, 0);
     expect(
       find.text('다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'),
       findsOneWidget,
     );
-    await tester.tap(find.text('변경'));
-    await tester.pumpAndSettle();
     expect(
-      find.text(
-          'HealthKit의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?'),
-      findsOneWidget,
+      find.textContaining('걸음수 연동을 켜시겠습니까?'),
+      findsNothing,
     );
     expect(find.text('취소'), findsOneWidget);
-    expect(find.text('켜기'), findsOneWidget);
-    await tester.tap(find.text('켜기'));
+    expect(find.text('변경'), findsOneWidget);
+    await tester.tap(find.text('변경'));
     await tester.pumpAndSettle();
+    expect(stepSyncService.requestCount, 1);
+    expect(stepSyncService.readCount, 1);
+    expect(find.textContaining('걸음수 연동을 켜시겠습니까?'), findsNothing);
 
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
@@ -1497,6 +1499,7 @@ void main() {
     final repository = _DeviceScopedSettingsRepository(
       activeStepDeviceId: 'source-device',
     );
+    final stepSyncService = _FakeStepSyncService();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1507,7 +1510,7 @@ void main() {
           deviceId: 'viewer-device',
           userDataRepository: repository,
           notificationPermissionService: _FakeNotificationPermissionService(),
-          stepSyncService: _FakeStepSyncService(),
+          stepSyncService: stepSyncService,
         ),
       ),
     );
@@ -1515,21 +1518,24 @@ void main() {
 
     await tester.tap(find.text('마이페이지').last);
     await tester.pumpAndSettle();
+    final stepAction = find.byKey(const ValueKey('step-sync-action'));
     await tester.scrollUntilVisible(
-      find.text('걸음수 연동 권한'),
+      stepAction,
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    final stepSwitch = find.byKey(const ValueKey('step-sync-switch'));
-    await tester.ensureVisible(stepSwitch);
+    await tester.ensureVisible(stepAction);
     await tester.pumpAndSettle();
     expect(
-      find.text('HealthKit 걸음수로 운동량을 자동 입력합니다.'),
+      find.text('활동량 변화를 기록하기 위해\nHealthKit에서 걸음 수만 읽습니다.'),
       findsOneWidget,
     );
 
-    await tester.tap(stepSwitch);
+    await tester.tap(stepAction);
     await tester.pumpAndSettle();
+    expect(stepSyncService.requestCount, 0);
+    expect(repository.claimedStepDeviceId, isNull);
+    expect(find.textContaining('걸음수 연동을 켜시겠습니까?'), findsNothing);
     expect(
       find.text('다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'),
       findsOneWidget,
@@ -1538,23 +1544,53 @@ void main() {
     await tester.pumpAndSettle();
     expect(repository.claimedStepDeviceId, isNull);
 
-    await tester.tap(stepSwitch);
+    await tester.tap(stepAction);
     await tester.pumpAndSettle();
     await tester.tap(find.text('변경'));
     await tester.pumpAndSettle();
 
-    expect(repository.claimedStepDeviceId, isNull);
-    expect(
-      find.text(
-          'HealthKit의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?'),
-      findsOneWidget,
+    expect(stepSyncService.requestCount, 1);
+    expect(stepSyncService.readCount, 1);
+    expect(repository.claimedStepDeviceId, 'viewer-device');
+  });
+
+  testWidgets('iOS step sync button requests HealthKit without a custom alert',
+      (WidgetTester tester) async {
+    final repository = _DeviceScopedSettingsRepository();
+    final stepSyncService = _FakeStepSyncService();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
+        home: HomeShell(
+          hasRequiredInfo: false,
+          userId: 'user-1',
+          deviceId: 'ios-device',
+          userDataRepository: repository,
+          notificationPermissionService: _FakeNotificationPermissionService(),
+          stepSyncService: stepSyncService,
+        ),
+      ),
     );
-    expect(find.text('취소'), findsOneWidget);
-    expect(find.text('켜기'), findsOneWidget);
-    await tester.tap(find.text('켜기'));
     await tester.pumpAndSettle();
 
-    expect(repository.claimedStepDeviceId, 'viewer-device');
+    await tester.tap(find.text('마이페이지').last);
+    await tester.pumpAndSettle();
+    final stepAction = find.byKey(const ValueKey('step-sync-action'));
+    await tester.scrollUntilVisible(
+      stepAction,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(stepAction);
+    await tester.pumpAndSettle();
+    await tester.tap(stepAction);
+    await tester.pumpAndSettle();
+
+    expect(stepSyncService.requestCount, 1);
+    expect(stepSyncService.readCount, 1);
+    expect(repository.claimedStepDeviceId, 'ios-device');
+    expect(find.textContaining('걸음수 연동을 켜시겠습니까?'), findsNothing);
   });
 
   testWidgets('step device takeover stays off when steps cannot be read',
@@ -2091,14 +2127,23 @@ class _FakeNotificationPermissionService
 }
 
 class _FakeStepSyncService implements StepSyncService {
+  var requestCount = 0;
+  var readCount = 0;
+
   @override
-  Future<bool> requestPermission() async => true;
+  Future<bool> requestPermission() async {
+    requestCount += 1;
+    return true;
+  }
 
   @override
   Future<bool> openPermissionSettings() async => true;
 
   @override
-  Future<int?> readTodaySteps() async => 2400;
+  Future<int?> readTodaySteps() async {
+    readCount += 1;
+    return 2400;
+  }
 }
 
 class _NullStepSyncService implements StepSyncService {
@@ -2116,10 +2161,14 @@ class _TrackingStepSyncService implements StepSyncService {
   _TrackingStepSyncService(this.steps);
 
   final int steps;
+  var requestCount = 0;
   var readCount = 0;
 
   @override
-  Future<bool> requestPermission() async => true;
+  Future<bool> requestPermission() async {
+    requestCount += 1;
+    return true;
+  }
 
   @override
   Future<bool> openPermissionSettings() async => true;
