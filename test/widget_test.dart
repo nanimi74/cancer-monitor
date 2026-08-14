@@ -799,6 +799,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
         home: Scaffold(
           body: SymptomScreen(
             deviceId: 'viewer-device',
@@ -845,9 +846,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.text(
-          'Health Connect의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?'),
+          'HealthKit의 걸음수만 불러와 이 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?'),
       findsOneWidget,
     );
+    expect(find.text('취소'), findsOneWidget);
+    expect(find.text('켜기'), findsOneWidget);
     await tester.tap(find.text('켜기'));
     await tester.pumpAndSettle();
 
@@ -1497,6 +1500,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
         home: HomeShell(
           hasRequiredInfo: false,
           userId: 'user-1',
@@ -1519,6 +1523,10 @@ void main() {
     final stepSwitch = find.byKey(const ValueKey('step-sync-switch'));
     await tester.ensureVisible(stepSwitch);
     await tester.pumpAndSettle();
+    expect(
+      find.text('HealthKit 걸음수로 운동량을 자동 입력합니다.'),
+      findsOneWidget,
+    );
 
     await tester.tap(stepSwitch);
     await tester.pumpAndSettle();
@@ -1538,9 +1546,11 @@ void main() {
     expect(repository.claimedStepDeviceId, isNull);
     expect(
       find.text(
-          'Health Connect의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?'),
+          'HealthKit의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?'),
       findsOneWidget,
     );
+    expect(find.text('취소'), findsOneWidget);
+    expect(find.text('켜기'), findsOneWidget);
     await tester.tap(find.text('켜기'));
     await tester.pumpAndSettle();
 

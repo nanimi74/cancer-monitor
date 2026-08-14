@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:health/health.dart';
 
+String stepSyncProviderName(TargetPlatform platform) =>
+    platform == TargetPlatform.iOS ? 'HealthKit' : 'Health Connect';
+
 abstract interface class StepSyncService {
   Future<bool> requestPermission();
   Future<int?> readTodaySteps();
