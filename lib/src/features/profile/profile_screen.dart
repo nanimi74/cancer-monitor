@@ -70,6 +70,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       widget.stepSyncService ?? PlatformStepSyncService();
 
   bool get _hasRequiredInfo => _profileInfo != null;
+  String get _stepSyncProviderName =>
+      stepSyncProviderName(Theme.of(context).platform);
 
   @override
   void didUpdateWidget(covariant ProfileScreen oldWidget) {
@@ -159,8 +161,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _stepSyncEnabled = false);
       widget.onStepSyncChanged?.call(false);
       await _showStepSyncSettingsSheet(
-        const StepSyncPermissionException(
-          'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
+        StepSyncPermissionException(
+          '$_stepSyncProviderName에서 한결의 걸음수 읽기만 허용해 주세요.',
         ),
       );
     } finally {
@@ -176,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: Text(
           replacingDevice
               ? '다른 기기에서 걸음 수를 연동 중입니다. 이 기기로 변경할까요?'
-              : 'Health Connect의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
+              : '$_stepSyncProviderName의 걸음수만 불러와 증상 기록의 운동량을 자동 입력합니다. 걸음수 연동을 켜시겠습니까?',
         ),
         actions: [
           TextButton(
@@ -198,6 +200,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     final needsInstall =
         error.issue == StepSyncPermissionIssue.healthConnectRequired;
+    final providerName = _stepSyncProviderName;
     await showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
@@ -240,7 +243,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      needsInstall ? 'Health Connect가 필요해요' : '걸음수 권한이 필요해요',
+                      needsInstall ? '$providerName가 필요해요' : '걸음수 권한이 필요해요',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -251,7 +254,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       needsInstall
                           ? '설치 또는 업데이트 후 다시 시도해 주세요.'
-                          : 'Health Connect에서 한결의 걸음수 읽기만 허용해 주세요.',
+                          : '$providerName에서 한결의 걸음수 읽기만 허용해 주세요.',
                       style: const TextStyle(
                         color: AppColors.muted,
                         fontSize: 14,
@@ -453,7 +456,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         _ToggleCard(
           title: '걸음수 연동 권한',
-          subtitle: 'Health Connect 걸음수로 운동량을 자동 입력합니다.',
+          subtitle: '$_stepSyncProviderName 걸음수로 운동량을 자동 입력합니다.',
           value: _stepSyncEnabled,
           switchKey: const ValueKey('step-sync-switch'),
           onChanged: _setStepSync,
