@@ -1302,9 +1302,10 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
           await _confirmStepSyncChange(replacingDevice: true);
       if (!mounted || deviceChangeConfirmed != true) return;
     }
-    if (!_isIOS && (!_stepSyncEnabled || replacingDevice)) {
-      final permissionConfirmed =
-          await _confirmStepSyncChange(replacingDevice: false);
+    if (!_stepSyncEnabled || replacingDevice) {
+      final permissionConfirmed = _isIOS
+          ? await _showHealthKitStepSyncNotice()
+          : await _confirmStepSyncChange(replacingDevice: false);
       if (!mounted || permissionConfirmed != true) return;
     }
     setState(() => _stepSyncInProgress = true);
@@ -1385,6 +1386,25 @@ class _SymptomEditorSheetState extends State<_SymptomEditorSheet> {
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(replacingDevice ? '변경' : '켜기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _showHealthKitStepSyncNotice() {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('걸음수 연동'),
+        content: const Text(
+          '활동량 변화를 기록하기 위해\nHealthKit에서 걸음 수만 읽습니다.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('걸음수 연동'),
           ),
         ],
       ),
@@ -2197,20 +2217,14 @@ class _StepSyncPanel extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    enabled
-                        ? '걸음수 연동 켜짐'
-                        : Theme.of(context).platform == TargetPlatform.iOS
-                            ? '걸음수 연동'
-                            : '걸음수 연동 꺼짐',
+                    enabled ? '걸음수 연동 켜짐' : '걸음수 연동 꺼짐',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     enabled
                         ? '직접 수정하려면 수동입력으로 바꾸세요.'
-                        : Theme.of(context).platform == TargetPlatform.iOS
-                            ? '활동량 변화를 기록하기 위해\nHealthKit에서 걸음 수만 읽습니다.'
-                            : '연동하면 걸음수를 운동량에 자동 입력합니다.',
+                        : '연동하면 걸음수를 운동량에 자동 입력합니다.',
                     style: const TextStyle(
                       color: AppColors.muted,
                       fontSize: 12,
@@ -2221,7 +2235,6 @@ class _StepSyncPanel extends StatelessWidget {
             ),
             if (enabled) ...[
               TextButton(
-                key: const ValueKey('step-sync-panel-action'),
                 onPressed: inProgress ? null : onEnable,
                 child: Text(inProgress ? '요청 중' : '재연동'),
               ),
@@ -2231,15 +2244,8 @@ class _StepSyncPanel extends StatelessWidget {
               ),
             ] else
               TextButton(
-                key: const ValueKey('step-sync-panel-action'),
                 onPressed: inProgress ? null : onEnable,
-                child: Text(
-                  inProgress
-                      ? '요청 중'
-                      : Theme.of(context).platform == TargetPlatform.iOS
-                          ? '걸음수 연동'
-                          : '연동하기',
-                ),
+                child: Text(inProgress ? '요청 중' : '연동하기'),
               ),
           ],
         ),
