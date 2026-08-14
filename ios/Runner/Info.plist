@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>항암기록관리</string>
+	<string>한결</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>항암기록관리</string>
+	<string>한결</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -40,7 +40,7 @@
 	<key>NSHealthShareUsageDescription</key>
 	<string>휴대폰의 걸음수를 불러와 증상관리에 사용합니다.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>항암기록관리는 건강 앱에 데이터를 저장하지 않습니다.</string>
+	<string>한결은 건강 앱에 데이터를 저장하지 않습니다.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

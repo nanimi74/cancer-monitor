@@ -161,7 +161,7 @@ func drawBrand() {
         icon.draw(in: iconRect)
         NSGraphicsContext.restoreGraphicsState()
     }
-    drawText("항암기록관리", x: 198, y: 96, width: 360, fontSize: 34, weight: .bold, color: text)
+    drawText("한결", x: 198, y: 96, width: 360, fontSize: 34, weight: .bold, color: text)
     drawText("AI 항암 증상 리포트", x: 198, y: 142, width: 380, fontSize: 25, weight: .medium, color: muted)
 }
 
