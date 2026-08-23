@@ -89,6 +89,19 @@ class FirebaseAuthService implements AuthService {
 
   @override
   Future<AuthSession> signInWithApple() async {
+    if (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      final appleProvider = AppleAuthProvider()..addScope('email');
+      try {
+        final userCredential = await _firebaseAuth.signInWithProvider(
+          appleProvider,
+        );
+        return _sessionFromUserCredential(userCredential, AuthProvider.apple);
+      } on FirebaseAuthException catch (error) {
+        throw AuthFailure(_oauthAuthMessage(error, 'Apple'));
+      }
+    }
+
     final available = await SignInWithApple.isAvailable();
     if (!available) {
       throw const AuthFailure('현재 기기에서 Apple 로그인을 사용할 수 없습니다.');
