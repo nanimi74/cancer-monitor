@@ -104,7 +104,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('AI 분석 동의'), findsOneWidget);
-    expect(find.textContaining('제공자: Anthropic'), findsOneWidget);
+    expect(
+      find.textContaining('Anthropic, PBC의 Claude API로 전송합니다.'),
+      findsOneWidget,
+    );
     expect(prepareCount, 0);
     expect(consentCount, 0);
 

@@ -150,7 +150,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ),
         content: const SingleChildScrollView(
           child: Text(
-            '선택한 회차 기록 일부를 AI 분석 제공자에게 전송합니다. 이름, 이메일, 계정 ID는 제외됩니다.\n\n제공자: Anthropic',
+            '선택한 회차 기록 일부를 AI 분석을 위해 제3자 AI 서비스 제공업체인 Anthropic, PBC의 Claude API로 전송합니다. 이름, 이메일, 계정 ID는 전송하지 않습니다.',
             style: TextStyle(
               color: AppColors.muted,
               fontSize: 14,
