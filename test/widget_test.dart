@@ -105,7 +105,7 @@ void main() {
 
     expect(find.text('AI 분석 동의'), findsOneWidget);
     expect(
-      find.textContaining('Anthropic, PBC의 Claude API로 전송합니다.'),
+      find.textContaining('증상·생활·체중·치료 정보를 Anthropic, PBC의 Claude API로 전송합니다.'),
       findsOneWidget,
     );
     expect(prepareCount, 0);
