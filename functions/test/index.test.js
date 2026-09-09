@@ -119,3 +119,64 @@ test("normalizes analysis schema and fills expected item order", () => {
   assert.equal(result.items[2].current, "활동량 제한 신호");
   assert.match(result.encouragement, /기록/);
 });
+
+test("AI response policy forbids ellipses and requires complete sentences", () => {
+  const prompts = `${_test.buildSystemPrompt()}\n${_test.buildJsonRepairPrompt()}`;
+
+  assert.match(prompts, /모든 문장을 완결/);
+  assert.match(prompts, /말줄임표/);
+  assert.match(prompts, /줄임표/);
+  assert.doesNotMatch(prompts, /\"current\":\"\.\.\.\"/);
+});
+
+test("rejects truncated or overlong analysis text instead of adding ellipses", () => {
+  const validAnalysis = {
+    items: [
+      {
+        title: "특이사항",
+        current: "불편감이 반복되는 흐름으로 의료진에게 공유할 내용이 확인됩니다.",
+        previous: "이전 회차보다 반복성이 낮아진 상태입니다.",
+      },
+    ],
+    comment: "이번 회차의 전반적인 흐름을 확인할 수 있습니다.",
+    encouragement: "오늘의 기록도 충분히 의미 있어요. 💜",
+  };
+
+  assert.throws(
+    () =>
+      _test.validateAnalysis(
+        {
+          ...validAnalysis,
+          items: [{ title: "특이사항", current: "문장이 중간에서…" }],
+        },
+        true,
+      ),
+    /완결되지 않았습니다/,
+  );
+  assert.throws(
+    () =>
+      _test.validateAnalysis(
+        {
+          ...validAnalysis,
+          items: [{ title: "특이사항", current: "문장이 중간에서..." }],
+        },
+        true,
+      ),
+    /완결되지 않았습니다/,
+  );
+  assert.throws(
+    () =>
+      _test.validateAnalysis(
+        {
+          ...validAnalysis,
+          items: [{ title: "특이사항", current: "가".repeat(191) }],
+        },
+        true,
+      ),
+    /완결되지 않았습니다/,
+  );
+
+  const result = _test.validateAnalysis(validAnalysis, true);
+  assert.equal(result.items[4].current, validAnalysis.items[0].current);
+  assert.doesNotMatch(result.items[4].current, /\.\.\.|…/);
+});
