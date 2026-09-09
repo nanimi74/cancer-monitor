@@ -50,8 +50,8 @@ exports.analyzeCycle = onCall(
     secrets: [anthropicApiKey],
     timeoutSeconds: 60,
     memory: "256MiB",
-    enforceAppCheck: true,
-    consumeAppCheckToken: true,
+    enforceAppCheck: false,
+    consumeAppCheckToken: false,
   },
   async (request) => {
     if (!request.auth) {
