@@ -568,25 +568,25 @@ function validateAnalysis(data, hasPrevious) {
     const matched = sourceItems.find((item) => item && item.title === title);
     return {
       title,
-      current: validateAnalysisText(matched && matched.current, 190),
+      current: validateAnalysisText(matched && matched.current),
       previous: hasPrevious
-        ? validateAnalysisText(matched && matched.previous, 190)
+        ? validateAnalysisText(matched && matched.previous)
         : "",
     };
   });
 
   return {
     items,
-    comment: validateAnalysisText(data.comment, 400),
+    comment: validateAnalysisText(data.comment),
     encouragement:
-      validateAnalysisText(data.encouragement, 120) ||
+      validateAnalysisText(data.encouragement) ||
       "오늘도 기록을 이어가고 계신 것만으로도 충분히 잘하고 있어요. 💜",
   };
 }
 
-function validateAnalysisText(value, maxLength) {
+function validateAnalysisText(value) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
-  if (text.length > maxLength || /\.\.\.|…/.test(text)) {
+  if (/\.\.\.|…/.test(text)) {
     throw aiInternalError(
       ERROR_CODES.CLAUDE_RESPONSE_SCHEMA_INVALID,
       "AI 분석 응답 문장이 완결되지 않았습니다.",

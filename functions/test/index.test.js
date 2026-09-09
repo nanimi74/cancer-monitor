@@ -129,7 +129,7 @@ test("AI response policy forbids ellipses and requires complete sentences", () =
   assert.doesNotMatch(prompts, /\"current\":\"\.\.\.\"/);
 });
 
-test("rejects truncated or overlong analysis text instead of adding ellipses", () => {
+test("rejects ellipses but preserves complete analysis text", () => {
   const validAnalysis = {
     items: [
       {
@@ -164,19 +164,14 @@ test("rejects truncated or overlong analysis text instead of adding ellipses", (
       ),
     /완결되지 않았습니다/,
   );
-  assert.throws(
-    () =>
-      _test.validateAnalysis(
-        {
-          ...validAnalysis,
-          items: [{ title: "특이사항", current: "가".repeat(191) }],
-        },
-        true,
-      ),
-    /완결되지 않았습니다/,
+  const completeLongText = `${"가".repeat(191)}.`;
+  const result = _test.validateAnalysis(
+    {
+      ...validAnalysis,
+      items: [{ title: "특이사항", current: completeLongText }],
+    },
+    true,
   );
-
-  const result = _test.validateAnalysis(validAnalysis, true);
-  assert.equal(result.items[4].current, validAnalysis.items[0].current);
+  assert.equal(result.items[4].current, completeLongText);
   assert.doesNotMatch(result.items[4].current, /\.\.\.|…/);
 });
