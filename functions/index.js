@@ -228,7 +228,7 @@ async function requestClaudeAnalysis(payload, repairText) {
               ? JSON.stringify({
                   invalidResponse: limitText(repairText, 6000),
                   expectedSchema:
-                    "{\"items\":[{\"title\":\"식사량\",\"current\":\"...\",\"previous\":\"...\"}],\"comment\":\"...\",\"encouragement\":\"...\"}",
+                    "{\"items\":[{\"title\":\"식사량\",\"current\":\"현재 분석\",\"previous\":\"이전 비교\"}],\"comment\":\"종합 의견\",\"encouragement\":\"응원 문장\"}",
                 })
               : JSON.stringify(payload),
           },
@@ -487,17 +487,19 @@ function buildSystemPrompt() {
     "profile과 weights가 제공되면 연령, 암종/병기, 치료 방법, 체중 추이를 AI 코멘트와 필요한 항목에 반영한다.",
     "긍정적인 회복 신호와 주의 신호를 균형 있게 다루되, 상담 권고는 단정하지 말고 '공유 필요', '확인 필요', '전달하면 좋음'처럼 간결하게 표현한다.",
     "반드시 JSON만 반환한다. 코드블록, 추가 설명은 쓰지 않는다.",
-    "반환 형식은 {\"items\":[{\"title\":\"식사량\",\"current\":\"...\",\"previous\":\"...\"}],\"comment\":\"...\",\"encouragement\":\"...\"} 이다.",
+    "반환 형식은 {\"items\":[{\"title\":\"식사량\",\"current\":\"현재 분석\",\"previous\":\"이전 비교\"}],\"comment\":\"종합 의견\",\"encouragement\":\"응원 문장\"} 이다.",
     `items는 ${ANALYSIS_TITLES.join(", ")} 5개 항목을 이 순서로 제공한다.`,
     "items.current, items.previous, comment 문자열에는 줄바꿈 문자(\\n)를 넣지 않는다. encouragement만 별도 문장으로 분리한다.",
     "current, previous, comment, encouragement 문자열 안에서는 중요한 패턴이나 상담 포인트를 **굵게 표시할 문구** 형식으로 감싼다.",
     "굵게 표시할 문구는 항목별 1~3개만 사용하고, 숫자 변화, 반복 패턴, 회복 신호, 상담 필요 신호처럼 사용자가 먼저 봐야 할 내용에만 적용한다.",
     "각 current와 previous는 가능하면 90~150자 안에서 끝내고, 절대 190자를 넘지 않는다.",
+    "글자 수에 맞추기 위해 문장이나 단어를 중간에서 자르지 않는다. 모든 문장은 의미가 완결된 상태로 끝낸다.",
+    "말줄임표나 줄임표 기호는 어떤 필드에도 사용하지 않는다.",
     "previousRecords가 비어 있으면 previous 필드는 빈 문자열로 둔다.",
     "comment는 사용자 연령, 암종, 병기, 진단일, 전이 여부, 치료방법, 치료 시작일, 체중 추이, 식사량, 수분, 활동량, 배변, 부작용, 기타정보를 종합해 가능하면 240~340자 안에서 쓰고, 절대 400자를 넘지 않는다.",
     "comment는 단순 종합 요약이 아니라 이번 회차의 전체 컨디션 흐름, 좋아진 점, 유지되는 점, 주의할 점, 외래 때 전달하면 좋은 내용을 연결해 작성한다.",
     "comment는 항목별 결과를 다시 나열하지 말고, 사용자의 나이·암종·치료방법·체중 흐름·식사/수분/활동/배변/부작용을 종합해 현재 회차의 큰 흐름을 설명한다.",
-    "comment는 항목 카드처럼 '관찰됨', '확인 필요'만으로 끊는 문체를 쓰지 않는다. '이번 회차는 ... 흐름이 보입니다'처럼 자연스러운 문장형 종합 의견으로 시작한다.",
+    "comment는 항목 카드처럼 '관찰됨', '확인 필요'만으로 끊는 문체를 쓰지 않는다. 이번 회차의 전체 흐름이 보인다는 식의 자연스러운 문장형 종합 의견으로 시작한다.",
     "comment는 사용자의 나이, 암종, 병기, 치료방법을 무조건 반복하지 말고 분석에 의미가 있을 때만 자연스럽게 반영한다.",
     "comment는 하나의 문단으로 작성하고 줄바꿈 문자(\\n)를 넣지 않는다. 전체 컨디션 흐름, 긍정/주의 신호, 외래 때 공유할 포인트를 자연스럽게 연결한다. 짧은 항목 카드 문체가 아니라 참고용 종합 의견 문체를 유지한다.",
     "comment는 문장별 강제 줄바꿈 대신 **핵심 문구 강조**로 가독성을 만든다. 항목 카드처럼 줄마다 끊어 나열하지 않는다.",
@@ -513,9 +515,12 @@ function buildJsonRepairPrompt() {
     "너는 JSON 응답 형식을 고치는 보정기이다.",
     "입력으로 받은 invalidResponse의 의미를 유지하되, 반드시 JSON 객체만 반환한다.",
     "코드블록, 설명, 마크다운 문장, 앞뒤 텍스트는 절대 쓰지 않는다.",
-    "반환 형식은 {\"items\":[{\"title\":\"식사량\",\"current\":\"...\",\"previous\":\"...\"}],\"comment\":\"...\",\"encouragement\":\"...\"} 이다.",
+    "반환 형식은 {\"items\":[{\"title\":\"식사량\",\"current\":\"현재 분석\",\"previous\":\"이전 비교\"}],\"comment\":\"종합 의견\",\"encouragement\":\"응원 문장\"} 이다.",
     `items는 ${ANALYSIS_TITLES.join(", ")} 5개 항목을 이 순서로 제공한다.`,
     "값이 누락된 항목은 빈 문자열이 아니라 현재 응답에서 가장 가까운 내용을 짧게 보정한다.",
+    "current와 previous는 각각 190자, comment는 400자, encouragement는 120자를 넘지 않는다.",
+    "문장이나 단어를 중간에서 자르지 않고 모든 문장을 완결한다.",
+    "말줄임표나 줄임표 기호는 어떤 필드에도 사용하지 않는다.",
   ].join("\n");
 }
 
@@ -563,18 +568,31 @@ function validateAnalysis(data, hasPrevious) {
     const matched = sourceItems.find((item) => item && item.title === title);
     return {
       title,
-      current: limitText(matched && matched.current, 190),
-      previous: hasPrevious ? limitText(matched && matched.previous, 190) : "",
+      current: validateAnalysisText(matched && matched.current, 190),
+      previous: hasPrevious
+        ? validateAnalysisText(matched && matched.previous, 190)
+        : "",
     };
   });
 
   return {
     items,
-    comment: limitText(data.comment, 400),
+    comment: validateAnalysisText(data.comment, 400),
     encouragement:
-      limitText(data.encouragement, 120) ||
+      validateAnalysisText(data.encouragement, 120) ||
       "오늘도 기록을 이어가고 계신 것만으로도 충분히 잘하고 있어요. 💜",
   };
+}
+
+function validateAnalysisText(value, maxLength) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length > maxLength || /\.\.\.|…/.test(text)) {
+    throw aiInternalError(
+      ERROR_CODES.CLAUDE_RESPONSE_SCHEMA_INVALID,
+      "AI 분석 응답 문장이 완결되지 않았습니다.",
+    );
+  }
+  return text;
 }
 
 function aiInternalError(errorCode, message) {
@@ -686,5 +704,7 @@ if (process.env.NODE_ENV === "test") {
     validatePayloadForAnalysis,
     parseJson,
     validateAnalysis,
+    buildSystemPrompt,
+    buildJsonRepairPrompt,
   };
 }
